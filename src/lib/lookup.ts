@@ -35,10 +35,31 @@ export function totalFollowers(creatorId: string) {
 export function matchScore(campaign: Campaign, creatorId: string) {
   const creator = getCreator(creatorId);
   if (!creator) return 0;
-  let score = 40;
-  if (creator.location === campaign.location || campaign.remote) score += 20;
-  if (creator.niches.some((n) => campaign.requirements.niches.includes(n))) score += 20;
-  if (creator.socials.some((s) => campaign.platforms.includes(s.platform))) score += 12;
-  if (totalFollowers(creatorId) >= campaign.requirements.minFollowers) score += 8;
-  return Math.min(score, 99);
-    }
+  let score = 28;
+  const loc = (creator.location || "").toLowerCase();
+  const campLoc = (campaign.location || "").toLowerCase();
+  if (campaign.remote || (loc && campLoc && (loc.includes(campLoc) || campLoc.includes(loc)))) {
+    score += 18;
+  }
+  const niches = creator.niches || [];
+  const reqNiches = campaign.requirements?.niches || [];
+  if (niches.some((n) => reqNiches.some((r) => r.toLowerCase() === n.toLowerCase()))) {
+    score += 22;
+  } else if (niches.length && reqNiches.length) {
+    score += 4;
+  }
+  if (creator.socials?.some((s) => campaign.platforms?.includes(s.platform))) {
+    score += 16;
+  }
+  const minF = campaign.requirements?.minFollowers ?? 0;
+  const followers = totalFollowers(creatorId);
+  if (minF <= 0 || followers >= minF) score += 12;
+  else if (followers >= minF * 0.6) score += 5;
+  return Math.min(Math.max(score, 0), 96);
+}
+
+/** Only show match when it is meaningful for a signed-in creator. */
+export function displayMatch(score: number | undefined | null) {
+  if (score == null || score < 50) return null;
+  return score;
+}
