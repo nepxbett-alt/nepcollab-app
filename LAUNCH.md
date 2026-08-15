@@ -81,3 +81,17 @@ npm run dev
 - App data layer is aligned with the production migration (`profile_id`, `display_name`, `creators_needed`, application status `applied`, campaign status `published`).
 - Storage buckets must exist before avatar/campaign uploads work.
 - After first deploy, magic-link emails only work if the production URL is in Supabase Redirect URLs.
+
+## Admin console
+
+1. Run SQL migration `supabase/migrations/20260815120000_admin_console.sql` in Supabase SQL Editor.
+2. Bootstrap first admin (your user id from Authentication → Users):
+
+```sql
+SELECT public.bootstrap_first_admin('YOUR_USER_UUID'::uuid);
+```
+
+3. Sign in → open `/admin`.
+
+Admin can: view platform stats, manage users (verify / role), moderate campaigns,
+applications & collaborations, resolve reports, edit platform settings, audit log.

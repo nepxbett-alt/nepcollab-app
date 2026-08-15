@@ -1,4 +1,4 @@
-export type Role = "creator" | "brand";
+export type Role = "creator" | "brand" | "admin";
 
 export const CAMPAIGN_STATUSES = [
   "DRAFT",

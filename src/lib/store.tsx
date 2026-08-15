@@ -424,7 +424,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     );
 
     setState({
-      role: me?.role === "brand" ? "brand" : me?.role === "creator" ? "creator" : null,
+      role: me?.role === "admin" ? "admin" : me?.role === "brand" ? "brand" : me?.role === "creator" ? "creator" : null,
       signedIn: true,
       onboarded: Boolean(me?.onboarded),
       campaigns: (campaignRows ?? []).map(mapCampaign),

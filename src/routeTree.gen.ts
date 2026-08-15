@@ -16,6 +16,12 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminApplicationsRouteImport } from './routes/admin.applications'
+import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
+import { Route as AdminReportsRouteImport } from './routes/admin.reports'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as BrandApplicantsRouteImport } from './routes/brand.applicants'
 import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
 import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
@@ -58,6 +64,36 @@ const NotificationsRoute = NotificationsRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminApplicationsRoute = AdminApplicationsRouteImport.update({
+  id: '/admin/applications',
+  path: '/admin/applications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
+  id: '/admin/campaigns',
+  path: '/admin/campaigns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/admin/reports',
+  path: '/admin/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/admin/settings',
+  path: '/admin/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BrandApplicantsRoute = BrandApplicantsRouteImport.update({
@@ -110,9 +146,15 @@ export interface FileRoutesByFullPath {
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
+  '/admin/applications': typeof AdminApplicationsRoute
+  '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/reports': typeof AdminReportsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/collaborations/': typeof CollaborationsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
@@ -127,9 +169,15 @@ export interface FileRoutesByTo {
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
+  '/admin/applications': typeof AdminApplicationsRoute
+  '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/reports': typeof AdminReportsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
+  '/admin': typeof AdminIndexRoute
   '/campaigns': typeof CampaignsIndexRoute
   '/collaborations': typeof CollaborationsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
@@ -145,9 +193,15 @@ export interface FileRoutesById {
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
+  '/admin/applications': typeof AdminApplicationsRoute
+  '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/reports': typeof AdminReportsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/collaborations/': typeof CollaborationsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
@@ -164,9 +218,15 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notifications'
     | '/profile'
+    | '/admin/applications'
+    | '/admin/campaigns'
+    | '/admin/reports'
+    | '/admin/settings'
+    | '/admin/users'
     | '/brand/applicants'
     | '/campaigns/$campaignId'
     | '/collaborations/$collabId'
+    | '/admin/'
     | '/campaigns/'
     | '/collaborations/'
     | '/brand/campaigns/new'
@@ -181,9 +241,15 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notifications'
     | '/profile'
+    | '/admin/applications'
+    | '/admin/campaigns'
+    | '/admin/reports'
+    | '/admin/settings'
+    | '/admin/users'
     | '/brand/applicants'
     | '/campaigns/$campaignId'
     | '/collaborations/$collabId'
+    | '/admin'
     | '/campaigns'
     | '/collaborations'
     | '/brand/campaigns/new'
@@ -198,9 +264,15 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notifications'
     | '/profile'
+    | '/admin/applications'
+    | '/admin/campaigns'
+    | '/admin/reports'
+    | '/admin/settings'
+    | '/admin/users'
     | '/brand/applicants'
     | '/campaigns/$campaignId'
     | '/collaborations/$collabId'
+    | '/admin/'
     | '/campaigns/'
     | '/collaborations/'
     | '/brand/campaigns/new'
@@ -216,9 +288,15 @@ export interface RootRouteChildren {
   MessagesRoute: typeof MessagesRoute
   NotificationsRoute: typeof NotificationsRoute
   ProfileRoute: typeof ProfileRoute
+  AdminApplicationsRoute: typeof AdminApplicationsRoute
+  AdminCampaignsRoute: typeof AdminCampaignsRoute
+  AdminReportsRoute: typeof AdminReportsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   BrandApplicantsRoute: typeof BrandApplicantsRoute
   CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRouteWithChildren
   CollaborationsCollabIdRoute: typeof CollaborationsCollabIdRoute
+  AdminIndexRoute: typeof AdminIndexRoute
   CampaignsIndexRoute: typeof CampaignsIndexRoute
   CollaborationsIndexRoute: typeof CollaborationsIndexRoute
   BrandCampaignsNewRoute: typeof BrandCampaignsNewRoute
@@ -274,6 +352,48 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/applications': {
+      id: '/admin/applications'
+      path: '/admin/applications'
+      fullPath: '/admin/applications'
+      preLoaderRoute: typeof AdminApplicationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/campaigns': {
+      id: '/admin/campaigns'
+      path: '/admin/campaigns'
+      fullPath: '/admin/campaigns'
+      preLoaderRoute: typeof AdminCampaignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/admin/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/brand/applicants': {
@@ -354,9 +474,15 @@ const rootRouteChildren: RootRouteChildren = {
   MessagesRoute: MessagesRoute,
   NotificationsRoute: NotificationsRoute,
   ProfileRoute: ProfileRoute,
+  AdminApplicationsRoute: AdminApplicationsRoute,
+  AdminCampaignsRoute: AdminCampaignsRoute,
+  AdminReportsRoute: AdminReportsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminUsersRoute: AdminUsersRoute,
   BrandApplicantsRoute: BrandApplicantsRoute,
   CampaignsCampaignIdRoute: CampaignsCampaignIdRouteWithChildren,
   CollaborationsCollabIdRoute: CollaborationsCollabIdRoute,
+  AdminIndexRoute: AdminIndexRoute,
   CampaignsIndexRoute: CampaignsIndexRoute,
   CollaborationsIndexRoute: CollaborationsIndexRoute,
   BrandCampaignsNewRoute: BrandCampaignsNewRoute,

@@ -3,9 +3,12 @@ import {
   Bell,
   Compass,
   FileText,
+  Flag,
   Home,
   LayoutGrid,
   MessageCircle,
+  Settings,
+  Shield,
   User,
   Users,
 } from "lucide-react";
@@ -30,6 +33,15 @@ const brandNav = [
   { to: "/profile", label: "Profile", icon: User },
 ] as const;
 
+const adminNav = [
+  { to: "/admin", label: "Overview", icon: Shield },
+  { to: "/admin/users", label: "Users", icon: Users },
+  { to: "/admin/campaigns", label: "Campaigns", icon: LayoutGrid },
+  { to: "/admin/applications", label: "Applications", icon: FileText },
+  { to: "/admin/reports", label: "Reports", icon: Flag },
+  { to: "/admin/settings", label: "Settings", icon: Settings },
+] as const;
+
 function isActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
 }
@@ -41,10 +53,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     select: (s) => s.location.pathname,
   });
 
-  const nav = role === "brand" ? brandNav : creatorNav;
+  const nav = role === "admin" ? adminNav : role === "brand" ? brandNav : creatorNav;
 
   const unread = notifications.filter(
-    (n) => n.audience === (role ?? "creator") && !n.read,
+    (n) => (role === "admin" || n.audience === (role ?? "creator")) && !n.read,
   ).length;
 
   return (
