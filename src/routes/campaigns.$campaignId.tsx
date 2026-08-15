@@ -66,9 +66,16 @@ function CampaignDetail() {
     currentCreatorId,
     role,
     signedIn,
-
+    loading,
   } = useStore();
   const campaign = campaigns.find((c) => c.id === campaignId);
+  if (loading && !campaign) {
+    return (
+      <Container className="py-16 text-center text-sm text-muted-foreground">
+        Loading campaign…
+      </Container>
+    );
+  }
   if (!campaign) throw notFound();
   const brand = getBrand(campaign.brandId);
   const application = applications.find(

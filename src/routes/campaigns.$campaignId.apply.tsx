@@ -33,9 +33,16 @@ export const Route = createFileRoute("/campaigns/$campaignId/apply")({
 function ApplyPage() {
   const { campaignId } = Route.useParams();
   const navigate = useNavigate();
-  const { campaigns, applyToCampaign, currentCreatorId } = useStore();
+  const { campaigns, applyToCampaign, currentCreatorId, loading, signedIn } = useStore();
   const campaign = campaigns.find((c) => c.id === campaignId);
   const creator = getCreator(currentCreatorId);
+  if (loading && !campaign) {
+    return (
+      <Container className="py-16 text-center text-sm text-muted-foreground">
+        Loading…
+      </Container>
+    );
+  }
   const [message, setMessage] = useState("");
   const [contentIdea, setContentIdea] = useState("");
   const [availability, setAvailability] = useState("");
