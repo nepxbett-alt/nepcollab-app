@@ -508,45 +508,72 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
       },
       completeOnboarding: async (input) => {
-        if (!userId) return;
-        const role = state.role ?? "creator";
-        const { error } = await db
-          .from("profiles")
-          .update({
-            role,
-            display_name: input?.name,
-            username: input?.username || null,
-            bio: input?.bio || null,
-            location: input?.location || null,
-            website: input?.website || null,
-            onboarded: true,
-          })
-          .eq("id", userId);
-        if (error) throw error;
+        // Always resolve session — don't rely on stale userId alone
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) {
+          throw new Error("You are not signed in. Please open the magic link again.");
+        }
+        if (!userId) setUserId(uid);
+
+        const metaRole = sessionData.session?.user?.user_metadata?.role as Role | undefined;
+        const role = (state.role ?? metaRole ?? "creator") as Role;
+
+        const rawUsername = (input?.username || "").trim().replace(/^@+/, "");
+        const username = rawUsername
+          ? rawUsername.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 30) || null
+          : null;
+
+        const profilePayload = {
+          id: uid,
+          role,
+          display_name: (input?.name || "").trim() || null,
+          username,
+          bio: (input?.bio || "").trim() || null,
+          location: (input?.location || "").trim() || null,
+          website: (input?.website || "").trim() || null,
+          onboarded: true,
+        };
+        const { error } = await db.from("profiles").upsert(profilePayload, { onConflict: "id" });
+        if (error) {
+          if (error.code === "23505" || /unique|duplicate/i.test(error.message || "")) {
+            throw new Error("That username is taken. Try another one.");
+          }
+          throw new Error(error.message || "Could not save your profile.");
+        }
+
         if (role === "brand") {
           const { error: e } = await db.from("brand_profiles").upsert(
             {
-              profile_id: userId,
-              company_name: input?.name ?? "My Brand",
-              website: input?.website ?? null,
-              location: input?.location ?? null,
+              profile_id: uid,
+              company_name: (input?.name || "").trim() || "My Brand",
+              website: (input?.website || "").trim() || null,
+              location: (input?.location || "").trim() || null,
             },
             { onConflict: "profile_id" },
           );
-          if (e) throw e;
+          if (e) throw new Error(e.message || "Could not save brand profile.");
         } else {
           const { error: e } = await db.from("creator_profiles").upsert(
             {
-              profile_id: userId,
+              profile_id: uid,
               languages: ["Nepali"],
               niches: [],
               platforms: [],
             },
             { onConflict: "profile_id" },
           );
-          if (e) throw e;
+          if (e) throw new Error(e.message || "Could not save creator profile.");
         }
-        await refresh();
+
+        // Optimistic UI so the gate closes even if refresh is slow
+        setState((s) => ({
+          ...s,
+          role,
+          onboarded: true,
+          signedIn: true,
+        }));
+        await load(uid);
       },
       toggleSaved: async (campaignId) => {
         if (state.saved.includes(campaignId)) {
@@ -685,13 +712,29 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       },
       sendMessage: async (threadId, text) => {
         if (!text.trim()) return;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) throw new Error("Not signed in");
+
+        const { data: conv, error: convErr } = await db
+          .from("conversations")
+          .select("id, brand_id, creator_id")
+          .eq("id", threadId)
+          .maybeSingle();
+        if (convErr) throw new Error(convErr.message);
+        if (!conv) throw new Error("Conversation not found");
+
+        const recipientId =
+          conv.brand_id === uid ? conv.creator_id : conv.brand_id;
+
         const { error } = await db.from("messages").insert({
           conversation_id: threadId,
-          sender_id: userId,
+          sender_id: uid,
+          recipient_id: recipientId,
           body: text.trim(),
         });
-        if (error) throw error;
-        await refresh();
+        if (error) throw new Error(error.message);
+        await load(uid);
       },
       markNotificationsRead: async () => {
         const { error } = await db

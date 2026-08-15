@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 function NotFoundComponent() {
   return (
@@ -104,17 +105,43 @@ function OnboardingGate() {
   const [bio, setBio] = useState("");
   const [location, setLocation] = useState("");
   const [website, setWebsite] = useState("");
+  const [busy, setBusy] = useState(false);
 
   if (!signedIn || onboarded) return null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await completeOnboarding({ name, username, bio, location, website });
+    e.stopPropagation();
+    if (busy) return;
+    if (!name.trim()) {
+      toast.error("Please enter your name.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await completeOnboarding({
+        name: name.trim(),
+        username: username.trim(),
+        bio: bio.trim(),
+        location: location.trim(),
+        website: website.trim(),
+      });
+      toast.success("Profile ready. Welcome to NepCollab!");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not finish setup. Try again.";
+      toast.error(msg);
+      console.error("[onboarding]", err);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 p-4">
-      <form onSubmit={submit} className="w-full max-w-lg rounded-3xl border bg-card p-6 shadow-xl">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/95 p-4">
+      <form
+        onSubmit={submit}
+        className="relative z-[201] w-full max-w-lg rounded-3xl border bg-card p-6 shadow-xl"
+      >
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Step 1 of 1</p>
         <h2 className="mt-2 text-2xl font-bold">
           {role === "brand" ? "Set up your brand" : "Build your creator profile"}
@@ -125,34 +152,72 @@ function OnboardingGate() {
         <div className="mt-6 grid gap-4">
           <div>
             <Label htmlFor="on-name">{role === "brand" ? "Brand name" : "Name"}</Label>
-            <Input id="on-name" required value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id="on-name"
+              name="name"
+              required
+              autoComplete="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={role === "brand" ? "Acme Nepal" : "Your full name"}
+            />
           </div>
           <div>
             <Label htmlFor="on-username">Username</Label>
-            <Input id="on-username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@username" />
+            <Input
+              id="on-username"
+              name="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="yourname"
+              autoComplete="username"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">Letters, numbers, underscore only. Optional.</p>
           </div>
           <div>
             <Label htmlFor="on-location">Location</Label>
-            <Input id="on-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Pokhara, Nepal" />
+            <Input
+              id="on-location"
+              name="location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Pokhara, Nepal"
+            />
           </div>
           {role === "brand" && (
             <div>
               <Label htmlFor="on-website">Website</Label>
-              <Input id="on-website" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://…" />
+              <Input
+                id="on-website"
+                name="website"
+                type="url"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="https://"
+              />
             </div>
           )}
           <div>
             <Label htmlFor="on-bio">Bio</Label>
             <Input
               id="on-bio"
+              name="bio"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              placeholder={role === "brand" ? "Tell creators what your brand does" : "Tell brands what you create"}
+              placeholder={
+                role === "brand"
+                  ? "Tell creators what your brand does"
+                  : "Tell brands what you create"
+              }
             />
           </div>
         </div>
-        <Button type="submit" className="mt-6 w-full rounded-full">
-          Finish setup
+        <Button
+          type="submit"
+          disabled={busy || !name.trim()}
+          className="mt-6 h-11 w-full rounded-full text-base"
+        >
+          {busy ? "Saving…" : "Finish setup"}
         </Button>
       </form>
     </div>
