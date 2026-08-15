@@ -89,6 +89,9 @@ DELETE FROM auth.identities WHERE user_id IN (SELECT id FROM seed_ids);
 DELETE FROM auth.users WHERE id IN (SELECT id FROM seed_ids);
 
 -- ========== AUTH USERS ==========
+-- Note: handle_new_user trigger may auto-create profiles; we UPDATE those rows below.
+
+
 INSERT INTO auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
@@ -135,49 +138,68 @@ FROM auth.users u WHERE u.id IN (SELECT id FROM seed_ids)
 ON CONFLICT DO NOTHING;
 
 -- ========== PROFILES ==========
-INSERT INTO public.profiles (id, role, full_name, username, avatar_url, bio, location, onboarded, verified, rating, response_rate, created_at, updated_at)
-VALUES
-('a1000001-0000-4000-8000-000000000001', 'brand', 'Ncell Marketing Team', 'ncell_brand', NULL,
- 'Internal brand account for Ncell campaign operations on NepCollab staging.', 'Baluwatar, Kathmandu', true, true, 4.6, 92,
- now() - interval '11 months', now() - interval '2 days'),
-('a1000002-0000-4000-8000-000000000002', 'brand', 'Daraz Marketing Team', 'daraz_brand', NULL,
- 'Internal brand account for Daraz lifestyle & tech collaborations (staging).', 'Thapathali, Kathmandu', true, true, 4.4, 88,
- now() - interval '10 months', now() - interval '5 days'),
-('a1000003-0000-4000-8000-000000000003', 'brand', 'eSewa Marketing Team', 'esewa_brand', NULL,
- 'Internal brand account for eSewa everyday-payments storytelling (staging).', 'Lalitpur', true, true, 4.7, 95,
- now() - interval '9 months', now() - interval '1 day'),
-('a1000004-0000-4000-8000-000000000004', 'brand', 'Khalti Marketing Team', 'khalti_brand', NULL,
- 'Internal brand account for Khalti youth lifestyle campaigns (staging).', 'Kathmandu', true, true, 4.3, 85,
- now() - interval '8 months', now() - interval '4 days'),
-('a1000005-0000-4000-8000-000000000005', 'brand', 'Himalayan Java Marketing Team', 'himalayanjava_brand', NULL,
- 'Internal brand account for Himalayan Java hospitality experiences (staging).', 'Jhamsikhel, Lalitpur', true, true, 4.8, 90,
- now() - interval '7 months', now() - interval '3 days'),
-('b2000001-0000-4000-8000-000000000001', 'creator', 'Ananya Karki', 'ananyakarki', NULL,
- 'Kathmandu fashion & lifestyle. Day-to-day looks from Lazimpat to Thamel — thrift finds, local labels, and the odd monsoon outfit crisis.', 'Lazimpat, Kathmandu', true, true, 4.5, 90,
- now() - interval '10 months', now() - interval '6 hours'),
-('b2000002-0000-4000-8000-000000000002', 'creator', 'Rajan Gurung', 'rajangurung', NULL,
- 'Pokhara-based travel & hospitality. Lakeside mornings, Sarangkot sunrises, and honest hotel stays across the Annapurna foothills.', 'Lakeside, Pokhara', true, true, 4.8, 96,
- now() - interval '9 months', now() - interval '12 hours'),
-('b2000003-0000-4000-8000-000000000003', 'creator', 'Sujata Shrestha', 'sujatashrestha', NULL,
- 'Lalitpur tech & productivity. Desk setups from Kupondole, app workflows, and gear that actually survives Kathmandu power cuts.', 'Kupondole, Lalitpur', true, false, 4.2, 82,
- now() - interval '8 months', now() - interval '1 day'),
-('b2000004-0000-4000-8000-000000000004', 'creator', 'Pratik Adhikari', 'pratikeats', NULL,
- 'Chitwan food & lifestyle. Thakali sets in Bharatpur, Sauraha evenings, and street snacks worth the drive from Kathmandu.', 'Bharatpur, Chitwan', true, true, 4.6, 88,
- now() - interval '7 months', now() - interval '8 hours'),
-('b2000005-0000-4000-8000-000000000005', 'creator', 'Nisha Basnet', 'nishabasnet', NULL,
- 'Kathmandu fitness & outdoor. Trail runs around Kirtipur, gym routines in Baneshwor, and weekend hikes that start before traffic does.', 'Baneshwor, Kathmandu', true, true, 4.7, 93,
- now() - interval '11 months', now() - interval '3 hours')
-ON CONFLICT (id) DO UPDATE SET
-  role = EXCLUDED.role,
-  full_name = EXCLUDED.full_name,
-  username = EXCLUDED.username,
-  bio = EXCLUDED.bio,
-  location = EXCLUDED.location,
-  onboarded = EXCLUDED.onboarded,
-  verified = EXCLUDED.verified,
-  rating = EXCLUDED.rating,
-  response_rate = EXCLUDED.response_rate,
-  updated_at = EXCLUDED.updated_at;
+-- Profiles: trigger may already create rows on auth.users insert — UPDATE first, then fill gaps
+UPDATE public.profiles p SET
+  role = v.role,
+  full_name = v.full_name,
+  username = v.username,
+  bio = v.bio,
+  location = v.location,
+  onboarded = true,
+  verified = v.verified,
+  rating = v.rating,
+  response_rate = v.response_rate,
+  updated_at = v.updated_at
+FROM (VALUES
+  ('a1000001-0000-4000-8000-000000000001'::uuid, 'brand', 'Ncell Marketing Team', 'ncell_brand',
+   'Internal brand account for Ncell campaign operations on NepCollab staging.', 'Baluwatar, Kathmandu', true, 4.6, 92, now() - interval '2 days'),
+  ('a1000002-0000-4000-8000-000000000002'::uuid, 'brand', 'Daraz Marketing Team', 'daraz_brand',
+   'Internal brand account for Daraz lifestyle & tech collaborations (staging).', 'Thapathali, Kathmandu', true, 4.4, 88, now() - interval '5 days'),
+  ('a1000003-0000-4000-8000-000000000003'::uuid, 'brand', 'eSewa Marketing Team', 'esewa_brand',
+   'Internal brand account for eSewa everyday-payments storytelling (staging).', 'Lalitpur', true, 4.7, 95, now() - interval '1 day'),
+  ('a1000004-0000-4000-8000-000000000004'::uuid, 'brand', 'Khalti Marketing Team', 'khalti_brand',
+   'Internal brand account for Khalti youth lifestyle campaigns (staging).', 'Kathmandu', true, 4.3, 85, now() - interval '4 days'),
+  ('a1000005-0000-4000-8000-000000000005'::uuid, 'brand', 'Himalayan Java Marketing Team', 'himalayanjava_brand',
+   'Internal brand account for Himalayan Java hospitality experiences (staging).', 'Jhamsikhel, Lalitpur', true, 4.8, 90, now() - interval '3 days'),
+  ('b2000001-0000-4000-8000-000000000001'::uuid, 'creator', 'Ananya Karki', 'ananyakarki',
+   'Kathmandu fashion & lifestyle. Day-to-day looks from Lazimpat to Thamel — thrift finds, local labels, and the odd monsoon outfit crisis.', 'Lazimpat, Kathmandu', true, 4.5, 90, now() - interval '6 hours'),
+  ('b2000002-0000-4000-8000-000000000002'::uuid, 'creator', 'Rajan Gurung', 'rajangurung',
+   'Pokhara-based travel & hospitality. Lakeside mornings, Sarangkot sunrises, and honest hotel stays across the Annapurna foothills.', 'Lakeside, Pokhara', true, 4.8, 96, now() - interval '12 hours'),
+  ('b2000003-0000-4000-8000-000000000003'::uuid, 'creator', 'Sujata Shrestha', 'sujatashrestha',
+   'Lalitpur tech & productivity. Desk setups from Kupondole, app workflows, and gear that actually survives Kathmandu power cuts.', 'Kupondole, Lalitpur', false, 4.2, 82, now() - interval '1 day'),
+  ('b2000004-0000-4000-8000-000000000004'::uuid, 'creator', 'Pratik Adhikari', 'pratikeats',
+   'Chitwan food & lifestyle. Thakali sets in Bharatpur, Sauraha evenings, and street snacks worth the drive from Kathmandu.', 'Bharatpur, Chitwan', true, 4.6, 88, now() - interval '8 hours'),
+  ('b2000005-0000-4000-8000-000000000005'::uuid, 'creator', 'Nisha Basnet', 'nishabasnet',
+   'Kathmandu fitness & outdoor. Trail runs around Kirtipur, gym routines in Baneshwor, and weekend hikes that start before traffic does.', 'Baneshwor, Kathmandu', true, 4.7, 93, now() - interval '3 hours')
+) AS v(id, role, full_name, username, bio, location, verified, rating, response_rate, updated_at)
+WHERE p.id = v.id;
+
+INSERT INTO public.profiles (id, role, full_name, username, bio, location, onboarded, verified, rating, response_rate, created_at, updated_at)
+SELECT v.id, v.role, v.full_name, v.username, v.bio, v.location, true, v.verified, v.rating, v.response_rate,
+       now() - interval '8 months', v.updated_at
+FROM (VALUES
+  ('a1000001-0000-4000-8000-000000000001'::uuid, 'brand', 'Ncell Marketing Team', 'ncell_brand',
+   'Internal brand account for Ncell campaign operations on NepCollab staging.', 'Baluwatar, Kathmandu', true, 4.6, 92, now() - interval '2 days'),
+  ('a1000002-0000-4000-8000-000000000002'::uuid, 'brand', 'Daraz Marketing Team', 'daraz_brand',
+   'Internal brand account for Daraz lifestyle & tech collaborations (staging).', 'Thapathali, Kathmandu', true, 4.4, 88, now() - interval '5 days'),
+  ('a1000003-0000-4000-8000-000000000003'::uuid, 'brand', 'eSewa Marketing Team', 'esewa_brand',
+   'Internal brand account for eSewa everyday-payments storytelling (staging).', 'Lalitpur', true, 4.7, 95, now() - interval '1 day'),
+  ('a1000004-0000-4000-8000-000000000004'::uuid, 'brand', 'Khalti Marketing Team', 'khalti_brand',
+   'Internal brand account for Khalti youth lifestyle campaigns (staging).', 'Kathmandu', true, 4.3, 85, now() - interval '4 days'),
+  ('a1000005-0000-4000-8000-000000000005'::uuid, 'brand', 'Himalayan Java Marketing Team', 'himalayanjava_brand',
+   'Internal brand account for Himalayan Java hospitality experiences (staging).', 'Jhamsikhel, Lalitpur', true, 4.8, 90, now() - interval '3 days'),
+  ('b2000001-0000-4000-8000-000000000001'::uuid, 'creator', 'Ananya Karki', 'ananyakarki',
+   'Kathmandu fashion & lifestyle. Day-to-day looks from Lazimpat to Thamel.', 'Lazimpat, Kathmandu', true, 4.5, 90, now() - interval '6 hours'),
+  ('b2000002-0000-4000-8000-000000000002'::uuid, 'creator', 'Rajan Gurung', 'rajangurung',
+   'Pokhara-based travel & hospitality.', 'Lakeside, Pokhara', true, 4.8, 96, now() - interval '12 hours'),
+  ('b2000003-0000-4000-8000-000000000003'::uuid, 'creator', 'Sujata Shrestha', 'sujatashrestha',
+   'Lalitpur tech & productivity.', 'Kupondole, Lalitpur', false, 4.2, 82, now() - interval '1 day'),
+  ('b2000004-0000-4000-8000-000000000004'::uuid, 'creator', 'Pratik Adhikari', 'pratikeats',
+   'Chitwan food & lifestyle.', 'Bharatpur, Chitwan', true, 4.6, 88, now() - interval '8 hours'),
+  ('b2000005-0000-4000-8000-000000000005'::uuid, 'creator', 'Nisha Basnet', 'nishabasnet',
+   'Kathmandu fitness & outdoor.', 'Baneshwor, Kathmandu', true, 4.7, 93, now() - interval '3 hours')
+) AS v(id, role, full_name, username, bio, location, verified, rating, response_rate, updated_at)
+WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = v.id);
 
 INSERT INTO public.brand_profiles (user_id, business_name, website, category, updated_at)
 VALUES
