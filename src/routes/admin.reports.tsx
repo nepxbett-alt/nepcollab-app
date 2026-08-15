@@ -58,8 +58,23 @@ function AdminReports() {
                     {r.created_at ? new Date(r.created_at).toLocaleString() : ""}
                   </p>
                 </div>
-                {(r.status === "open" || r.status === "pending" || !r.status) && (
+                {(r.status === "open" || r.status === "pending" || r.status === "investigating" || !r.status) && (
                   <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={async () => {
+                        try {
+                          await resolveReport(r.id, "investigating");
+                          toast.success("Marked investigating");
+                          await reload();
+                        } catch (e: any) {
+                          toast.error(e?.message || "Failed");
+                        }
+                      }}
+                    >
+                      Investigate
+                    </Button>
                     <Button
                       size="sm"
                       onClick={async () => {

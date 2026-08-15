@@ -185,6 +185,7 @@ function mapCampaign(r: any): Campaign {
     deadline,
     creatorsNeeded: r.spots ?? 1,
     status: campaignStatus(r.status),
+    featured: Boolean(r.featured),
     cover: r.image_url ?? "/app-icon.png",
     requirements: {
       minFollowers: r.min_followers ?? req.minFollowers ?? 0,

@@ -121,6 +121,7 @@ export interface Deliverable {
 }
 
 export interface Campaign {
+  featured?: boolean;
   id: string;
   title: string;
   brandId: string;

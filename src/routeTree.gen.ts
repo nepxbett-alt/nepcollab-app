@@ -18,10 +18,16 @@ import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminApplicationsRouteImport } from './routes/admin.applications'
+import { Route as AdminAuditRouteImport } from './routes/admin.audit'
+import { Route as AdminBrandsRouteImport } from './routes/admin.brands'
 import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
+import { Route as AdminCollaborationsRouteImport } from './routes/admin.collaborations'
+import { Route as AdminContentRouteImport } from './routes/admin.content'
+import { Route as AdminCreatorsRouteImport } from './routes/admin.creators'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminVerificationRouteImport } from './routes/admin.verification'
 import { Route as BrandApplicantsRouteImport } from './routes/brand.applicants'
 import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
 import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
@@ -76,9 +82,34 @@ const AdminApplicationsRoute = AdminApplicationsRouteImport.update({
   path: '/admin/applications',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/admin/audit',
+  path: '/admin/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminBrandsRoute = AdminBrandsRouteImport.update({
+  id: '/admin/brands',
+  path: '/admin/brands',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
   id: '/admin/campaigns',
   path: '/admin/campaigns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCollaborationsRoute = AdminCollaborationsRouteImport.update({
+  id: '/admin/collaborations',
+  path: '/admin/collaborations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminContentRoute = AdminContentRouteImport.update({
+  id: '/admin/content',
+  path: '/admin/content',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCreatorsRoute = AdminCreatorsRouteImport.update({
+  id: '/admin/creators',
+  path: '/admin/creators',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminReportsRoute = AdminReportsRouteImport.update({
@@ -94,6 +125,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminVerificationRoute = AdminVerificationRouteImport.update({
+  id: '/admin/verification',
+  path: '/admin/verification',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BrandApplicantsRoute = BrandApplicantsRouteImport.update({
@@ -147,10 +183,16 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/admin/applications': typeof AdminApplicationsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/brands': typeof AdminBrandsRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/collaborations': typeof AdminCollaborationsRoute
+  '/admin/content': typeof AdminContentRoute
+  '/admin/creators': typeof AdminCreatorsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/verification': typeof AdminVerificationRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
@@ -170,10 +212,16 @@ export interface FileRoutesByTo {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/admin/applications': typeof AdminApplicationsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/brands': typeof AdminBrandsRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/collaborations': typeof AdminCollaborationsRoute
+  '/admin/content': typeof AdminContentRoute
+  '/admin/creators': typeof AdminCreatorsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/verification': typeof AdminVerificationRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
@@ -194,10 +242,16 @@ export interface FileRoutesById {
   '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/admin/applications': typeof AdminApplicationsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/brands': typeof AdminBrandsRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/collaborations': typeof AdminCollaborationsRoute
+  '/admin/content': typeof AdminContentRoute
+  '/admin/creators': typeof AdminCreatorsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/verification': typeof AdminVerificationRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
@@ -219,10 +273,16 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/admin/applications'
+    | '/admin/audit'
+    | '/admin/brands'
     | '/admin/campaigns'
+    | '/admin/collaborations'
+    | '/admin/content'
+    | '/admin/creators'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin/verification'
     | '/brand/applicants'
     | '/campaigns/$campaignId'
     | '/collaborations/$collabId'
@@ -242,10 +302,16 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/admin/applications'
+    | '/admin/audit'
+    | '/admin/brands'
     | '/admin/campaigns'
+    | '/admin/collaborations'
+    | '/admin/content'
+    | '/admin/creators'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin/verification'
     | '/brand/applicants'
     | '/campaigns/$campaignId'
     | '/collaborations/$collabId'
@@ -265,10 +331,16 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/profile'
     | '/admin/applications'
+    | '/admin/audit'
+    | '/admin/brands'
     | '/admin/campaigns'
+    | '/admin/collaborations'
+    | '/admin/content'
+    | '/admin/creators'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin/verification'
     | '/brand/applicants'
     | '/campaigns/$campaignId'
     | '/collaborations/$collabId'
@@ -289,10 +361,16 @@ export interface RootRouteChildren {
   NotificationsRoute: typeof NotificationsRoute
   ProfileRoute: typeof ProfileRoute
   AdminApplicationsRoute: typeof AdminApplicationsRoute
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminBrandsRoute: typeof AdminBrandsRoute
   AdminCampaignsRoute: typeof AdminCampaignsRoute
+  AdminCollaborationsRoute: typeof AdminCollaborationsRoute
+  AdminContentRoute: typeof AdminContentRoute
+  AdminCreatorsRoute: typeof AdminCreatorsRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AdminVerificationRoute: typeof AdminVerificationRoute
   BrandApplicantsRoute: typeof BrandApplicantsRoute
   CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRouteWithChildren
   CollaborationsCollabIdRoute: typeof CollaborationsCollabIdRoute
@@ -368,11 +446,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminApplicationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/admin/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/brands': {
+      id: '/admin/brands'
+      path: '/admin/brands'
+      fullPath: '/admin/brands'
+      preLoaderRoute: typeof AdminBrandsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/campaigns': {
       id: '/admin/campaigns'
       path: '/admin/campaigns'
       fullPath: '/admin/campaigns'
       preLoaderRoute: typeof AdminCampaignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/collaborations': {
+      id: '/admin/collaborations'
+      path: '/admin/collaborations'
+      fullPath: '/admin/collaborations'
+      preLoaderRoute: typeof AdminCollaborationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content': {
+      id: '/admin/content'
+      path: '/admin/content'
+      fullPath: '/admin/content'
+      preLoaderRoute: typeof AdminContentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/creators': {
+      id: '/admin/creators'
+      path: '/admin/creators'
+      fullPath: '/admin/creators'
+      preLoaderRoute: typeof AdminCreatorsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/reports': {
@@ -394,6 +507,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/verification': {
+      id: '/admin/verification'
+      path: '/admin/verification'
+      fullPath: '/admin/verification'
+      preLoaderRoute: typeof AdminVerificationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/brand/applicants': {
@@ -475,10 +595,16 @@ const rootRouteChildren: RootRouteChildren = {
   NotificationsRoute: NotificationsRoute,
   ProfileRoute: ProfileRoute,
   AdminApplicationsRoute: AdminApplicationsRoute,
+  AdminAuditRoute: AdminAuditRoute,
+  AdminBrandsRoute: AdminBrandsRoute,
   AdminCampaignsRoute: AdminCampaignsRoute,
+  AdminCollaborationsRoute: AdminCollaborationsRoute,
+  AdminContentRoute: AdminContentRoute,
+  AdminCreatorsRoute: AdminCreatorsRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AdminVerificationRoute: AdminVerificationRoute,
   BrandApplicantsRoute: BrandApplicantsRoute,
   CampaignsCampaignIdRoute: CampaignsCampaignIdRouteWithChildren,
   CollaborationsCollabIdRoute: CollaborationsCollabIdRoute,

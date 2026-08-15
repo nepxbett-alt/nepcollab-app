@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   deleteCampaign,
   fetchAdminCampaigns,
+  setCampaignFeatured,
   setCampaignStatus,
   type AdminCampaign,
 } from "@/lib/admin";
@@ -91,6 +92,14 @@ function AdminCampaigns() {
                   {s}
                 </Button>
               ))}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy === c.id}
+                onClick={() => run(c.id, () => setCampaignFeatured(c.id, !c.featured))}
+              >
+                {c.featured ? "Unfeature" : "Feature"}
+              </Button>
               <Button
                 size="sm"
                 variant="destructive"

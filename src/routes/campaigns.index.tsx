@@ -115,6 +115,8 @@ function Discover() {
     });
 
     return list.sort((a, b) => {
+      const feat = Number(Boolean(b.featured)) - Number(Boolean(a.featured));
+      if (feat !== 0) return feat;
       if (sort === "newest") return b.createdAt.localeCompare(a.createdAt);
       if (sort === "closing") return daysLeft(a.deadline) - daysLeft(b.deadline);
       if (sort === "reward") return b.perks.length - a.perks.length;

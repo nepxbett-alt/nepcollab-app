@@ -36,10 +36,16 @@ const brandNav = [
 const adminNav = [
   { to: "/admin", label: "Overview", icon: Shield },
   { to: "/admin/users", label: "Users", icon: Users },
-  { to: "/admin/campaigns", label: "Campaigns", icon: LayoutGrid },
+  { to: "/admin/creators", label: "Creators", icon: User },
+  { to: "/admin/brands", label: "Brands", icon: LayoutGrid },
+  { to: "/admin/campaigns", label: "Campaigns", icon: Compass },
   { to: "/admin/applications", label: "Applications", icon: FileText },
+  { to: "/admin/collaborations", label: "Collabs", icon: MessageCircle },
   { to: "/admin/reports", label: "Reports", icon: Flag },
+  { to: "/admin/verification", label: "Verify", icon: Bell },
+  { to: "/admin/content", label: "Content", icon: Home },
   { to: "/admin/settings", label: "Settings", icon: Settings },
+  { to: "/admin/audit", label: "Audit", icon: FileText },
 ] as const;
 
 function isActive(pathname: string, to: string) {
