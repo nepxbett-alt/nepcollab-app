@@ -75,7 +75,7 @@ function Chip({
 }
 
 function Discover() {
-  const { campaigns, saved, toggleSaved, currentCreatorId, signedIn } = useStore();
+  const { campaigns, saved, toggleSaved, currentCreatorId, signedIn, loading } = useStore();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("All");
   const [location, setLocation] = useState<string | null>(null);
@@ -251,7 +251,9 @@ function Discover() {
         {SORTS.find((s) => s.id === sort)?.label}
       </p>
 
-      {results.length === 0 ? (
+      {loading && campaigns.length === 0 ? (
+        <p className="py-16 text-center text-sm text-muted-foreground">Loading campaigns…</p>
+      ) : results.length === 0 ? (
         <EmptyState
           title="No campaigns match your filters"
           body="Try widening your search — new opportunities are posted every week."

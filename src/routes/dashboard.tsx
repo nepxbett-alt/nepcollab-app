@@ -12,7 +12,7 @@ import { CampaignCard } from "@/components/CampaignCard";
 import { EmptyState } from "@/components/EmptyState";
 import { ProfileProgress } from "@/components/ProfileProgress";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatDate, getBrand, getCreator, matchScore } from "@/lib/lookup";
+import { displayMatch, formatDate, getBrand, getCreator, matchScore } from "@/lib/lookup";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/dashboard")({
@@ -329,7 +329,7 @@ function Dashboard() {
             campaign={c}
             saved={saved.includes(c.id)}
             onToggleSave={toggleSaved}
-            match={matchScore(c, currentCreatorId)}
+            match={displayMatch(matchScore(c, currentCreatorId)) ?? undefined}
           />
         ))}
       </div>

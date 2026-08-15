@@ -5,7 +5,7 @@ import { Container, PageHeader } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { formatDate, formatFollowers, getCreator, matchScore } from "@/lib/lookup";
+import { displayMatch, formatDate, formatFollowers, getCreator, matchScore } from "@/lib/lookup";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -104,9 +104,9 @@ function Applicants() {
                   </div>
                   <div className="text-right">
                     <StatusBadge status={a.status} />
-                    {campaign ? (
+                    {campaign && displayMatch(matchScore(campaign, a.creatorId)) != null ? (
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        {matchScore(campaign, a.creatorId)}% match
+                        {displayMatch(matchScore(campaign, a.creatorId))}% match
                       </p>
                     ) : null}
                   </div>
