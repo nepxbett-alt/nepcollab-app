@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, BadgeCheck, Lock } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Container } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { formatFollowers, getCreator } from "@/lib/lookup";
+import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/campaigns/$campaignId/apply")({
@@ -34,14 +35,37 @@ function ApplyPage() {
   const { campaignId } = Route.useParams();
   const navigate = useNavigate();
   const { campaigns, applyToCampaign, currentCreatorId, loading, signedIn, role } = useStore();
-  const campaign = campaigns.find((c) => c.id === campaignId);
+  const fromStore = campaigns.find((c) => c.id === campaignId);
+  const [fetched, setFetched] = useState<{ id: string; title: string; status?: string } | null>(null);
+  const [fetching, setFetching] = useState(false);
+  const campaign = fromStore ?? (fetched ? ({ id: fetched.id, title: fetched.title, status: fetched.status } as (typeof campaigns)[number]) : undefined);
   const creator = getCreator(currentCreatorId);
   const [message, setMessage] = useState("");
   const [contentIdea, setContentIdea] = useState("");
   const [availability, setAvailability] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (loading && !campaign) {
+  useEffect(() => {
+    if (fromStore || !campaignId) return;
+    let cancelled = false;
+    setFetching(true);
+    void (async () => {
+      const { data } = await (supabase as any)
+        .from("campaigns")
+        .select("id, title, status")
+        .eq("id", campaignId)
+        .maybeSingle();
+      if (!cancelled && data) {
+        setFetched({ id: data.id, title: data.title, status: data.status });
+      }
+      if (!cancelled) setFetching(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignId, fromStore]);
+
+  if ((loading || fetching) && !campaign) {
     return (
       <Container className="py-16 text-center text-sm text-muted-foreground">
         Loading…
@@ -49,7 +73,11 @@ function ApplyPage() {
     );
   }
 
-  if (campaign && campaign.status && !["APPLICATIONS_OPEN", "ACTIVE"].includes(String(campaign.status))) {
+  const statusKey = String(campaign?.status ?? "").toUpperCase().replace(/\s+/g, "_");
+  const isOpen =
+    !campaign?.status ||
+    ["APPLICATIONS_OPEN", "ACTIVE", "PUBLISHED", "OPEN"].includes(statusKey);
+  if (campaign && campaign.status && !isOpen) {
     return (
       <Container>
         <EmptyState

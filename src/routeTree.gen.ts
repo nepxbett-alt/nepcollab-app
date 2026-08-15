@@ -32,6 +32,7 @@ import { Route as AdminVerificationRouteImport } from './routes/admin.verificati
 import { Route as BrandApplicantsRouteImport } from './routes/brand.applicants'
 import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
 import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
+import { Route as CampaignsCampaignIdIndexRouteImport } from './routes/campaigns.$campaignId.index'
 import { Route as CollaborationsIndexRouteImport } from './routes/collaborations.index'
 import { Route as CollaborationsCollabIdRouteImport } from './routes/collaborations.$collabId'
 import { Route as BrandCampaignsIndexRouteImport } from './routes/brand.campaigns.index'
@@ -153,6 +154,11 @@ const CampaignsCampaignIdRoute = CampaignsCampaignIdRouteImport.update({
   path: '/campaigns/$campaignId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampaignsCampaignIdIndexRoute = CampaignsCampaignIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CampaignsCampaignIdRoute,
+} as any)
 const CollaborationsIndexRoute = CollaborationsIndexRouteImport.update({
   id: '/collaborations/',
   path: '/collaborations/',
@@ -207,6 +213,8 @@ export interface FileRoutesByFullPath {
   '/campaigns/': typeof CampaignsIndexRoute
   '/collaborations/': typeof CollaborationsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
+  '/campaigns/$campaignId/': typeof CampaignsCampaignIdIndexRoute
+  '/campaigns/$campaignId/': typeof CampaignsCampaignIdIndexRoute
   '/campaigns/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
   '/brand/campaigns/': typeof BrandCampaignsIndexRoute
 }
@@ -237,6 +245,7 @@ export interface FileRoutesByTo {
   '/campaigns': typeof CampaignsIndexRoute
   '/collaborations': typeof CollaborationsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
+  '/campaigns/$campaignId/': typeof CampaignsCampaignIdIndexRoute
   '/campaigns/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
   '/brand/campaigns': typeof BrandCampaignsIndexRoute
 }
@@ -268,6 +277,7 @@ export interface FileRoutesById {
   '/campaigns/': typeof CampaignsIndexRoute
   '/collaborations/': typeof CollaborationsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
+  '/campaigns/$campaignId/': typeof CampaignsCampaignIdIndexRoute
   '/campaigns/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
   '/brand/campaigns/': typeof BrandCampaignsIndexRoute
 }
@@ -300,6 +310,7 @@ export interface FileRouteTypes {
     | '/campaigns/'
     | '/collaborations/'
     | '/brand/campaigns/new'
+    | '/campaigns/$campaignId/'
     | '/campaigns/$campaignId/apply'
     | '/brand/campaigns/'
   fileRoutesByTo: FileRoutesByTo
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/campaigns'
     | '/collaborations'
     | '/brand/campaigns/new'
+    | '/campaigns/$campaignId/'
     | '/campaigns/$campaignId/apply'
     | '/brand/campaigns'
   id:
@@ -360,6 +372,7 @@ export interface FileRouteTypes {
     | '/campaigns/'
     | '/collaborations/'
     | '/brand/campaigns/new'
+    | '/campaigns/$campaignId/'
     | '/campaigns/$campaignId/apply'
     | '/brand/campaigns/'
   fileRoutesById: FileRoutesById
@@ -585,6 +598,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrandCampaignsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/campaigns/$campaignId/': {
+      id: '/campaigns/$campaignId/'
+      path: '/'
+      fullPath: '/campaigns/$campaignId/'
+      preLoaderRoute: typeof CampaignsCampaignIdIndexRouteImport
+      parentRoute: typeof CampaignsCampaignIdRoute
+    }
     '/campaigns/$campaignId/apply': {
       id: '/campaigns/$campaignId/apply'
       path: '/apply'
@@ -596,10 +616,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface CampaignsCampaignIdRouteChildren {
+  CampaignsCampaignIdIndexRoute: typeof CampaignsCampaignIdIndexRoute
   CampaignsCampaignIdApplyRoute: typeof CampaignsCampaignIdApplyRoute
 }
 
 const CampaignsCampaignIdRouteChildren: CampaignsCampaignIdRouteChildren = {
+  CampaignsCampaignIdIndexRoute: CampaignsCampaignIdIndexRoute,
   CampaignsCampaignIdApplyRoute: CampaignsCampaignIdApplyRoute,
 }
 
