@@ -223,7 +223,13 @@ const mapBrand = (p: any, b: any): Brand => ({
   responseRate: Number(p.response_rate ?? 0),
 });
 
-const mapCreator = (p: any, c: any, socials: any[] = []): Creator => {
+const mapCreator = (
+  p: any,
+  c: any,
+  socials: any[] = [],
+  portfolioRows: any[] = [],
+  reviewRows: any[] = [],
+): Creator => {
   return {
     id: p.id ?? c?.user_id,
     name: p.full_name ?? "Creator",
@@ -240,12 +246,27 @@ const mapCreator = (p: any, c: any, socials: any[] = []): Creator => {
       engagement: Number(s.engagement_rate ?? 0),
       verified: Boolean(s.verified),
     })) as any,
-    portfolio: [],
-    reviews: [],
-    rating: 0,
-    completedCollaborations: 0,
-    verified: Boolean(c?.verified),
-    available: true,
+    portfolio: portfolioRows.map((item: any) => ({
+      id: item.id,
+      title: item.title ?? "Work",
+      brand: item.category ?? "",
+      platform: (item.platform ?? "Instagram") as any,
+      image: item.thumbnail_path || item.media_path || item.external_url || "/app-icon.png",
+      category: item.category ?? "General",
+      date: item.created_at?.slice?.(0, 10) ?? today(),
+    })),
+    reviews: reviewRows.map((r: any) => ({
+      id: r.id,
+      author: r.author_name ?? "Reviewer",
+      authorAvatar: avatarFor(r.reviewer_id ?? r.id),
+      rating: Number(r.rating ?? 0),
+      text: r.comment ?? "",
+      date: r.created_at?.slice?.(0, 10) ?? today(),
+    })),
+    rating: Number(p.rating ?? 0),
+    completedCollaborations: Number(p.completion_rate ?? 0),
+    verified: Boolean(p.verified || c?.social_verified),
+    available: String(c?.availability ?? "available").toLowerCase() !== "unavailable",
     preferredTypes: arr<string>(c?.platforms),
   };
 };
@@ -264,21 +285,28 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       setUserId("");
       // Public marketplace data still loads for guests
       try {
+        // Guests only see publicly discoverable campaigns (active + public visibility).
         const { data: campaignRows } = await db
           .from("campaigns")
-          .select("*")
-          .order("created_at", { ascending: false });
-        const { data: brandRows } = await db.from("brand_profiles").select("*").limit(1000);
+          .select(
+            "id, brand_id, title, description, category, location, platforms, spots, deadline, deliverables, requirements, status, created_at, brief, image_url, min_followers, views, content_types, perks, remote, campaign_start, campaign_end, featured, creator_reward, budget, currency, visibility",
+          )
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(100);
         const brandIds = [...new Set((campaignRows ?? []).map((r: any) => r.brand_id).filter(Boolean))];
-        const { data: profiles } = brandIds.length
-          ? await db.from("profiles").select("*").in("id", brandIds)
-          : { data: [] };
+        const [{ data: brandRows }, { data: profiles }] = await Promise.all([
+          brandIds.length
+            ? db.from("brand_profiles").select("user_id, business_name, category, website").in("user_id", brandIds)
+            : Promise.resolve({ data: [] as any[] }),
+          brandIds.length
+            ? db.from("profiles").select("id, full_name, avatar_url, bio, location, verified, rating, response_rate").in("id", brandIds)
+            : Promise.resolve({ data: [] as any[] }),
+        ]);
         const pm = new Map((profiles ?? []).map((p: any) => [p.id, p]));
         const bm = new Map((brandRows ?? []).map((b: any) => [b.user_id, b]));
         setLookupData(
-          [...new Set([...(brandRows ?? []).map((b: any) => b.user_id), ...brandIds])]
-            .filter(Boolean)
-            .map((id) => mapBrand(pm.get(id) ?? { id }, bm.get(id))),
+          brandIds.map((id) => mapBrand(pm.get(id) ?? { id }, bm.get(id))),
           [],
         );
         setState({
@@ -322,19 +350,59 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       { data: deliverableRows },
       { data: submissionRows },
     ] = await Promise.all([
-      db.from("profiles").select("*").eq("id", uid).maybeSingle(),
-      db.from("campaigns").select("*").order("created_at", { ascending: false }),
-      db.from("applications").select("*").order("applied_at", { ascending: false }),
-      db.from("collaborations").select("*").order("created_at", { ascending: false }),
-      Promise.resolve({ data: [] as any[] }), // no campaign_invites table in V1
+      db
+        .from("profiles")
+        .select(
+          "id, role, full_name, username, avatar_url, bio, location, verified, verification_status, rating, review_count, completion_rate, response_rate, onboarded, suspended",
+        )
+        .eq("id", uid)
+        .maybeSingle(),
+      db
+        .from("campaigns")
+        .select(
+          "id, brand_id, title, description, category, location, platforms, spots, deadline, deliverables, requirements, status, created_at, brief, image_url, min_followers, views, content_types, perks, remote, campaign_start, campaign_end, featured, creator_reward, budget, currency, visibility",
+        )
+        .order("created_at", { ascending: false })
+        .limit(200),
+      // RLS already scopes rows; still limit for client memory.
+      db
+        .from("applications")
+        .select(
+          "id, campaign_id, creator_id, pitch, status, brand_remarks, applied_at, message, content_idea, availability, note",
+        )
+        .order("applied_at", { ascending: false })
+        .limit(300),
+      db
+        .from("collaborations")
+        .select("id, application_id, campaign_id, creator_id, brand_id, status, deadline, created_at")
+        .order("created_at", { ascending: false })
+        .limit(200),
+      Promise.resolve({ data: [] as any[] }), // invites optional
       db.from("saved_campaigns").select("campaign_id").eq("user_id", uid),
-      db.from("notifications").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
+      db
+        .from("notifications")
+        .select("id, type, title, body, data, read_at, created_at")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(100),
       db
         .from("conversations")
-        .select("*")
-        .or("brand_id.eq." + uid + ",creator_id.eq." + uid),
-      db.from("deliverables").select("*"),
-      db.from("submissions").select("*").order("created_at", { ascending: false }),
+        .select("id, campaign_id, creator_id, brand_id, application_id, created_at")
+        .or("brand_id.eq." + uid + ",creator_id.eq." + uid)
+        .limit(100),
+      db
+        .from("deliverables")
+        .select(
+          "id, application_id, title, kind, due_at, status, platform, instructions, submission_note, submission_link, submitted_at",
+        )
+        .limit(500),
+      db
+        .from("submissions")
+        .select(
+          "id, collaboration_id, creator_id, content_url, caption, proof_url, status, brand_feedback, submitted_at, application_id, url, feedback, created_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(300),
     ]);
 
     const apps: Application[] = (appRows ?? []).map((a: any) => ({
@@ -468,9 +536,26 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       sentAt: i.created_at?.slice(0, 10) ?? today(),
     }));
 
-    const [{ data: brandRows }, { data: creatorRows }] = await Promise.all([
-      db.from("brand_profiles").select("*").limit(1000),
-      db.from("creator_profiles").select("*").limit(1000),
+    const [
+      { data: brandRows },
+      { data: creatorRows },
+      { data: socialRows },
+      { data: portfolioRows },
+      { data: reviewRows },
+    ] = await Promise.all([
+      db.from("brand_profiles").select("*").limit(500),
+      db.from("creator_profiles").select("*").limit(500),
+      db.from("social_accounts").select("id, user_id, platform, handle, followers, engagement_rate, verified").limit(2000),
+      db
+        .from("portfolio_items")
+        .select("id, creator_id, title, description, media_path, thumbnail_path, external_url, platform, category, created_at")
+        .order("sort_order", { ascending: true })
+        .limit(500),
+      db
+        .from("reviews")
+        .select("id, collaboration_id, reviewer_id, reviewee_id, rating, comment, created_at")
+        .order("created_at", { ascending: false })
+        .limit(500),
     ]);
 
     const ids = [
@@ -480,21 +565,53 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         ...(collabRows ?? []).map((r: any) => r.creator_id),
         ...(brandRows ?? []).map((r: any) => r.user_id),
         ...(creatorRows ?? []).map((r: any) => r.user_id),
+        ...(reviewRows ?? []).map((r: any) => r.reviewer_id),
         uid,
       ].filter(Boolean)),
     ];
 
     const { data: profiles } = ids.length
-      ? await db.from("profiles").select("*").in("id", ids)
+      ? await db.from("profiles").select("id, role, full_name, username, avatar_url, bio, location, verified, rating, review_count, completion_rate, response_rate, onboarded").in("id", ids)
       : { data: [] };
 
     const pm = new Map((profiles ?? []).map((p: any) => [p.id, p]));
     const bm = new Map((brandRows ?? []).map((b: any) => [b.user_id, b]));
     const cm = new Map((creatorRows ?? []).map((c: any) => [c.user_id, c]));
 
+    const socialsByUser = new Map<string, any[]>();
+    for (const s of socialRows ?? []) {
+      if (!s.user_id) continue;
+      const list = socialsByUser.get(s.user_id) ?? [];
+      list.push(s);
+      socialsByUser.set(s.user_id, list);
+    }
+    const portfolioByCreator = new Map<string, any[]>();
+    for (const item of portfolioRows ?? []) {
+      if (!item.creator_id) continue;
+      const list = portfolioByCreator.get(item.creator_id) ?? [];
+      list.push(item);
+      portfolioByCreator.set(item.creator_id, list);
+    }
+    const reviewsByReviewee = new Map<string, any[]>();
+    for (const r of reviewRows ?? []) {
+      if (!r.reviewee_id) continue;
+      const list = reviewsByReviewee.get(r.reviewee_id) ?? [];
+      const reviewer = pm.get(r.reviewer_id);
+      list.push({ ...r, author_name: reviewer?.full_name ?? "Reviewer" });
+      reviewsByReviewee.set(r.reviewee_id, list);
+    }
+
     setLookupData(
       [...bm.keys()].map((id) => mapBrand(pm.get(id) ?? { id }, bm.get(id))),
-      [...cm.keys()].map((id) => mapCreator(pm.get(id) ?? { id }, cm.get(id), [])),
+      [...cm.keys()].map((id) =>
+        mapCreator(
+          pm.get(id) ?? { id },
+          cm.get(id),
+          socialsByUser.get(id) ?? [],
+          portfolioByCreator.get(id) ?? [],
+          reviewsByReviewee.get(id) ?? [],
+        ),
+      ),
     );
 
     setState({
@@ -531,6 +648,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!userId) return;
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleReload = () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      // Debounce full reloads so bursts of events (e.g. accept_application) do not thrash.
+      reloadTimer = setTimeout(() => void load(userId), 400);
+    };
+
     const channel = supabase
       .channel("user:" + userId)
       .on(
@@ -541,25 +665,69 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           table: "notifications",
           filter: "user_id=eq." + userId,
         },
-        () => void load(userId),
+        scheduleReload,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "applications" },
-        () => void load(userId),
+        scheduleReload,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "collaborations" },
-        () => void load(userId),
+        scheduleReload,
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        () => void load(userId),
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload: any) => {
+          const row = payload?.new;
+          if (!row?.conversation_id) {
+            scheduleReload();
+            return;
+          }
+          // Patch only the affected thread when possible — avoids full reload for chat.
+          setState((s) => {
+            const thread = s.threads.find((t) => t.id === row.conversation_id);
+            if (!thread) {
+              scheduleReload();
+              return s;
+            }
+            if (thread.messages.some((m) => m.id === row.id)) return s;
+            const from =
+              row.sender_id === userId
+                ? s.role === "brand"
+                  ? "brand"
+                  : "creator"
+                : s.role === "brand"
+                  ? "creator"
+                  : "brand";
+            return {
+              ...s,
+              threads: s.threads.map((t) =>
+                t.id === row.conversation_id
+                  ? {
+                      ...t,
+                      messages: [
+                        ...t.messages,
+                        {
+                          id: row.id,
+                          threadId: row.conversation_id,
+                          from: from as "brand" | "creator",
+                          text: row.body,
+                          at: row.created_at,
+                        },
+                      ],
+                    }
+                  : t,
+              ),
+            };
+          });
+        },
       )
       .subscribe();
     return () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
       void supabase.removeChannel(channel);
     };
   }, [userId, load]);
@@ -683,15 +851,31 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = userId || sessionData.session?.user?.id || "";
         if (!uid) throw new Error("Not signed in");
+
+        const spots = Number(campaign.creatorsNeeded) || 0;
+        if (spots < 1) throw new Error("Spots must be at least 1.");
+        if (!campaign.title?.trim() || !campaign.description?.trim()) {
+          throw new Error("Title and description are required.");
+        }
+        const deadline = campaign.deadline || null;
+        const start = campaign.startDate || null;
+        const end = campaign.endDate || null;
+        if (start && end && new Date(end) < new Date(start)) {
+          throw new Error("Campaign end must be on or after campaign start.");
+        }
+        if (deadline && new Date(deadline) < new Date(new Date().toDateString())) {
+          throw new Error("Application deadline cannot be in the past.");
+        }
+
         const { error } = await db
           .from("campaigns")
           .insert({
             brand_id: uid,
-            title: campaign.title,
-            description: campaign.description,
-            category: campaign.category,
-            location: campaign.location,
-            remote: campaign.remote,
+            title: campaign.title.trim(),
+            description: campaign.description.trim(),
+            category: campaign.category || "General",
+            location: campaign.location || "Remote",
+            remote: Boolean(campaign.remote),
             perks: campaign.perks ?? [],
             content_types: campaign.types ?? [],
             platforms: campaign.platforms ?? [],
@@ -701,15 +885,21 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
                 ? campaign.requirements
                 : JSON.stringify(campaign.requirements ?? {}),
             min_followers: campaign.requirements?.minFollowers ?? 0,
-            spots: campaign.creatorsNeeded ?? 1,
-            deadline: campaign.deadline || null,
-            campaign_start: campaign.startDate || null,
-            campaign_end: campaign.endDate || null,
+            spots,
+            deadline,
+            campaign_start: start,
+            campaign_end: end,
             status: "active",
-            image_url: campaign.cover && !String(campaign.cover).startsWith("/") && !String(campaign.cover).includes("picsum") ? campaign.cover : null,
-            brief: campaign.description || null,
+            visibility: "public",
+            image_url:
+              campaign.cover &&
+              !String(campaign.cover).startsWith("/") &&
+              !String(campaign.cover).includes("picsum")
+                ? campaign.cover
+                : null,
+            brief: campaign.description.trim() || null,
           })
-          .select()
+          .select("id")
           .single();
         if (error) throw new Error(error.message);
         await load(uid);
@@ -943,13 +1133,38 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = userId || sessionData.session?.user?.id || "";
         if (!uid) throw new Error("Not signed in");
-        const { error } = await db.from("messages").insert({
-          conversation_id: threadId,
-          sender_id: uid,
-          body: text.trim(),
-        });
+        const body = text.trim();
+        const { data: inserted, error } = await db
+          .from("messages")
+          .insert({
+            conversation_id: threadId,
+            sender_id: uid,
+            body,
+          })
+          .select("id, conversation_id, sender_id, body, created_at")
+          .single();
         if (error) throw new Error(error.message);
-        await load(uid);
+        const from = state.role === "brand" ? "brand" : "creator";
+        setState((s) => ({
+          ...s,
+          threads: s.threads.map((t) =>
+            t.id === threadId
+              ? {
+                  ...t,
+                  messages: [
+                    ...t.messages,
+                    {
+                      id: inserted?.id ?? `local-${Date.now()}`,
+                      threadId,
+                      from: from as "brand" | "creator",
+                      text: body,
+                      at: inserted?.created_at ?? new Date().toISOString(),
+                    },
+                  ],
+                }
+              : t,
+          ),
+        }));
       },
       markNotificationsRead: async () => {
         const { error } = await db

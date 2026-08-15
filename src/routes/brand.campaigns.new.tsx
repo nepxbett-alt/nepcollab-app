@@ -105,8 +105,9 @@ function NewCampaign() {
       setStep(0);
       return;
     }
+    // id is assigned by Postgres (gen_random_uuid); do not fabricate client-side IDs.
     const campaign: Campaign = {
-      id: `cm_${Math.random().toString(36).slice(2, 8)}`,
+      id: "",
       title: form.title.trim(),
       brandId: currentBrandId,
       description: form.description.trim(),
@@ -133,7 +134,7 @@ function NewCampaign() {
         .split("\n")
         .filter(Boolean)
         .map((line, i) => ({
-          id: `nd${i}`,
+          id: `pending-${i}`,
           title: line.trim(),
           platform: (form.platforms[0] ?? "Instagram") as Platform,
           contentType: line.trim(),

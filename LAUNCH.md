@@ -81,6 +81,8 @@ npm run dev
 - App data layer is aligned with the **live** production schema (`user_id`, `full_name`, `business_name`, `spots`, `deadline`, `campaign_start`/`campaign_end`, `image_url`, application status `pending`/`accepted`, campaign status `active`/`draft`).
 - Storage buckets must exist before avatar/campaign uploads work.
 - After first deploy, magic-link emails only work if the production URL is in Supabase Redirect URLs.
+- Run `supabase/migrations/20260815180000_align_handle_new_user.sql` in the SQL Editor so new auth users get `profiles.full_name` (not legacy `display_name`) and optional role from metadata.
+- Run `supabase/migrations/20260815160000_harden_accept_application.sql` if not already applied — brands must accept applicants via the secure RPC.
 
 ## Admin console
 
