@@ -19,7 +19,19 @@ export const Route = createFileRoute("/brand/campaigns/")({
 });
 
 function BrandCampaigns() {
-  const { campaigns, currentBrandId } = useStore();
+  const { campaigns, currentBrandId, signedIn } = useStore();
+  if (!signedIn) {
+    return (
+      <Container>
+        <EmptyState
+          title="Sign in as a brand"
+          body="Publish and manage campaigns after you create a brand account."
+          actionLabel="Sign in"
+          actionTo="/auth"
+        />
+      </Container>
+    );
+  }
   const mine = campaigns.filter((c) => c.brandId === currentBrandId);
 
   return (

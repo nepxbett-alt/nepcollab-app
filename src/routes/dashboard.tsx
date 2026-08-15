@@ -82,7 +82,26 @@ function Dashboard() {
     toggleSaved,
     currentCreatorId,
     currentBrandId,
+    signedIn,
   } = useStore();
+
+  if (!signedIn) {
+    return (
+      <Container>
+        <EmptyState
+          title="Sign in to open your home"
+          body="Browse campaigns freely without an account. Sign in to track applications, collaborations, and messages."
+          actionLabel="Sign in"
+          actionTo="/auth"
+        />
+        <div className="mt-4 text-center">
+          <a href="/campaigns" className="text-sm font-semibold text-signal hover:underline">
+            Or keep browsing campaigns →
+          </a>
+        </div>
+      </Container>
+    );
+  }
 
   if (role === "brand") {
     const brand = getBrand(currentBrandId);

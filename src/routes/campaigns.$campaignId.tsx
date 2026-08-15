@@ -274,7 +274,7 @@ function CampaignDetail() {
                   to="/campaigns/$campaignId/apply"
                   params={{ campaignId: campaign.id }}
                 >
-                  Apply now
+                  {signedIn ? "Apply now" : "Apply — create account"}
                 </Link>
               </Button>
             )}
@@ -283,7 +283,15 @@ function CampaignDetail() {
               <Button
                 variant="outline"
                 className="flex-1 rounded-full"
-                onClick={() => toggleSaved(campaign.id)}
+                onClick={() => {
+                  if (!signedIn) {
+                    toast.message("Sign in to save campaigns");
+                    return;
+                  }
+                  void toggleSaved(campaign.id).catch((err: unknown) =>
+                    toast.error(err instanceof Error ? err.message : "Could not save"),
+                  );
+                }}
               >
                 <Bookmark className={cn("size-4", isSaved && "fill-current")} />
                 {isSaved ? "Saved" : "Save"}
@@ -327,7 +335,15 @@ function CampaignDetail() {
               type="button"
               aria-label={isSaved ? "Remove from saved" : "Save campaign"}
               aria-pressed={isSaved}
-              onClick={() => toggleSaved(campaign.id)}
+              onClick={() => {
+                if (!signedIn) {
+                  toast.message("Sign in to save campaigns");
+                  return;
+                }
+                void toggleSaved(campaign.id).catch((err: unknown) =>
+                  toast.error(err instanceof Error ? err.message : "Could not save"),
+                );
+              }}
               className="tap flex size-12 shrink-0 items-center justify-center rounded-full border border-border"
             >
               <Bookmark className={cn("size-5", isSaved && "fill-signal text-signal")} />
@@ -337,7 +353,7 @@ function CampaignDetail() {
               params={{ campaignId: campaign.id }}
               className="tap flex h-12 flex-1 items-center justify-center rounded-full bg-signal text-[15px] font-semibold text-signal-foreground hover:bg-signal/90"
             >
-              Apply now
+              {signedIn ? "Apply now" : "Apply — create account"}
             </Link>
           </div>
         </div>

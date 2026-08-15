@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { Check, Search, SlidersHorizontal, X } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -74,7 +75,7 @@ function Chip({
 }
 
 function Discover() {
-  const { campaigns, saved, toggleSaved, currentCreatorId } = useStore();
+  const { campaigns, saved, toggleSaved, currentCreatorId, signedIn } = useStore();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("All");
   const [location, setLocation] = useState<string | null>(null);
@@ -270,7 +271,15 @@ function Discover() {
               key={c.id}
               campaign={c}
               saved={saved.includes(c.id)}
-              onToggleSave={toggleSaved}
+              onToggleSave={(id) => {
+                if (!signedIn) {
+                  toast.message("Sign in to save campaigns");
+                  return;
+                }
+                void toggleSaved(id).catch((err: unknown) =>
+                  toast.error(err instanceof Error ? err.message : "Could not save"),
+                );
+              }}
               match={matchScore(c, currentCreatorId)}
             />
           ))}

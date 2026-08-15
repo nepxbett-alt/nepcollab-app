@@ -139,6 +139,14 @@ const adminTabs: NavItem[] = [
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
+/** Guest (signed-out) public exploration */
+const guestTabs: NavItem[] = [
+  { to: "/", label: "Home", icon: Home },
+  { to: "/campaigns", label: "Discover", icon: Compass },
+  { to: "/auth", label: "Sign in", icon: User },
+];
+
+
 function isActive(pathname: string, to: string) {
   if (to === "/dashboard" || to === "/admin") return pathname === to;
   return pathname === to || pathname.startsWith(`${to}/`);
@@ -417,7 +425,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const sections =
     role === "admin" ? adminSections : role === "brand" ? brandSections : creatorSections;
-  const tabs = role === "admin" ? adminTabs : role === "brand" ? brandTabs : creatorTabs;
+  const tabs = !signedIn
+    ? guestTabs
+    : role === "admin"
+      ? adminTabs
+      : role === "brand"
+        ? brandTabs
+        : creatorTabs;
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -477,12 +491,20 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </div>
               </>
             ) : (
-              <Link
-                to="/auth"
-                className="tap rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-ink-foreground hover:opacity-90"
-              >
-                Sign in
-              </Link>
+              <>
+                <Link
+                  to="/campaigns"
+                  className="tap hidden rounded-full px-3 py-2 text-[13px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground sm:inline-flex"
+                >
+                  Browse campaigns
+                </Link>
+                <Link
+                  to="/auth"
+                  className="tap rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-ink-foreground hover:opacity-90"
+                >
+                  Sign in
+                </Link>
+              </>
             )}
           </div>
         </div>
@@ -521,12 +543,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main
         className={cn(
           "min-w-0 flex-1",
-          signedIn
-            ? "pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-10 lg:pl-[256px]"
-            : "pb-8",
+          "pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-10",
+          signedIn && "lg:pl-[256px]",
         )}
       >
-        {loading && !signedIn ? (
+        {loading ? (
           <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
             Loading…
           </div>
@@ -535,53 +556,51 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
       </main>
 
-      {/* Mobile bottom tab bar */}
-      {signedIn ? (
-        <nav
-          aria-label="Primary"
-          className={cn(
-            "fixed inset-x-0 bottom-0 z-50 lg:hidden",
-            "border-t border-border/80",
-            "bg-background/95 backdrop-blur-xl",
-            "supports-[backdrop-filter]:bg-background/85",
-            "pb-[env(safe-area-inset-bottom)]",
-          )}
-        >
-          <ul className="mx-auto flex h-[60px] w-full max-w-lg items-stretch px-1">
-            {tabs.map((item) => {
-              const active = isActive(pathname, item.to);
-              const Icon = item.icon;
-              const count = item.badgeKey ? badges[item.badgeKey] : 0;
-              return (
-                <li key={item.to} className="min-w-0 flex-1">
-                  <Link
-                    to={item.to}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "tap relative flex h-full flex-col items-center justify-center gap-0.5",
-                      "px-1 text-[10px] font-semibold select-none",
-                      active ? "text-signal" : "text-muted-foreground",
-                    )}
-                  >
-                    <span className="relative">
-                      <span
-                        className={cn(
-                          "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
-                          active && "bg-signal/12",
-                        )}
-                      >
-                        <Icon className={cn("size-[20px]", active && "stroke-[2.4]")} />
-                      </span>
-                      <TabBadge count={count} />
+      {/* Mobile bottom tab bar — guests get public Discover; members get role tabs */}
+      <nav
+        aria-label="Primary"
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-50 lg:hidden",
+          "border-t border-border/80",
+          "bg-background/95 backdrop-blur-xl",
+          "supports-[backdrop-filter]:bg-background/85",
+          "pb-[env(safe-area-inset-bottom)]",
+        )}
+      >
+        <ul className="mx-auto flex h-[60px] w-full max-w-lg items-stretch px-1">
+          {tabs.map((item) => {
+            const active = isActive(pathname, item.to);
+            const Icon = item.icon;
+            const count = signedIn && item.badgeKey ? badges[item.badgeKey] : 0;
+            return (
+              <li key={item.to} className="min-w-0 flex-1">
+                <Link
+                  to={item.to}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "tap relative flex h-full flex-col items-center justify-center gap-0.5",
+                    "px-1 text-[10px] font-semibold select-none",
+                    active ? "text-signal" : "text-muted-foreground",
+                  )}
+                >
+                  <span className="relative">
+                    <span
+                      className={cn(
+                        "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+                        active && "bg-signal/12",
+                      )}
+                    >
+                      <Icon className={cn("size-[20px]", active && "stroke-[2.4]")} />
                     </span>
-                    <span className="max-w-full truncate px-0.5">{item.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      ) : null}
+                    <TabBadge count={count} />
+                  </span>
+                  <span className="max-w-full truncate px-0.5">{item.label}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
     </div>
   );
 }

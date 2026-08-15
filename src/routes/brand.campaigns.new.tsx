@@ -66,7 +66,7 @@ function Toggle({
 
 function NewCampaign() {
   const navigate = useNavigate();
-  const { addCampaign, currentBrandId } = useStore();
+  const { addCampaign, currentBrandId, signedIn } = useStore();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     title: "",
@@ -86,6 +86,20 @@ function NewCampaign() {
     creatorsNeeded: "3",
     deliverables: "1 Instagram Reel\n2 Instagram Stories",
   });
+
+  if (!signedIn) {
+    return (
+      <Container>
+        <PageHeader title="Create a campaign" />
+        <p className="text-sm text-muted-foreground">
+          Sign in with a brand account to publish campaigns. Anyone can browse open campaigns without signing in.
+        </p>
+        <Button className="mt-4 rounded-full" onClick={() => navigate({ to: "/auth" })}>
+          Sign in
+        </Button>
+      </Container>
+    );
+  }
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: value }));

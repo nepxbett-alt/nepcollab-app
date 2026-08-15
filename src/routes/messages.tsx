@@ -22,7 +22,21 @@ export const Route = createFileRoute("/messages")({
 });
 
 function Messages() {
-  const { threads, campaigns, sendMessage, role } = useStore();
+  const { threads, campaigns, sendMessage, role, signedIn } = useStore();
+  if (!signedIn) {
+    return (
+      <Container>
+        <PageHeader title="Messages" />
+        <EmptyState
+          title="Sign in to message partners"
+          body="Messaging opens after a brand selects a creator. Browse campaigns anytime without an account."
+          actionLabel="Sign in"
+          actionTo="/auth"
+        />
+      </Container>
+    );
+  }
+
   const [activeId, setActiveId] = useState(threads[0]?.id ?? "");
   const [text, setText] = useState("");
   const active = threads.find((t) => t.id === activeId) ?? threads[0];

@@ -95,7 +95,21 @@ function Applications() {
     collaborations,
     currentCreatorId,
     withdrawApplication,
+    signedIn,
   } = useStore();
+
+  if (!signedIn) {
+    return (
+      <Container>
+        <EmptyState
+          title="Sign in to see applications"
+          body="Create a creator account to apply and track status."
+          actionLabel="Sign in"
+          actionTo="/auth"
+        />
+      </Container>
+    );
+  }
   const mine = applications.filter((a) => a.creatorId === currentCreatorId);
   const [openId, setOpenId] = useState<string | null>(mine[0]?.id ?? null);
 

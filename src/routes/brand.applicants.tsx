@@ -22,7 +22,19 @@ export const Route = createFileRoute("/brand/applicants")({
 });
 
 function Applicants() {
-  const { campaigns, applications, currentBrandId, setApplicationStatus } = useStore();
+  const { campaigns, applications, currentBrandId, setApplicationStatus, signedIn } = useStore();
+  if (!signedIn) {
+    return (
+      <Container>
+        <EmptyState
+          title="Sign in as a brand"
+          body="Review applicants after you publish a campaign. Anyone can browse open campaigns without an account."
+          actionLabel="Sign in"
+          actionTo="/auth"
+        />
+      </Container>
+    );
+  }
   const mine = campaigns.filter((c) => c.brandId === currentBrandId);
   const [campaignId, setCampaignId] = useState(mine[0]?.id ?? "");
   const list = applications.filter((a) => a.campaignId === campaignId);

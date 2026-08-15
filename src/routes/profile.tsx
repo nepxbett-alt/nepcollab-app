@@ -72,7 +72,21 @@ function Profile() {
     saved,
     toggleSaved,
     collaborations,
+    signedIn,
   } = useStore();
+
+  if (!signedIn) {
+    return (
+      <Container>
+        <EmptyState
+          title="Sign in to view your profile"
+          body="Create an account to manage your creator or brand profile. You can still browse open campaigns without signing in."
+          actionLabel="Sign in"
+          actionTo="/auth"
+        />
+      </Container>
+    );
+  }
 
   if (role === "brand") {
     const brand = getBrand(currentBrandId);

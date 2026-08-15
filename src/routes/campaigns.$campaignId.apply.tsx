@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, BadgeCheck } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, BadgeCheck, Lock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Container } from "@/components/AppShell";
@@ -33,9 +33,14 @@ export const Route = createFileRoute("/campaigns/$campaignId/apply")({
 function ApplyPage() {
   const { campaignId } = Route.useParams();
   const navigate = useNavigate();
-  const { campaigns, applyToCampaign, currentCreatorId, loading, signedIn } = useStore();
+  const { campaigns, applyToCampaign, currentCreatorId, loading, signedIn, role } = useStore();
   const campaign = campaigns.find((c) => c.id === campaignId);
   const creator = getCreator(currentCreatorId);
+  const [message, setMessage] = useState("");
+  const [contentIdea, setContentIdea] = useState("");
+  const [availability, setAvailability] = useState("");
+  const [busy, setBusy] = useState(false);
+
   if (loading && !campaign) {
     return (
       <Container className="py-16 text-center text-sm text-muted-foreground">
@@ -43,9 +48,6 @@ function ApplyPage() {
       </Container>
     );
   }
-  const [message, setMessage] = useState("");
-  const [contentIdea, setContentIdea] = useState("");
-  const [availability, setAvailability] = useState("");
 
   if (campaign && campaign.status && !["APPLICATIONS_OPEN", "ACTIVE"].includes(String(campaign.status))) {
     return (
@@ -73,18 +75,71 @@ function ApplyPage() {
     );
   }
 
+  // Guests can browse campaigns freely; applying requires a verified account.
+  if (!signedIn) {
+    const next = `/campaigns/${campaignId}/apply`;
+    return (
+      <Container className="max-w-lg py-10">
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/campaigns/$campaignId", params: { campaignId } })}
+          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" /> Back to campaign
+        </button>
+        <div className="rounded-3xl border border-border bg-card p-6 text-center">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-signal/12">
+            <Lock className="size-5 text-signal" />
+          </div>
+          <h1 className="mt-4 text-xl font-bold tracking-tight">Create an account to apply</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You can browse every open campaign without signing in. To apply to{" "}
+            <strong className="text-foreground">{campaign.title}</strong>, create a creator account and
+            verify your email.
+          </p>
+          <Button asChild size="lg" className="mt-6 h-11 w-full rounded-full">
+            <Link to="/auth" search={{ next } as never}>
+              Sign in / create account
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" className="mt-2 w-full rounded-full">
+            <Link to="/campaigns">Keep browsing campaigns</Link>
+          </Button>
+        </div>
+      </Container>
+    );
+  }
+
+  if (role === "brand") {
+    return (
+      <Container>
+        <EmptyState
+          title="Brands can't apply"
+          body="Switch to a creator account to apply to campaigns."
+          actionLabel="Browse campaigns"
+          actionTo="/campaigns"
+        />
+      </Container>
+    );
+  }
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     if (message.trim().length < 20) {
       toast.error("Tell the brand a little more — at least 20 characters.");
       return;
     }
+    setBusy(true);
     try {
       await applyToCampaign({ campaignId, message, contentIdea, availability });
       toast.success("Application submitted");
       navigate({ to: "/applications" });
-    } catch (err: any) {
-      toast.error(err?.message || "Could not submit application");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Could not submit application";
+      toast.error(msg);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -110,9 +165,7 @@ function ApplyPage() {
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 font-semibold">
             {creator?.name}
-            {creator?.verified ? (
-              <BadgeCheck className="size-4 text-signal" />
-            ) : null}
+            {creator?.verified ? <BadgeCheck className="size-4 text-signal" /> : null}
           </p>
           <p className="truncate text-xs text-muted-foreground">
             {creator?.location} ·{" "}
@@ -126,7 +179,7 @@ function ApplyPage() {
         </span>
       </div>
 
-      <form onSubmit={submit} className="mt-6 space-y-5">
+      <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-5">
         <div>
           <Label htmlFor="message">Why are you a good fit?</Label>
           <Textarea
@@ -166,9 +219,10 @@ function ApplyPage() {
         <Button
           type="submit"
           size="lg"
+          disabled={busy}
           className="w-full rounded-full bg-signal text-signal-foreground hover:bg-signal/90"
         >
-          Submit application
+          {busy ? "Submitting…" : "Submit application"}
         </Button>
       </form>
     </Container>

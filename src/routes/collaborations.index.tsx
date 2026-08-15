@@ -18,7 +18,21 @@ export const Route = createFileRoute("/collaborations/")({
 });
 
 function Collaborations() {
-  const { collaborations, campaigns, role } = useStore();
+  const { collaborations, campaigns, role, signedIn } = useStore();
+
+  if (!signedIn) {
+    return (
+      <Container>
+        <PageHeader title="Collaborations" />
+        <EmptyState
+          title="Sign in to view collaborations"
+          body="Once a brand selects you (or you select a creator), active work appears here."
+          actionLabel="Sign in"
+          actionTo="/auth"
+        />
+      </Container>
+    );
+  }
 
   return (
     <Container>

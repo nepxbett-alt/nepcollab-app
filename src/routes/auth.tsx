@@ -13,6 +13,9 @@ import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    next: typeof search.next === "string" ? search.next : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Sign in — NepCollab" },
@@ -50,11 +53,15 @@ function AuthPage() {
   const [step, setStep] = useState<"form" | "code">("form");
   const [busy, setBusy] = useState(false);
 
+  const { next } = Route.useSearch();
+  const safeNext =
+    typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+
   useEffect(() => {
     if (!loading && signedIn && onboarded) {
-      navigate({ to: "/dashboard" });
+      navigate({ to: safeNext as "/" });
     }
-  }, [loading, signedIn, onboarded, navigate]);
+  }, [loading, signedIn, onboarded, navigate, safeNext]);
 
   const sendCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -104,7 +111,7 @@ function AuthPage() {
     try {
       await verifyEmailOtp(email.trim().toLowerCase(), code);
       toast.success("You're signed in.");
-      navigate({ to: "/dashboard" });
+      navigate({ to: safeNext as "/" });
     } catch (error) {
       toast.error(
         error instanceof Error
