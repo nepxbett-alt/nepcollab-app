@@ -752,8 +752,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       ...state,
       currentCreatorId: userId,
       currentBrandId: userId,
-      setRole: (role) => setState((s) => ({ ...s, role })),
-      signIn: (role) => setState((s) => ({ ...s, signedIn: true, role })),
+      setRole: (role) => {
+        // Never allow client to claim admin — only profiles.role from DB can.
+        if (role === "admin") return;
+        setState((s) => ({ ...s, role }));
+      },
+      signIn: (_role) => {
+        // Deprecated local-only sign-in removed — use passwordSignIn / demoSignIn / OTP.
+        console.warn("signIn() is disabled; use real auth methods.");
+      },
       requestMagicLink: async (email, role, name) => {
         const normalized = email.trim().toLowerCase();
         try {
@@ -923,6 +930,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           throw new Error("Application deadline cannot be in the past.");
         }
 
+        // Live schema only allows campaign_type: ugc | barter
+        const campaignType =
+          Array.isArray(campaign.perks) &&
+          campaign.perks.length > 0 &&
+          !String(campaign.giftValue || "").toLowerCase().includes("cash")
+            ? "barter"
+            : "ugc";
+
         const { error } = await db
           .from("campaigns")
           .insert({
@@ -947,6 +962,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             campaign_end: end,
             status: "active",
             visibility: "public",
+            campaign_type: campaignType,
             image_url:
               campaign.cover &&
               !String(campaign.cover).startsWith("/") &&
@@ -964,6 +980,20 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = userId || sessionData.session?.user?.id || "";
         if (!uid) throw new Error("Not signed in");
+        const { data: camp, error: campErr } = await db
+          .from("campaigns")
+          .select("id, status, deadline, visibility")
+          .eq("id", campaignId)
+          .maybeSingle();
+        if (campErr) throw new Error(campErr.message);
+        if (!camp) throw new Error("Campaign not found.");
+        const st = String(camp.status || "").toLowerCase();
+        if (!["active", "published"].includes(st)) {
+          throw new Error("This campaign is not accepting applications.");
+        }
+        if (camp.deadline && new Date(camp.deadline) < new Date()) {
+          throw new Error("The application deadline has passed.");
+        }
         const { error } = await db.from("applications").insert({
           campaign_id: campaignId,
           creator_id: uid,
