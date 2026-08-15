@@ -184,7 +184,7 @@ function Profile() {
           <div className="mt-4 grid grid-cols-4 gap-2">
             <Stat value={creator?.completedCollaborations ?? 0} label="Collabs" />
             <Stat value={creator?.rating ?? 0} label="Rating" />
-            <Stat value="98%" label="Completion" />
+            <Stat value={`${Math.round(Number(creator?.completionRate ?? creator?.completion_rate ?? 0))}%`} label="Completion" />
             <Stat value={creator?.reviews.length ?? 0} label="Reviews" />
           </div>
         </div>

@@ -33,7 +33,7 @@ export function ProfileProgress({
       </div>
       <p className="mt-2.5 text-[12.5px] text-ink-foreground/75">{hint}</p>
       <Link
-        to="/profile"
+        to="/onboarding"
         className="tap mt-3 inline-flex h-9 items-center rounded-full bg-signal px-4 text-[13px] font-semibold text-signal-foreground hover:bg-signal/90"
       >
         Complete profile

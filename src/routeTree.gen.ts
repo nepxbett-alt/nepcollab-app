@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApplicationsRouteImport } from './routes/applications'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as NotificationsRouteImport } from './routes/notifications'
@@ -37,7 +38,7 @@ import { Route as CollaborationsIndexRouteImport } from './routes/collaborations
 import { Route as CollaborationsCollabIdRouteImport } from './routes/collaborations.$collabId'
 import { Route as BrandCampaignsIndexRouteImport } from './routes/brand.campaigns.index'
 import { Route as BrandCampaignsNewRouteImport } from './routes/brand.campaigns.new'
-import { Route as CampaignsCampaignIdApplyRouteImport } from './routes/campaigns.$campaignId.apply'
+import { Route as CampaignsCampaignIdApplyRouteImport } from './routes/campaigns_.$campaignId.apply'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +53,11 @@ const ApplicationsRoute = ApplicationsRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -181,9 +187,9 @@ const BrandCampaignsNewRoute = BrandCampaignsNewRouteImport.update({
 } as any)
 const CampaignsCampaignIdApplyRoute =
   CampaignsCampaignIdApplyRouteImport.update({
-    id: '/apply',
-    path: '/apply',
-    getParentRoute: () => CampaignsCampaignIdRoute,
+    id: '/campaigns/$campaignId/apply',
+    path: '/campaigns/$campaignId/apply',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -381,6 +387,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApplicationsRoute: typeof ApplicationsRoute
   AuthRoute: typeof AuthRoute
+  OnboardingRoute: typeof OnboardingRoute
   DashboardRoute: typeof DashboardRoute
   MessagesRoute: typeof MessagesRoute
   NotificationsRoute: typeof NotificationsRoute
@@ -399,6 +406,7 @@ export interface RootRouteChildren {
   AdminVerificationRoute: typeof AdminVerificationRoute
   BrandApplicantsRoute: typeof BrandApplicantsRoute
   CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRouteWithChildren
+  CampaignsCampaignIdApplyRoute: typeof CampaignsCampaignIdApplyRoute
   CollaborationsCollabIdRoute: typeof CollaborationsCollabIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
   CampaignsIndexRoute: typeof CampaignsIndexRoute
@@ -607,22 +615,20 @@ declare module '@tanstack/react-router' {
     }
     '/campaigns/$campaignId/apply': {
       id: '/campaigns/$campaignId/apply'
-      path: '/apply'
+      path: '/campaigns/$campaignId/apply'
       fullPath: '/campaigns/$campaignId/apply'
       preLoaderRoute: typeof CampaignsCampaignIdApplyRouteImport
-      parentRoute: typeof CampaignsCampaignIdRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
 interface CampaignsCampaignIdRouteChildren {
   CampaignsCampaignIdIndexRoute: typeof CampaignsCampaignIdIndexRoute
-  CampaignsCampaignIdApplyRoute: typeof CampaignsCampaignIdApplyRoute
 }
 
 const CampaignsCampaignIdRouteChildren: CampaignsCampaignIdRouteChildren = {
   CampaignsCampaignIdIndexRoute: CampaignsCampaignIdIndexRoute,
-  CampaignsCampaignIdApplyRoute: CampaignsCampaignIdApplyRoute,
 }
 
 const CampaignsCampaignIdRouteWithChildren =
@@ -632,6 +638,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApplicationsRoute: ApplicationsRoute,
   AuthRoute: AuthRoute,
+  OnboardingRoute: OnboardingRoute,
   DashboardRoute: DashboardRoute,
   MessagesRoute: MessagesRoute,
   NotificationsRoute: NotificationsRoute,
@@ -650,6 +657,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminVerificationRoute: AdminVerificationRoute,
   BrandApplicantsRoute: BrandApplicantsRoute,
   CampaignsCampaignIdRoute: CampaignsCampaignIdRouteWithChildren,
+  CampaignsCampaignIdApplyRoute: CampaignsCampaignIdApplyRoute,
   CollaborationsCollabIdRoute: CollaborationsCollabIdRoute,
   AdminIndexRoute: AdminIndexRoute,
   CampaignsIndexRoute: CampaignsIndexRoute,

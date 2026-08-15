@@ -167,7 +167,8 @@ function AuthPage() {
         Testing? Use one-click demo accounts below. Or continue with email.
       </p>
 
-      {/* One-click demo access for full testing */}
+      {/* Demo access — development only */}
+      {!import.meta.env.PROD ? (
       <div className="mt-5 rounded-2xl border border-signal/30 bg-signal/5 p-4">
         <p className="text-[12px] font-semibold uppercase tracking-wider text-signal">
           Quick test access
@@ -197,9 +198,10 @@ function AuthPage() {
           </Button>
         </div>
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Creator: creator@nepcollab.test · Brand: brand@nepcollab.test · password test1234
+          Development demo accounts only.
         </p>
       </div>
+      ) : null}
 
       <div className="my-5 flex items-center gap-3">
         <div className="h-px flex-1 bg-border" />

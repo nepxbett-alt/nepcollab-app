@@ -119,6 +119,18 @@ function NewCampaign() {
       setStep(0);
       return;
     }
+    if (!form.title.trim() || !form.description.trim()) {
+      toast.error("Title and description are required.");
+      return;
+    }
+    if (form.deadline && form.startDate && form.deadline > form.startDate) {
+      toast.error("Application deadline must be on or before campaign start.");
+      return;
+    }
+    if (form.startDate && form.endDate && form.startDate > form.endDate) {
+      toast.error("Campaign start must be on or before end.");
+      return;
+    }
     // id is assigned by Postgres (gen_random_uuid); do not fabricate client-side IDs.
     const campaign: Campaign = {
       id: "",
@@ -132,9 +144,9 @@ function NewCampaign() {
       giftValue: form.giftValue,
       location: form.location,
       remote: form.remote,
-      startDate: form.startDate || "2026-09-01",
-      endDate: form.endDate || "2026-09-30",
-      deadline: form.deadline || "2026-08-30",
+      startDate: form.startDate || "",
+      endDate: form.endDate || "",
+      deadline: form.deadline || "",
       creatorsNeeded: Number(form.creatorsNeeded) || 1,
       status: "APPLICATIONS_OPEN",
       cover: "/app-icon.png",

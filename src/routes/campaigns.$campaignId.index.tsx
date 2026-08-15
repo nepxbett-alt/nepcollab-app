@@ -299,7 +299,27 @@ function CampaignDetail() {
               <Button
                 variant="ghost"
                 className="rounded-full"
-                onClick={() => toast.success("Report sent to moderation")}
+                onClick={async () => {
+                  try {
+                    const { data: sessionData } = await (await import("@/integrations/supabase/client")).supabase.auth.getSession();
+                    const uid = sessionData.session?.user?.id;
+                    if (!uid) {
+                      toast.message("Sign in to report a campaign");
+                      return;
+                    }
+                    const { error } = await (await import("@/integrations/supabase/client")).supabase.from("reports").insert({
+                      reporter_id: uid,
+                      reason: "campaign_report",
+                      details: `Reported campaign ${campaign.id}: ${campaign.title}`,
+                      status: "open",
+                      severity: "medium",
+                    } as any);
+                    if (error) throw error;
+                    toast.success("Report submitted to moderation");
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "Could not submit report");
+                  }
+                }}
               >
                 <Flag className="size-4" />
               </Button>

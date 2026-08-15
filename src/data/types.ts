@@ -86,6 +86,7 @@ export interface Creator {
   reviews: Review[];
   rating: number;
   completedCollaborations: number;
+  completionRate: number;
   verified: boolean;
   available: boolean;
   preferredTypes: string[];

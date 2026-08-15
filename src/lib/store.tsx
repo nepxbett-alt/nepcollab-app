@@ -240,7 +240,7 @@ const mapCreator = (
     avatar: p.avatar_url ?? avatarFor(p.id ?? "creator"),
     bio: p.bio ?? "",
     location: p.location ?? "Nepal",
-    languages: arr<string>(c?.languages).length ? arr<string>(c?.languages) : ["Nepali"],
+    languages: arr<string>(c?.languages),
     niches: arr<string>(c?.niches),
     socials: socials.map((s: any) => ({
       platform: s.platform,
@@ -267,7 +267,8 @@ const mapCreator = (
       date: r.created_at?.slice?.(0, 10) ?? today(),
     })),
     rating: Number(p.rating ?? 0),
-    completedCollaborations: Number(p.completion_rate ?? 0),
+    completedCollaborations: Number(p.review_count ?? 0),
+    completionRate: Number(p.completion_rate ?? 0),
     verified: Boolean(p.verified || c?.social_verified),
     available: String(c?.availability ?? "available").toLowerCase() !== "unavailable",
     preferredTypes: arr<string>(c?.platforms),
@@ -547,9 +548,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       { data: portfolioRows },
       { data: reviewRows },
     ] = await Promise.all([
-      db.from("brand_profiles").select("*").limit(500),
-      db.from("creator_profiles").select("*").limit(500),
-      db.from("social_accounts").select("id, user_id, platform, handle, followers, engagement_rate, verified").limit(2000),
+      db.from("brand_profiles").select("user_id, business_name, category, website, social_url, team_size, featured").limit(200),
+      db.from("creator_profiles").select("user_id, niches, platforms, followers, engagement_rate, languages, availability, portfolio_urls, media_kit_url, social_verified, featured, starting_rate, average_views").limit(200),
+      db.from("social_accounts").select("id, user_id, platform, handle, followers, engagement_rate, verified").limit(200),
       db
         .from("portfolio_items")
         .select("id, creator_id, title, description, media_path, thumbnail_path, external_url, platform, category, created_at")
@@ -807,11 +808,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (!data.session?.user?.id) throw new Error("Could not sign in.");
         await load(data.session.user.id);
       },
-      demoSignIn: async (kind) => {
-        const email = kind === "brand" ? "brand@nepcollab.test" : "creator@nepcollab.test";
+      demoSignIn: async (_kind) => {
+        // Production builds must not expose demo credentials.
+        if (import.meta.env.PROD) {
+          throw new Error("Demo login is disabled in production.");
+        }
+        const email = _kind === "brand" ? "brand@nepcollab.test" : "creator@nepcollab.test";
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
-          password: "test1234",
+          password: import.meta.env.VITE_DEMO_PASSWORD || "",
         });
         if (error) throw error;
         if (!data.session?.user?.id) throw new Error("Demo login failed.");
@@ -868,11 +873,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           );
           if (e) throw new Error(e.message || "Could not save brand profile.");
         } else {
+          const niches = Array.isArray((input as any)?.niches) ? (input as any).niches : [];
+          const languages = Array.isArray((input as any)?.languages) ? (input as any).languages : [];
           const { error: e } = await db.from("creator_profiles").upsert(
             {
               user_id: uid,
-              languages: ["Nepali"],
-              niches: [],
+              languages,
+              niches,
               platforms: [],
             },
             { onConflict: "user_id" },
@@ -1051,16 +1058,20 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         await refresh();
       },
       inviteCreator: async (campaignId, creatorId) => {
-        // V1 schema has no campaign_invites table — record as a shortlisted application if present
         const { data: existing } = await db
           .from("applications")
           .select("id")
           .eq("campaign_id", campaignId)
           .eq("creator_id", creatorId)
           .maybeSingle();
-        if (existing?.id) {
-          await db.from("applications").update({ status: "shortlisted" }).eq("id", existing.id);
+        if (!existing?.id) {
+          throw new Error("No application found for this creator on this campaign.");
         }
+        const { error } = await db
+          .from("applications")
+          .update({ status: "shortlisted" })
+          .eq("id", existing.id);
+        if (error) throw new Error(error.message);
         await refresh();
       },
       submitDeliverable: async (collaborationId, deliverableId, submission) => {
@@ -1109,7 +1120,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           .update({ status: "submitted" })
           .eq("id", collaborationId);
         if (cErr) {
-          await db.from("collaborations").update({ status: "active" }).eq("id", collaborationId);
+          // Do NOT roll status back to active — submission row already exists.
+          throw new Error(cErr.message || "Could not mark collaboration as submitted.");
         }
         await refresh();
       },
@@ -1137,11 +1149,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             : status === "REVISION_REQUESTED"
               ? "changes_requested"
               : "submitted";
-        await db
+        const { error: sErr } = await db
           .from("submissions")
           .update({ status: subStatus, reviewed_at: now })
           .eq("collaboration_id", collaborationId)
           .eq("status", "submitted");
+        if (sErr) throw new Error(sErr.message || "Could not update submission.");
 
         const collabStatusDb =
           status === "APPROVED"
@@ -1174,6 +1187,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           .select("id, conversation_id, sender_id, body, created_at")
           .single();
         if (error) throw new Error(error.message);
+        if (!inserted?.id) throw new Error("Message was not saved. Please try again.");
         const from = state.role === "brand" ? "brand" : "creator";
         setState((s) => ({
           ...s,
@@ -1184,11 +1198,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
                   messages: [
                     ...t.messages,
                     {
-                      id: inserted?.id ?? `local-${Date.now()}`,
+                      id: inserted.id,
                       threadId,
                       from: from as "brand" | "creator",
                       text: body,
-                      at: inserted?.created_at ?? new Date().toISOString(),
+                      at: inserted.created_at ?? new Date().toISOString(),
                     },
                   ],
                 }
@@ -1197,10 +1211,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         }));
       },
       markNotificationsRead: async () => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) return;
         const { error } = await db
           .from("notifications")
           .update({ read_at: new Date().toISOString() })
-          .eq("user_id", userId)
+          .eq("user_id", uid)
           .is("read_at", null);
         if (error) throw error;
         await refresh();
