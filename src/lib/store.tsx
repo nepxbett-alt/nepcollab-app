@@ -727,7 +727,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           availability,
           status: "pending",
         });
-        if (error) throw new Error(error.message);
+        if (error) {
+          const msg = error.message || "";
+          if (msg.toLowerCase().includes("duplicate") || error.code === "23505") {
+            throw new Error("You already applied to this campaign.");
+          }
+          throw new Error(msg || "Could not submit application");
+        }
         await load(uid);
       },
       withdrawApplication: async (id) => {
