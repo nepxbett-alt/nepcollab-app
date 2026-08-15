@@ -43,15 +43,18 @@ function readPref(): Pref {
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { requestMagicLink, verifyEmailOtp, signedIn, loading, onboarded } = useStore();
+  const { requestMagicLink, verifyEmailOtp, demoSignIn, passwordSignIn, signedIn, loading, onboarded } =
+    useStore();
   const pref = typeof window !== "undefined" ? readPref() : {};
 
   const [role, setRole] = useState<Role>(pref.role === "brand" ? "brand" : "creator");
   const [name, setName] = useState(pref.name ?? "");
   const [email, setEmail] = useState(pref.email ?? "");
+  const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"form" | "code">("form");
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"otp" | "password">("otp");
 
   const { next } = Route.useSearch();
   const safeNext =
@@ -62,6 +65,20 @@ function AuthPage() {
       navigate({ to: safeNext as "/" });
     }
   }, [loading, signedIn, onboarded, navigate, safeNext]);
+
+  const runDemo = async (kind: "creator" | "brand") => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await demoSignIn(kind);
+      toast.success(kind === "brand" ? "Signed in as Test Brand" : "Signed in as Aarav (creator)");
+      navigate({ to: safeNext as "/" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Demo login failed");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const sendCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -78,7 +95,9 @@ function AuthPage() {
     }
     setBusy(true);
     try {
-      const settings = await fetchPublicSettings().catch(() => [] as Awaited<ReturnType<typeof fetchPublicSettings>>);
+      const settings = await fetchPublicSettings().catch(
+        () => [] as Awaited<ReturnType<typeof fetchPublicSettings>>,
+      );
       const reg = settings.find((s) => s.key === "registration_open");
       if (reg && reg.value === "false") {
         toast.error("Registration is temporarily closed.");
@@ -114,30 +133,85 @@ function AuthPage() {
       navigate({ to: safeNext as "/" });
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Invalid or expired code. Request a new one.",
+        error instanceof Error ? error.message : "Invalid or expired code. Request a new one.",
       );
     } finally {
       setBusy(false);
     }
   };
 
+  const passwordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    if (!email.trim() || !password) {
+      toast.error("Enter email and password.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await passwordSignIn(email.trim().toLowerCase(), password);
+      toast.success("You're signed in.");
+      navigate({ to: safeNext as "/" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not sign in.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <Container className="max-w-md py-10">
+    <Container className="max-w-md py-8">
       <Logo size={40} withWordmark={false} />
-      <h1 className="mt-4 text-xl font-bold tracking-tight">
-        {step === "form" ? "Sign in to NepCollab" : "Enter your code"}
-      </h1>
+      <h1 className="mt-4 text-xl font-bold tracking-tight">Sign in to NepCollab</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {step === "form"
-          ? "No password. We'll email a 6-digit code and a one-tap link."
-          : `We sent a code to ${email}. Enter it below, or open the link on this device.`}
+        Testing? Use one-click demo accounts below. Or continue with email.
       </p>
+
+      {/* One-click demo access for full testing */}
+      <div className="mt-5 rounded-2xl border border-signal/30 bg-signal/5 p-4">
+        <p className="text-[12px] font-semibold uppercase tracking-wider text-signal">
+          Quick test access
+        </p>
+        <p className="mt-1 text-[12.5px] text-muted-foreground">
+          Instantly open the full app as a creator or brand — no email needed.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            disabled={busy}
+            className="h-11 rounded-xl bg-signal text-signal-foreground hover:bg-signal/90"
+            onClick={() => void runDemo("creator")}
+          >
+            <Sparkles className="size-4" />
+            Creator demo
+          </Button>
+          <Button
+            type="button"
+            disabled={busy}
+            variant="outline"
+            className="h-11 rounded-xl border-signal/40"
+            onClick={() => void runDemo("brand")}
+          >
+            <Briefcase className="size-4" />
+            Brand demo
+          </Button>
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Creator: creator@nepcollab.test · Brand: brand@nepcollab.test · password test1234
+        </p>
+      </div>
+
+      <div className="my-5 flex items-center gap-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          or email
+        </span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
 
       {step === "form" ? (
         <>
-          <div className="mt-6 grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {(
               [
                 {
@@ -172,43 +246,95 @@ function AuthPage() {
             ))}
           </div>
 
-          <form onSubmit={(e) => void sendCode(e)} className="mt-6 space-y-4">
-            <div>
-              <Label htmlFor="name">{role === "brand" ? "Brand name" : "Your name"}</Label>
-              <Input
-                id="name"
-                required
-                autoComplete="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={role === "brand" ? "Acme Nepal" : "Your full name"}
-                className="mt-2 h-11"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                autoComplete="email"
-                inputMode="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="mt-2 h-11"
-              />
-            </div>
-            <Button disabled={busy} type="submit" size="lg" className="h-11 w-full rounded-full">
-              {busy ? "Sending…" : "Continue with email"}
-            </Button>
-            <p className="text-center text-[12px] text-muted-foreground">
-              Returning? Use the same email — your session stays signed in on this device.
-            </p>
-          </form>
+          <div className="mt-4 flex gap-2 text-[12px]">
+            <button
+              type="button"
+              className={cn(
+                "rounded-full px-3 py-1 font-medium",
+                mode === "otp" ? "bg-secondary text-foreground" : "text-muted-foreground",
+              )}
+              onClick={() => setMode("otp")}
+            >
+              Email code
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "rounded-full px-3 py-1 font-medium",
+                mode === "password" ? "bg-secondary text-foreground" : "text-muted-foreground",
+              )}
+              onClick={() => setMode("password")}
+            >
+              Password
+            </button>
+          </div>
+
+          {mode === "otp" ? (
+            <form onSubmit={(e) => void sendCode(e)} className="mt-4 space-y-4">
+              <div>
+                <Label htmlFor="name">{role === "brand" ? "Brand name" : "Your name"}</Label>
+                <Input
+                  id="name"
+                  required
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={role === "brand" ? "Acme Nepal" : "Your full name"}
+                  className="mt-2 h-11"
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  inputMode="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="mt-2 h-11"
+                />
+              </div>
+              <Button disabled={busy} type="submit" size="lg" className="h-11 w-full rounded-full">
+                {busy ? "Sending…" : "Continue with email"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={(e) => void passwordSubmit(e)} className="mt-4 space-y-4">
+              <div>
+                <Label htmlFor="email-pw">Email</Label>
+                <Input
+                  id="email-pw"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="creator@nepcollab.test"
+                  className="mt-2 h-11"
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="mt-2 h-11"
+                />
+              </div>
+              <Button disabled={busy} type="submit" size="lg" className="h-11 w-full rounded-full">
+                {busy ? "Signing in…" : "Sign in"}
+              </Button>
+            </form>
+          )}
         </>
       ) : (
-        <form onSubmit={(e) => void confirmCode(e)} className="mt-8 space-y-5">
+        <form onSubmit={(e) => void confirmCode(e)} className="mt-4 space-y-5">
           <div className="rounded-2xl border border-border bg-card p-5 text-center">
             <CheckCircle2 className="mx-auto size-9 text-success" />
             <p className="mt-3 text-sm text-muted-foreground">
@@ -259,9 +385,6 @@ function AuthPage() {
               Change email
             </Button>
           </div>
-          <p className="text-center text-[12px] text-muted-foreground">
-            Prefer one tap? Open the magic link in the same email — it signs you in on this device.
-          </p>
         </form>
       )}
     </Container>

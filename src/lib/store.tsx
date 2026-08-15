@@ -36,6 +36,8 @@ interface Store extends State {
   signIn: (role?: Role) => void;
   requestMagicLink: (email: string, role: Role, name: string) => Promise<void>;
   verifyEmailOtp: (email: string, token: string) => Promise<void>;
+  passwordSignIn: (email: string, password: string) => Promise<void>;
+  demoSignIn: (kind: "creator" | "brand") => Promise<void>;
   signOut: () => Promise<void>;
   completeOnboarding: (input?: {
     name?: string;
@@ -787,6 +789,25 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (!data.session?.user?.id) {
           throw new Error("Could not start a session. Try the link in your email.");
         }
+        await load(data.session.user.id);
+      },
+      passwordSignIn: async (email, password) => {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+        if (error) throw error;
+        if (!data.session?.user?.id) throw new Error("Could not sign in.");
+        await load(data.session.user.id);
+      },
+      demoSignIn: async (kind) => {
+        const email = kind === "brand" ? "brand@nepcollab.test" : "creator@nepcollab.test";
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password: "test1234",
+        });
+        if (error) throw error;
+        if (!data.session?.user?.id) throw new Error("Demo login failed.");
         await load(data.session.user.id);
       },
       signOut: async () => {
