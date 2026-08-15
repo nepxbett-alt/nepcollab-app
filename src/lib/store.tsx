@@ -125,15 +125,15 @@ const appStatus = (s: string): ApplicationStatus =>
 const dbAppStatus = (s: ApplicationStatus) =>
   (
     {
-      APPLIED: "pending",
-      UNDER_REVIEW: "under_review",
+      APPLIED: "applied",
+      UNDER_REVIEW: "applied",
       SHORTLISTED: "shortlisted",
       SELECTED: "accepted",
       REJECTED: "rejected",
       WITHDRAWN: "withdrawn",
       EXPIRED: "completed",
     } as any
-  )[s] ?? "pending";
+  )[s] ?? "applied";
 
 const collabStatus = (s: string): Collaboration["status"] =>
   (
@@ -160,27 +160,29 @@ function mapCampaign(r: any): Campaign {
       : r.requirements && typeof r.requirements === "object"
         ? r.requirements
         : {};
-  const types = arr<string>(r.content_types);
   const platforms = arr<string>(r.platforms) as Campaign["platforms"];
   const deliverableTitles = arr<string>(r.deliverables);
+  const types = arr<string>(r.content_types);
+  const deadline =
+    r.application_deadline ?? r.deadline ?? r.campaign_end_date ?? today();
   return {
     id: r.id,
     title: r.title,
     brandId: r.brand_id,
-    description: r.description ?? r.brief ?? "",
+    description: r.description ?? "",
     category: r.category ?? "General",
-    types: types.length ? types : ["Collaboration"],
+    types: types.length ? types : deliverableTitles.length ? deliverableTitles : ["Collaboration"],
     platforms,
     perks: arr<string>(r.perks),
-    giftValue: r.creator_reward ? "NPR " + r.creator_reward : undefined,
+    giftValue: r.budget ? `${r.currency ?? "NPR"} ${r.budget}` : undefined,
     location: r.location ?? "Remote",
     remote: Boolean(r.remote || r.location === "Remote"),
-    startDate: r.campaign_start ?? today(),
-    endDate: r.campaign_end ?? r.deadline ?? today(),
-    deadline: r.deadline ?? today(),
-    creatorsNeeded: r.spots ?? 1,
+    startDate: r.campaign_start_date ?? r.campaign_start ?? today(),
+    endDate: r.campaign_end_date ?? r.campaign_end ?? deadline,
+    deadline,
+    creatorsNeeded: r.creators_needed ?? r.spots ?? 1,
     status: campaignStatus(r.status),
-    cover: r.image_url ?? "/app-icon.png",
+    cover: r.cover_image ?? r.image_url ?? "/app-icon.png",
     requirements: {
       minFollowers: r.min_followers ?? req.minFollowers ?? 0,
       maxFollowers: req.maxFollowers,
@@ -194,8 +196,8 @@ function mapCampaign(r: any): Campaign {
       title,
       platform: (platforms[0] ?? "Instagram") as any,
       contentType: title,
-      dueDate: r.campaign_end ?? r.deadline ?? today(),
-      instructions: r.brief ?? "Follow the campaign brief.",
+      dueDate: r.campaign_end_date ?? deadline,
+      instructions: "Follow the campaign brief.",
       status: "PENDING" as const,
     })),
     createdAt: r.created_at?.slice(0, 10) ?? today(),
@@ -204,43 +206,65 @@ function mapCampaign(r: any): Campaign {
 }
 
 const mapBrand = (p: any, b: any): Brand => ({
-  id: p.id,
-  name: b?.business_name ?? p.full_name ?? "Brand",
-  logo: p.avatar_url ?? avatarFor(p.id),
-  category: b?.category ?? "Brand",
-  description: p.bio ?? "",
-  location: p.location ?? "Nepal",
-  website: b?.website ?? "",
-  verified: Boolean(p.verified),
+  id: p.id ?? b?.profile_id,
+  name: b?.company_name ?? b?.business_name ?? p.display_name ?? p.full_name ?? "Brand",
+  logo: b?.logo_url ?? p.avatar_url ?? avatarFor(p.id ?? b?.profile_id ?? "brand"),
+  category: b?.industry ?? b?.category ?? "Brand",
+  description: b?.description ?? p.bio ?? "",
+  location: b?.location ?? p.location ?? "Nepal",
+  website: b?.website ?? p.website ?? "",
+  verified: Boolean(b?.verified ?? p.verified),
   rating: Number(p.rating ?? 0),
   completedCampaigns: 0,
   responseRate: Number(p.response_rate ?? 0),
 });
 
-const mapCreator = (p: any, c: any, socials: any[]): Creator => ({
-  id: p.id,
-  name: p.full_name ?? "Creator",
-  username: p.username ?? p.id.slice(0, 8),
-  avatar: p.avatar_url ?? avatarFor(p.id),
-  bio: p.bio ?? "",
-  location: p.location ?? "Nepal",
-  languages: arr<string>(c?.languages),
-  niches: arr<string>(c?.niches),
-  socials: socials.map((s) => ({
-    platform: s.platform as any,
-    username: s.handle,
-    followers: s.followers ?? 0,
-    engagement: Number(s.engagement_rate ?? 0),
-    verified: Boolean(s.verified),
-  })),
-  portfolio: [],
-  reviews: [],
-  rating: Number(p.rating ?? 0),
-  completedCollaborations: 0,
-  verified: Boolean(p.verified),
-  available: c?.availability !== "unavailable",
-  preferredTypes: [],
-});
+const mapCreator = (p: any, c: any, socials: any[] = []): Creator => {
+  const builtSocials = [
+    ...(c?.instagram_url
+      ? [
+          {
+            platform: "Instagram" as const,
+            username: c.instagram_url,
+            followers: c?.audience_size ?? 0,
+            engagement: Number(c?.engagement_rate ?? 0),
+            verified: Boolean(c?.verified),
+          },
+        ]
+      : []),
+    ...(c?.tiktok_url
+      ? [{ platform: "TikTok" as const, username: c.tiktok_url, followers: 0, engagement: 0, verified: false }]
+      : []),
+    ...(c?.youtube_url
+      ? [{ platform: "YouTube" as const, username: c.youtube_url, followers: 0, engagement: 0, verified: false }]
+      : []),
+    ...socials.map((s: any) => ({
+      platform: s.platform,
+      username: s.handle,
+      followers: s.followers ?? 0,
+      engagement: Number(s.engagement_rate ?? 0),
+      verified: Boolean(s.verified),
+    })),
+  ];
+  return {
+    id: p.id ?? c?.profile_id,
+    name: p.display_name ?? p.full_name ?? "Creator",
+    username: p.username ?? (p.id ? String(p.id).slice(0, 8) : "creator"),
+    avatar: p.avatar_url ?? avatarFor(p.id ?? "creator"),
+    bio: p.bio ?? c?.headline ?? "",
+    location: p.location ?? "Nepal",
+    languages: arr<string>(c?.languages).length ? arr<string>(c?.languages) : ["Nepali"],
+    niches: arr<string>(c?.niches),
+    socials: builtSocials as any,
+    portfolio: [],
+    reviews: [],
+    rating: 0,
+    completedCollaborations: 0,
+    verified: Boolean(c?.verified),
+    available: c?.available !== false,
+    preferredTypes: arr<string>(c?.platforms),
+  };
+};
 
 const StoreContext = createContext<Store | null>(null);
 
@@ -258,6 +282,21 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     }
     setUserId(uid);
 
+    // Apply role/display_name from auth metadata on first login if profile incomplete
+    try {
+      const meta = sessionData.session?.user?.user_metadata ?? {};
+      if (meta.role || meta.display_name) {
+        const patch: Record<string, unknown> = {};
+        if (meta.role) patch.role = meta.role;
+        if (meta.display_name) patch.display_name = meta.display_name;
+        if (Object.keys(patch).length) {
+          await db.from("profiles").update(patch).eq("id", uid).is("role", null);
+        }
+      }
+    } catch {
+      /* non-fatal */
+    }
+
     const [
       { data: me },
       { data: campaignRows },
@@ -273,8 +312,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       db.from("campaigns").select("*").order("created_at", { ascending: false }),
       db.from("applications").select("*").order("applied_at", { ascending: false }),
       db.from("collaborations").select("*").order("created_at", { ascending: false }),
-      db.from("campaign_invites").select("*").order("created_at", { ascending: false }),
-      db.from("saved_campaigns").select("campaign_id").eq("user_id", uid),
+      Promise.resolve({ data: [] as any[] }), // no campaign_invites table in V1
+      db.from("saved_campaigns").select("campaign_id").eq("creator_id", uid),
       db.from("notifications").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
       db
         .from("conversations")
@@ -292,7 +331,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       contentIdea: a.content_idea ?? "",
       availability: a.availability ?? "",
       appliedAt: a.applied_at?.slice(0, 10) ?? today(),
-      note: a.note ?? a.brand_remarks ?? undefined,
+      note: a.brand_note ?? a.note ?? undefined,
     }));
 
     const collaborations: Collaboration[] = (collabRows ?? []).map((c: any) => ({
@@ -343,13 +382,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       sentAt: i.created_at?.slice(0, 10) ?? today(),
     }));
 
-    const [{ data: brandRows }, { data: creatorRows }, { data: socialRows }] = await Promise.all([
+    const [{ data: brandRows }, { data: creatorRows }] = await Promise.all([
       db.from("brand_profiles").select("*").limit(1000),
       db.from("creator_profiles").select("*").limit(1000),
-      db
-        .from("social_accounts")
-        .select("user_id,platform,handle,followers,engagement_rate,verified")
-        .limit(2000),
     ]);
 
     const ids = [
@@ -357,9 +392,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         ...(campaignRows ?? []).map((r: any) => r.brand_id),
         ...(appRows ?? []).map((r: any) => r.creator_id),
         ...(collabRows ?? []).map((r: any) => r.creator_id),
-        ...(brandRows ?? []).map((r: any) => r.user_id),
-        ...(creatorRows ?? []).map((r: any) => r.user_id),
-      ]),
+        ...(brandRows ?? []).map((r: any) => r.profile_id ?? r.user_id),
+        ...(creatorRows ?? []).map((r: any) => r.profile_id ?? r.user_id),
+        uid,
+      ].filter(Boolean)),
     ];
 
     const { data: profiles } = ids.length
@@ -367,18 +403,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       : { data: [] };
 
     const pm = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-    const bm = new Map((brandRows ?? []).map((b: any) => [b.user_id, b]));
-    const cm = new Map((creatorRows ?? []).map((c: any) => [c.user_id, c]));
+    const bm = new Map((brandRows ?? []).map((b: any) => [b.profile_id ?? b.user_id, b]));
+    const cm = new Map((creatorRows ?? []).map((c: any) => [c.profile_id ?? c.user_id, c]));
 
     setLookupData(
       [...bm.keys()].map((id) => mapBrand(pm.get(id) ?? { id }, bm.get(id))),
-      [...cm.keys()].map((id) =>
-        mapCreator(
-          pm.get(id) ?? { id },
-          cm.get(id),
-          (socialRows ?? []).filter((s: any) => s.user_id === id),
-        ),
-      ),
+      [...cm.keys()].map((id) => mapCreator(pm.get(id) ?? { id }, cm.get(id), [])),
     );
 
     setState({
@@ -462,8 +492,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             emailRedirectTo: window.location.origin + "/dashboard",
             data: {
               role,
-              full_name: name,
-              business_name: role === "brand" ? name : undefined,
+              display_name: name,
             },
           },
         });
@@ -475,36 +504,40 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       },
       completeOnboarding: async (input) => {
         if (!userId) return;
+        const role = state.role ?? "creator";
         const { error } = await db
           .from("profiles")
           .update({
-            full_name: input?.name,
-            username: input?.username,
-            bio: input?.bio,
-            location: input?.location,
+            role,
+            display_name: input?.name,
+            username: input?.username || null,
+            bio: input?.bio || null,
+            location: input?.location || null,
+            website: input?.website || null,
             onboarded: true,
           })
           .eq("id", userId);
         if (error) throw error;
-        if (state.role === "brand") {
+        if (role === "brand") {
           const { error: e } = await db.from("brand_profiles").upsert(
             {
-              user_id: userId,
-              business_name: input?.name ?? "My Brand",
+              profile_id: userId,
+              company_name: input?.name ?? "My Brand",
               website: input?.website ?? null,
+              location: input?.location ?? null,
             },
-            { onConflict: "user_id" },
+            { onConflict: "profile_id" },
           );
           if (e) throw e;
         } else {
           const { error: e } = await db.from("creator_profiles").upsert(
             {
-              user_id: userId,
+              profile_id: userId,
               languages: ["Nepali"],
               niches: [],
               platforms: [],
             },
-            { onConflict: "user_id" },
+            { onConflict: "profile_id" },
           );
           if (e) throw e;
         }
@@ -515,14 +548,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           await db
             .from("saved_campaigns")
             .delete()
-            .eq("user_id", userId)
+            .eq("creator_id", userId)
             .eq("campaign_id", campaignId);
         } else {
           await db
             .from("saved_campaigns")
             .upsert(
-              { user_id: userId, campaign_id: campaignId },
-              { onConflict: "user_id,campaign_id" },
+              { creator_id: userId, campaign_id: campaignId },
+              { onConflict: "creator_id,campaign_id" },
             );
         }
         await refresh();
@@ -537,21 +570,20 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             category: campaign.category,
             location: campaign.location,
             remote: campaign.remote,
-            perks: campaign.perks,
-            content_types: campaign.types,
-            platforms: campaign.platforms,
-            deliverables: campaign.deliverables.map((d) => d.title),
+            perks: campaign.perks ?? [],
+            platforms: campaign.platforms ?? [],
+            deliverables: (campaign.deliverables ?? []).map((d: any) => d.title ?? d),
             requirements:
               typeof campaign.requirements === "string"
                 ? campaign.requirements
                 : JSON.stringify(campaign.requirements ?? {}),
             min_followers: campaign.requirements?.minFollowers ?? 0,
-            spots: campaign.creatorsNeeded,
-            deadline: campaign.deadline,
-            campaign_start: campaign.startDate,
-            campaign_end: campaign.endDate,
-            status: "active",
-            image_url: campaign.cover,
+            creators_needed: campaign.creatorsNeeded ?? 1,
+            application_deadline: campaign.deadline || null,
+            campaign_start_date: campaign.startDate || null,
+            campaign_end_date: campaign.endDate || null,
+            status: "published",
+            cover_image: campaign.cover || null,
           })
           .select()
           .single();
@@ -562,11 +594,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const { error } = await db.from("applications").insert({
           campaign_id: campaignId,
           creator_id: userId,
-          pitch: message,
           message,
           content_idea: contentIdea,
           availability,
-          status: "pending",
+          status: "applied",
         });
         if (error) throw error;
         await refresh();
@@ -598,69 +629,52 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       setApplicantNote: async (id, note) => {
         const { error } = await db
           .from("applications")
-          .update({ brand_remarks: note })
+          .update({ brand_note: note })
           .eq("id", id);
         if (error) throw error;
         await refresh();
       },
       inviteCreator: async (campaignId, creatorId) => {
-        const { error } = await db.from("campaign_invites").insert({
-          campaign_id: campaignId,
-          creator_id: creatorId,
-          status: "sent",
-        });
-        if (error) throw error;
+        // V1 schema has no campaign_invites table — record as a shortlisted application if present
+        const { data: existing } = await db
+          .from("applications")
+          .select("id")
+          .eq("campaign_id", campaignId)
+          .eq("creator_id", creatorId)
+          .maybeSingle();
+        if (existing?.id) {
+          await db.from("applications").update({ status: "shortlisted" }).eq("id", existing.id);
+        }
         await refresh();
       },
       submitDeliverable: async (collaborationId, deliverableId, submission) => {
         const collab = state.collaborations.find((c) => c.id === collaborationId);
         if (!collab) throw new Error("Collaboration not found");
-        const app = state.applications.find(
-          (a) => a.campaignId === collab.campaignId && a.creatorId === collab.creatorId,
-        );
-        if (!app) throw new Error("Application not found");
+        // Store submission on collaboration notes (V1 has no deliverables/submissions tables)
+        const note = [submission.note, submission.link].filter(Boolean).join(" — ");
         const { error } = await db
-          .from("deliverables")
+          .from("collaborations")
           .update({
-            status: "submitted",
-            submission_link: submission.link || null,
-            submission_note: submission.note || null,
-            submitted_at: new Date().toISOString(),
+            status: "work_submitted",
+            notes: note || null,
           })
-          .eq("id", deliverableId)
-          .eq("application_id", app.id);
+          .eq("id", collaborationId);
         if (error) throw error;
-        await db.from("submissions").insert({
-          collaboration_id: collaborationId,
-          application_id: app.id,
-          creator_id: userId,
-          url: submission.link || null,
-          content_url: submission.link || null,
-          feedback: submission.note || null,
-          status: "submitted",
-        });
         await refresh();
       },
       reviewDeliverable: async (collaborationId, deliverableId, status) => {
-        const collab = state.collaborations.find((c) => c.id === collaborationId);
-        if (!collab) throw new Error("Collaboration not found");
-        const app = state.applications.find(
-          (a) => a.campaignId === collab.campaignId && a.creatorId === collab.creatorId,
-        );
-        if (!app) throw new Error("Application not found");
-        const dbStatus =
+        const collabStatusDb =
           status === "APPROVED"
-            ? "approved"
+            ? "completed"
             : status === "REVISION_REQUESTED"
-              ? "revision"
+              ? "revision_requested"
               : status === "SUBMITTED"
-                ? "submitted"
-                : "pending";
+                ? "work_submitted"
+                : "active";
         const { error } = await db
-          .from("deliverables")
-          .update({ status: dbStatus })
-          .eq("id", deliverableId)
-          .eq("application_id", app.id);
+          .from("collaborations")
+          .update({ status: collabStatusDb })
+          .eq("id", collaborationId);
         if (error) throw error;
         await refresh();
       },

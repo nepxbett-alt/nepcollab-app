@@ -75,3 +75,9 @@ cp .env.example .env
 npm install
 npm run dev
 ```
+
+## Critical notes (post-polish)
+
+- App data layer is aligned with the production migration (`profile_id`, `display_name`, `creators_needed`, application status `applied`, campaign status `published`).
+- Storage buckets must exist before avatar/campaign uploads work.
+- After first deploy, magic-link emails only work if the production URL is in Supabase Redirect URLs.
