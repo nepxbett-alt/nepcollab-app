@@ -168,7 +168,7 @@ function AuthPage() {
       </p>
 
       {/* Demo access — development only */}
-      {!import.meta.env.PROD ? (
+      {(!import.meta.env.PROD || import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true') ? (
       <div className="mt-5 rounded-2xl border border-signal/30 bg-signal/5 p-4">
         <p className="text-[12px] font-semibold uppercase tracking-wider text-signal">
           Quick test access
