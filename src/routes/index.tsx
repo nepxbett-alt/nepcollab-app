@@ -29,7 +29,11 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const { campaigns, saved, toggleSaved } = useStore();
-  const featured = campaigns.slice(0, 3);
+  const openCampaigns = campaigns.filter(
+    (c) => c.status === "APPLICATIONS_OPEN" || c.status === "PUBLISHED",
+  );
+  const featured = openCampaigns.slice(0, 3);
+  const openCount = openCampaigns.length;
 
   return (
     <div>
@@ -65,7 +69,10 @@ function Home() {
           </div>
 
           <p className="mt-7 text-[12px] text-ink-foreground/55">
-            120+ creators · 40+ brands · 0% commission
+            {openCount > 0
+              ? `${openCount} open campaign${openCount === 1 ? "" : "s"}`
+              : "New collaborations weekly"}{" "}
+            · Connect directly · 0% platform fee
           </p>
         </Container>
       </section>

@@ -1109,12 +1109,16 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         await load(uid);
       },
       withdrawApplication: async (id) => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) throw new Error("Not signed in");
         const { error } = await db
           .from("applications")
           .update({ status: "withdrawn" })
           .eq("id", id)
-          .eq("creator_id", userId);
-        if (error) throw error;
+          .eq("creator_id", uid)
+          .in("status", ["pending", "shortlisted"]);
+        if (error) throw new Error(error.message || "Could not withdraw application.");
         await refresh();
       },
       setApplicationStatus: async (id, status) => {
