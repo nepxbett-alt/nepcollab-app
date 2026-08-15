@@ -35,6 +35,7 @@ interface Store extends State {
   setRole: (role: Role) => void;
   signIn: (role?: Role) => void;
   requestMagicLink: (email: string, role: Role, name: string) => Promise<void>;
+  verifyEmailOtp: (email: string, token: string) => Promise<void>;
   signOut: () => Promise<void>;
   completeOnboarding: (input?: {
     name?: string;
@@ -640,7 +641,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       if (event === "SIGNED_OUT") {
         setUserId("");
         setState({ ...initial, loading: false });
-      } else if (session?.user?.id) {
+        return;
+      }
+      // INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED — keep session sticky
+      if (session?.user?.id) {
+        if (event === "TOKEN_REFRESHED") {
+          setUserId(session.user.id);
+          return;
+        }
         void load(session.user.id);
       }
     });
@@ -745,20 +753,46 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       setRole: (role) => setState((s) => ({ ...s, role })),
       signIn: (role) => setState((s) => ({ ...s, signedIn: true, role })),
       requestMagicLink: async (email, role, name) => {
+        const normalized = email.trim().toLowerCase();
+        try {
+          localStorage.setItem(
+            "nepcollab.auth.pref",
+            JSON.stringify({ email: normalized, role, name: name.trim() }),
+          );
+        } catch {
+          /* ignore */
+        }
         const { error } = await supabase.auth.signInWithOtp({
-          email,
+          email: normalized,
           options: {
+            shouldCreateUser: true,
             emailRedirectTo: window.location.origin + "/dashboard",
             data: {
               role,
-              full_name: name,
+              full_name: name.trim(),
             },
           },
         });
         if (error) throw error;
       },
+      verifyEmailOtp: async (email, token) => {
+        const normalized = email.trim().toLowerCase();
+        const code = token.replace(/\s/g, "");
+        const { data, error } = await supabase.auth.verifyOtp({
+          email: normalized,
+          token: code,
+          type: "email",
+        });
+        if (error) throw error;
+        if (!data.session?.user?.id) {
+          throw new Error("Could not start a session. Try the link in your email.");
+        }
+        await load(data.session.user.id);
+      },
       signOut: async () => {
-        const { error } = await supabase.auth.signOut();
+        const { error } = await supabase.auth.signOut({ scope: "local" });
+        setUserId("");
+        setState({ ...initial, loading: false });
         if (error) throw error;
       },
       completeOnboarding: async (input) => {
