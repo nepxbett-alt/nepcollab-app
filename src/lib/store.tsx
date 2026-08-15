@@ -557,21 +557,26 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         await load(uid);
       },
       toggleSaved: async (campaignId) => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) throw new Error("Not signed in");
         if (state.saved.includes(campaignId)) {
-          await db
+          const { error } = await db
             .from("saved_campaigns")
             .delete()
-            .eq("user_id", userId)
+            .eq("user_id", uid)
             .eq("campaign_id", campaignId);
+          if (error) throw new Error(error.message);
         } else {
-          await db
+          const { error } = await db
             .from("saved_campaigns")
             .upsert(
-              { user_id: userId, campaign_id: campaignId },
+              { user_id: uid, campaign_id: campaignId },
               { onConflict: "user_id,campaign_id" },
             );
+          if (error) throw new Error(error.message);
         }
-        await refresh();
+        await load(uid);
       },
       addCampaign: async (campaign) => {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -629,24 +634,86 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           .from("applications")
           .update({ status: "withdrawn" })
           .eq("id", id)
-          .eq("user_id", userId);
+          .eq("creator_id", userId);
         if (error) throw error;
         await refresh();
       },
       setApplicationStatus: async (id, status) => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) throw new Error("Not signed in");
+
         if (status === "SELECTED") {
-          const { error } = await db.rpc("accept_application", {
+          // Prefer RPC if present; otherwise manual accept on live schema
+          const { error: rpcError } = await db.rpc("accept_application", {
             _application_id: id,
           });
-          if (error) throw error;
+          if (rpcError) {
+            const { data: app, error: appErr } = await db
+              .from("applications")
+              .select("*")
+              .eq("id", id)
+              .maybeSingle();
+            if (appErr || !app) throw new Error(appErr?.message || "Application not found");
+
+            const { error: upErr } = await db
+              .from("applications")
+              .update({ status: "accepted" })
+              .eq("id", id);
+            if (upErr) throw new Error(upErr.message);
+
+            const { data: camp } = await db
+              .from("campaigns")
+              .select("brand_id")
+              .eq("id", app.campaign_id)
+              .maybeSingle();
+
+            const { data: existingCollab } = await db
+              .from("collaborations")
+              .select("id")
+              .eq("campaign_id", app.campaign_id)
+              .eq("creator_id", app.creator_id)
+              .maybeSingle();
+            if (!existingCollab) {
+              const { error: cErr } = await db.from("collaborations").insert({
+                campaign_id: app.campaign_id,
+                creator_id: app.creator_id,
+                brand_id: camp?.brand_id ?? uid,
+                application_id: id,
+                status: "active",
+              });
+              if (cErr) throw new Error(cErr.message);
+            } else {
+              await db
+                .from("collaborations")
+                .update({ status: "active", application_id: id })
+                .eq("id", existingCollab.id);
+            }
+
+            // Open conversation if possible (ignore if already exists)
+            const { data: existingConv } = await db
+              .from("conversations")
+              .select("id")
+              .eq("campaign_id", app.campaign_id)
+              .eq("brand_id", camp?.brand_id ?? uid)
+              .eq("creator_id", app.creator_id)
+              .maybeSingle();
+            if (!existingConv) {
+              await db.from("conversations").insert({
+                campaign_id: app.campaign_id,
+                brand_id: camp?.brand_id ?? uid,
+                creator_id: app.creator_id,
+              });
+            }
+          }
         } else {
           const { error } = await db
             .from("applications")
             .update({ status: dbAppStatus(status) })
             .eq("id", id);
-          if (error) throw error;
+          if (error) throw new Error(error.message);
         }
-        await refresh();
+        await load(uid);
       },
       setApplicantNote: async (id, note) => {
         const { error } = await db
