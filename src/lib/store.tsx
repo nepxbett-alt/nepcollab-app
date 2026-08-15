@@ -261,7 +261,34 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     const uid = forcedId ?? sessionData.session?.user?.id ?? "";
     if (!uid) {
       setUserId("");
-      setState({ ...initial, loading: false });
+      // Public marketplace data still loads for guests
+      try {
+        const { data: campaignRows } = await db
+          .from("campaigns")
+          .select("*")
+          .order("created_at", { ascending: false });
+        const { data: brandRows } = await db.from("brand_profiles").select("*").limit(1000);
+        const brandIds = [...new Set((campaignRows ?? []).map((r: any) => r.brand_id).filter(Boolean))];
+        const { data: profiles } = brandIds.length
+          ? await db.from("profiles").select("*").in("id", brandIds)
+          : { data: [] };
+        const pm = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+        const bm = new Map((brandRows ?? []).map((b: any) => [b.user_id, b]));
+        setLookupData(
+          [...new Set([...(brandRows ?? []).map((b: any) => b.user_id), ...brandIds])]
+            .filter(Boolean)
+            .map((id) => mapBrand(pm.get(id) ?? { id }, bm.get(id))),
+          [],
+        );
+        setState({
+          ...initial,
+          campaigns: (campaignRows ?? []).map(mapCampaign),
+          loading: false,
+        });
+      } catch (err) {
+        console.error("[NepCollab] public load failed", err);
+        setState({ ...initial, loading: false });
+      }
       return;
     }
     setUserId(uid);
