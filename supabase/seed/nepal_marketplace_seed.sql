@@ -1,25 +1,11 @@
 -- ============================================================
--- NepCollab internal staging seed — Nepal marketplace realism
--- Safe / idempotent: only touches rows owned by seed UUIDs
--- Run in Supabase Dashboard → SQL Editor (as postgres)
+-- NepCollab staging seed (idempotent, handles partial runs)
+-- Run in Supabase SQL Editor
 -- ============================================================
 
 BEGIN;
 
--- Fixed seed UUIDs (never collide with random production ids)
--- Brands
---  a1000001-... Ncell
---  a1000002-... Daraz
---  a1000003-... eSewa
---  a1000004-... Khalti
---  a1000005-... Himalayan Java
--- Creators
---  b2000001-... Ananya (Fashion KT)
---  b2000002-... Rajan (Travel Pokhara)
---  b2000003-... Sujata (Tech Lalitpur)
---  b2000004-... Pratik (Food Chitwan)
---  b2000005-... Nisha (Fitness KT)
-
+-- Fixed seed identity set
 CREATE TEMP TABLE seed_ids (id uuid PRIMARY KEY);
 INSERT INTO seed_ids (id) VALUES
   ('a1000001-0000-4000-8000-000000000001'),
@@ -33,39 +19,81 @@ INSERT INTO seed_ids (id) VALUES
   ('b2000004-0000-4000-8000-000000000004'),
   ('b2000005-0000-4000-8000-000000000005');
 
--- Campaign / app / collab / msg fixed ids
--- c300000x campaigns, d400000x applications, e500000x collabs
--- f600000x conversations, g700000x messages, h800000x notifications
--- i900000x reviews, j000000x portfolio
+CREATE TEMP TABLE seed_campaigns (id uuid PRIMARY KEY);
+INSERT INTO seed_campaigns (id) VALUES
+  ('c3000001-0000-4000-8000-000000000001'),
+  ('c3000002-0000-4000-8000-000000000002'),
+  ('c3000003-0000-4000-8000-000000000003'),
+  ('c3000004-0000-4000-8000-000000000004'),
+  ('c3000005-0000-4000-8000-000000000005');
 
--- ---------- cleanup previous seed only ----------
-DELETE FROM public.messages WHERE conversation_id IN (
-  SELECT id FROM public.conversations WHERE brand_id IN (SELECT id FROM seed_ids) OR creator_id IN (SELECT id FROM seed_ids)
-);
-DELETE FROM public.conversations WHERE brand_id IN (SELECT id FROM seed_ids) OR creator_id IN (SELECT id FROM seed_ids);
-DELETE FROM public.reviews WHERE reviewer_id IN (SELECT id FROM seed_ids) OR reviewee_id IN (SELECT id FROM seed_ids);
+-- ========== FULL CLEANUP (children first) ==========
+DELETE FROM public.messages
+WHERE conversation_id IN (
+  SELECT id FROM public.conversations
+  WHERE brand_id IN (SELECT id FROM seed_ids)
+     OR creator_id IN (SELECT id FROM seed_ids)
+)
+OR sender_id IN (SELECT id FROM seed_ids);
+
+DELETE FROM public.conversations
+WHERE brand_id IN (SELECT id FROM seed_ids)
+   OR creator_id IN (SELECT id FROM seed_ids)
+   OR campaign_id IN (SELECT id FROM seed_campaigns);
+
+DELETE FROM public.reviews
+WHERE reviewer_id IN (SELECT id FROM seed_ids)
+   OR reviewee_id IN (SELECT id FROM seed_ids)
+   OR collaboration_id IN (
+     SELECT id FROM public.collaborations
+     WHERE brand_id IN (SELECT id FROM seed_ids)
+        OR creator_id IN (SELECT id FROM seed_ids)
+   );
+
 DELETE FROM public.notifications WHERE user_id IN (SELECT id FROM seed_ids);
-DELETE FROM public.collaborations WHERE brand_id IN (SELECT id FROM seed_ids) OR creator_id IN (SELECT id FROM seed_ids);
-DELETE FROM public.applications WHERE creator_id IN (SELECT id FROM seed_ids) OR campaign_id IN (
-  SELECT id FROM public.campaigns WHERE brand_id IN (SELECT id FROM seed_ids)
-);
-DELETE FROM public.saved_campaigns WHERE user_id IN (SELECT id FROM seed_ids);
+
+DELETE FROM public.collaborations
+WHERE brand_id IN (SELECT id FROM seed_ids)
+   OR creator_id IN (SELECT id FROM seed_ids)
+   OR campaign_id IN (SELECT id FROM seed_campaigns)
+   OR id IN (
+     'e5000001-0000-4000-8000-000000000001'::uuid,
+     'e5000002-0000-4000-8000-000000000002'::uuid,
+     'e5000003-0000-4000-8000-000000000003'::uuid,
+     'e5000004-0000-4000-8000-000000000004'::uuid,
+     'e5000005-0000-4000-8000-000000000005'::uuid
+   );
+
+DELETE FROM public.applications
+WHERE creator_id IN (SELECT id FROM seed_ids)
+   OR campaign_id IN (SELECT id FROM seed_campaigns);
+
+DELETE FROM public.saved_campaigns
+WHERE user_id IN (SELECT id FROM seed_ids)
+   OR campaign_id IN (SELECT id FROM seed_campaigns);
+
 DELETE FROM public.portfolio_items WHERE creator_id IN (SELECT id FROM seed_ids);
-DELETE FROM public.campaigns WHERE brand_id IN (SELECT id FROM seed_ids);
+
+DELETE FROM public.campaigns
+WHERE brand_id IN (SELECT id FROM seed_ids)
+   OR id IN (SELECT id FROM seed_campaigns);
+
 DELETE FROM public.brand_profiles WHERE user_id IN (SELECT id FROM seed_ids);
 DELETE FROM public.creator_profiles WHERE user_id IN (SELECT id FROM seed_ids);
+
+-- profiles last among public tables
 DELETE FROM public.profiles WHERE id IN (SELECT id FROM seed_ids);
 
--- auth cleanup (seed emails only)
+-- auth
 DELETE FROM auth.identities WHERE user_id IN (SELECT id FROM seed_ids);
 DELETE FROM auth.users WHERE id IN (SELECT id FROM seed_ids);
 
--- ---------- auth users ----------
--- Minimal auth.users rows so profiles FK succeeds
+-- ========== AUTH USERS ==========
 INSERT INTO auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-  created_at, updated_at, confirmation_token, recovery_token, email_change_token_new, email_change
+  created_at, updated_at, confirmation_token, recovery_token,
+  email_change_token_new, email_change
 )
 SELECT
   '00000000-0000-0000-0000-000000000000',
@@ -91,20 +119,24 @@ FROM (VALUES
   ('b2000003-0000-4000-8000-000000000003'::uuid, 'sujata.shrestha@seed.nepcollab.internal', 'Sujata Shrestha', 'creator', 8),
   ('b2000004-0000-4000-8000-000000000004'::uuid, 'pratik.adhikari@seed.nepcollab.internal', 'Pratik Adhikari', 'creator', 7),
   ('b2000005-0000-4000-8000-000000000005'::uuid, 'nisha.basnet@seed.nepcollab.internal', 'Nisha Basnet', 'creator', 11)
-) AS s(id, email, full_name, role, months);
+) AS s(id, email, full_name, role, months)
+ON CONFLICT (id) DO UPDATE SET
+  email = EXCLUDED.email,
+  raw_user_meta_data = EXCLUDED.raw_user_meta_data,
+  updated_at = now();
 
 INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
 SELECT id, id,
   jsonb_build_object('sub', id::text, 'email', u.email),
   'email', id::text,
   now() - interval '3 days',
-  u.created_at, u.updated_at
-FROM auth.users u WHERE u.id IN (SELECT id FROM seed_ids);
+  coalesce(u.created_at, now()), coalesce(u.updated_at, now())
+FROM auth.users u WHERE u.id IN (SELECT id FROM seed_ids)
+ON CONFLICT DO NOTHING;
 
--- ---------- profiles ----------
+-- ========== PROFILES ==========
 INSERT INTO public.profiles (id, role, full_name, username, avatar_url, bio, location, onboarded, verified, rating, response_rate, created_at, updated_at)
 VALUES
--- Brands
 ('a1000001-0000-4000-8000-000000000001', 'brand', 'Ncell Marketing Team', 'ncell_brand', NULL,
  'Internal brand account for Ncell campaign operations on NepCollab staging.', 'Baluwatar, Kathmandu', true, true, 4.6, 92,
  now() - interval '11 months', now() - interval '2 days'),
@@ -118,9 +150,8 @@ VALUES
  'Internal brand account for Khalti youth lifestyle campaigns (staging).', 'Kathmandu', true, true, 4.3, 85,
  now() - interval '8 months', now() - interval '4 days'),
 ('a1000005-0000-4000-8000-000000000005', 'brand', 'Himalayan Java Marketing Team', 'himalayanjava_brand', NULL,
- 'Internal brand account for Himalayan Java hospitality & café experiences (staging).', 'Jhamsikhel, Lalitpur', true, true, 4.8, 90,
+ 'Internal brand account for Himalayan Java hospitality experiences (staging).', 'Jhamsikhel, Lalitpur', true, true, 4.8, 90,
  now() - interval '7 months', now() - interval '3 days'),
--- Creators
 ('b2000001-0000-4000-8000-000000000001', 'creator', 'Ananya Karki', 'ananyakarki', NULL,
  'Kathmandu fashion & lifestyle. Day-to-day looks from Lazimpat to Thamel — thrift finds, local labels, and the odd monsoon outfit crisis.', 'Lazimpat, Kathmandu', true, true, 4.5, 90,
  now() - interval '10 months', now() - interval '6 hours'),
@@ -135,7 +166,18 @@ VALUES
  now() - interval '7 months', now() - interval '8 hours'),
 ('b2000005-0000-4000-8000-000000000005', 'creator', 'Nisha Basnet', 'nishabasnet', NULL,
  'Kathmandu fitness & outdoor. Trail runs around Kirtipur, gym routines in Baneshwor, and weekend hikes that start before traffic does.', 'Baneshwor, Kathmandu', true, true, 4.7, 93,
- now() - interval '11 months', now() - interval '3 hours');
+ now() - interval '11 months', now() - interval '3 hours')
+ON CONFLICT (id) DO UPDATE SET
+  role = EXCLUDED.role,
+  full_name = EXCLUDED.full_name,
+  username = EXCLUDED.username,
+  bio = EXCLUDED.bio,
+  location = EXCLUDED.location,
+  onboarded = EXCLUDED.onboarded,
+  verified = EXCLUDED.verified,
+  rating = EXCLUDED.rating,
+  response_rate = EXCLUDED.response_rate,
+  updated_at = EXCLUDED.updated_at;
 
 INSERT INTO public.brand_profiles (user_id, business_name, website, category, updated_at)
 VALUES
@@ -143,7 +185,12 @@ VALUES
 ('a1000002-0000-4000-8000-000000000002', 'Daraz', 'https://www.daraz.com.np', 'E-commerce', now() - interval '5 days'),
 ('a1000003-0000-4000-8000-000000000003', 'eSewa', 'https://www.esewa.com.np', 'Fintech', now() - interval '1 day'),
 ('a1000004-0000-4000-8000-000000000004', 'Khalti', 'https://khalti.com', 'Fintech', now() - interval '4 days'),
-('a1000005-0000-4000-8000-000000000005', 'Himalayan Java', 'https://www.himalayanjava.com', 'Hospitality', now() - interval '3 days');
+('a1000005-0000-4000-8000-000000000005', 'Himalayan Java', 'https://www.himalayanjava.com', 'Hospitality', now() - interval '3 days')
+ON CONFLICT (user_id) DO UPDATE SET
+  business_name = EXCLUDED.business_name,
+  website = EXCLUDED.website,
+  category = EXCLUDED.category,
+  updated_at = EXCLUDED.updated_at;
 
 INSERT INTO public.creator_profiles (user_id, niches, languages, platforms, engagement_rate, updated_at)
 VALUES
@@ -151,7 +198,13 @@ VALUES
 ('b2000002-0000-4000-8000-000000000002', ARRAY['Travel','Hospitality','Outdoor'], ARRAY['Nepali','English','Gurung'], ARRAY['Instagram','TikTok','YouTube'], 5.80, now() - interval '12 hours'),
 ('b2000003-0000-4000-8000-000000000003', ARRAY['Tech','Productivity','Gadgets'], ARRAY['Nepali','English'], ARRAY['Instagram','YouTube'], 3.40, now() - interval '1 day'),
 ('b2000004-0000-4000-8000-000000000004', ARRAY['Food','Lifestyle','Street food'], ARRAY['Nepali','English','Hindi'], ARRAY['Instagram','TikTok'], 6.20, now() - interval '8 hours'),
-('b2000005-0000-4000-8000-000000000005', ARRAY['Fitness','Outdoor','Wellness'], ARRAY['Nepali','English'], ARRAY['Instagram','TikTok','YouTube'], 3.70, now() - interval '3 hours');
+('b2000005-0000-4000-8000-000000000005', ARRAY['Fitness','Outdoor','Wellness'], ARRAY['Nepali','English'], ARRAY['Instagram','TikTok','YouTube'], 3.70, now() - interval '3 hours')
+ON CONFLICT (user_id) DO UPDATE SET
+  niches = EXCLUDED.niches,
+  languages = EXCLUDED.languages,
+  platforms = EXCLUDED.platforms,
+  engagement_rate = EXCLUDED.engagement_rate,
+  updated_at = EXCLUDED.updated_at;
 
 -- ---------- campaigns (5) ----------
 -- statuses: active, closed, completed, draft (upcoming)
@@ -527,5 +580,16 @@ UNION ALL SELECT 'messages', count(*) FROM public.messages WHERE sender_id IN (S
 UNION ALL SELECT 'notifications', count(*) FROM public.notifications WHERE user_id IN (SELECT id FROM seed_ids)
 UNION ALL SELECT 'reviews', count(*) FROM public.reviews WHERE reviewer_id IN (SELECT id FROM seed_ids) OR reviewee_id IN (SELECT id FROM seed_ids)
 UNION ALL SELECT 'portfolio', count(*) FROM public.portfolio_items WHERE creator_id IN (SELECT id FROM seed_ids);
+
+
+-- verification
+SELECT 'profiles' AS t, count(*)::int AS n FROM public.profiles WHERE id IN (SELECT id FROM seed_ids)
+UNION ALL SELECT 'campaigns', count(*)::int FROM public.campaigns WHERE id IN (SELECT id FROM seed_campaigns)
+UNION ALL SELECT 'applications', count(*)::int FROM public.applications WHERE campaign_id IN (SELECT id FROM seed_campaigns)
+UNION ALL SELECT 'collaborations', count(*)::int FROM public.collaborations WHERE campaign_id IN (SELECT id FROM seed_campaigns)
+UNION ALL SELECT 'messages', count(*)::int FROM public.messages WHERE sender_id IN (SELECT id FROM seed_ids)
+UNION ALL SELECT 'notifications', count(*)::int FROM public.notifications WHERE user_id IN (SELECT id FROM seed_ids)
+UNION ALL SELECT 'reviews', count(*)::int FROM public.reviews WHERE reviewer_id IN (SELECT id FROM seed_ids) OR reviewee_id IN (SELECT id FROM seed_ids)
+UNION ALL SELECT 'portfolio', count(*)::int FROM public.portfolio_items WHERE creator_id IN (SELECT id FROM seed_ids);
 
 COMMIT;
