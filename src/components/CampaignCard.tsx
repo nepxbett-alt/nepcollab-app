@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { BadgeCheck, Bookmark, Gift, MapPin } from "lucide-react";
 import type { Campaign } from "@/data/types";
-import { daysLeft, getBrand } from "@/lib/lookup";
+import { daysLeft, displayMatch, getBrand } from "@/lib/lookup";
 import { cn } from "@/lib/utils";
 
 export function CampaignCard({
@@ -19,6 +19,10 @@ export function CampaignCard({
 }) {
   const brand = getBrand(campaign.brandId);
   const left = daysLeft(campaign.deadline);
+  const shownMatch = displayMatch(match);
+  const reward =
+    campaign.giftValue?.trim() ||
+    (campaign.perks?.length ? campaign.perks.slice(0, 2).join(" · ") : "Collaboration perks");
 
   return (
     <article
@@ -42,9 +46,9 @@ export function CampaignCard({
           />
           <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/10 to-transparent" />
 
-          {typeof match === "number" ? (
+          {shownMatch != null ? (
             <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-bold text-foreground backdrop-blur">
-              {match}% match
+              {shownMatch}% match
             </span>
           ) : null}
 
@@ -76,29 +80,31 @@ export function CampaignCard({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <MapPin className="size-3" />
-              {campaign.remote ? "Remote" : campaign.location}
+              {campaign.remote ? "Remote OK" : campaign.location || "Nepal"}
             </span>
-            <span className="truncate">{campaign.types.slice(0, 2).join(" · ")}</span>
+            <span className="truncate">{campaign.platforms?.slice(0, 2).join(" · ") || campaign.types.slice(0, 2).join(" · ")}</span>
           </div>
 
           <div className="flex items-start gap-2 rounded-2xl bg-accent px-3 py-2 text-[12px] text-accent-foreground">
             <Gift className="mt-px size-3.5 shrink-0" />
-            <span className="line-clamp-1 font-medium">
-              {campaign.perks.join(" + ")}
-            </span>
+            <span className="line-clamp-2 font-medium">{reward}</span>
           </div>
 
           <div className="flex items-center justify-between pt-0.5">
             <span
               className={cn(
                 "text-[12px] font-semibold",
-                left <= 7 ? "text-signal" : "text-muted-foreground",
+                left <= 0 ? "text-muted-foreground" : left <= 7 ? "text-signal" : "text-muted-foreground",
               )}
             >
-              {left > 0 ? `${left} days left` : "Closed"}
+              {left > 7
+                ? `${left} days left to apply`
+                : left > 0
+                  ? `Closes in ${left} day${left === 1 ? "" : "s"}`
+                  : "Applications closed"}
             </span>
             <span className="text-[12.5px] font-semibold text-foreground group-hover:text-signal">
-              View opportunity
+              View details
             </span>
           </div>
         </div>

@@ -15,7 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { LOCATIONS, NICHES, PLATFORMS } from "@/data/types";
-import { daysLeft, getBrand, matchScore } from "@/lib/lookup";
+import { daysLeft, displayMatch, getBrand, matchScore } from "@/lib/lookup";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -278,7 +278,11 @@ function Discover() {
                   toast.error(err instanceof Error ? err.message : "Could not save"),
                 );
               }}
-              match={matchScore(c, currentCreatorId)}
+              match={
+                signedIn && currentCreatorId
+                  ? displayMatch(matchScore(c, currentCreatorId)) ?? undefined
+                  : undefined
+              }
             />
           ))}
         </div>

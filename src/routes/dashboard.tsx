@@ -264,9 +264,57 @@ function Dashboard() {
   ].filter(Boolean).length;
   const percent = Math.round((filled / 5) * 100);
 
+  const pendingApps = mine.filter((a) =>
+    ["APPLIED", "UNDER_REVIEW", "SHORTLISTED"].includes(a.status),
+  );
+  const selectedApps = mine.filter((a) => a.status === "SELECTED");
+
   return (
     <Container>
       <Greeting name={creator?.name} sub="Find your next collaboration" />
+
+      {mine.length === 0 ? (
+        <div className="mb-6 rounded-3xl border border-signal/30 bg-accent/40 p-4">
+          <p className="text-[14px] font-semibold">Your next step</p>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Browse open campaigns and apply to ones that fit your niche. Brands review applications and message selected creators here.
+          </p>
+          <Link
+            to="/campaigns"
+            className="tap mt-3 inline-flex h-10 items-center rounded-full bg-signal px-4 text-[13.5px] font-semibold text-signal-foreground"
+          >
+            Discover campaigns
+          </Link>
+        </div>
+      ) : selectedApps.length > 0 ? (
+        <div className="mb-6 rounded-3xl border border-success/30 bg-success/10 p-4">
+          <p className="text-[14px] font-semibold">You were selected</p>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Open Collaborations to see deliverables and submit your work.
+          </p>
+          <Link
+            to="/collaborations"
+            className="tap mt-3 inline-flex h-10 items-center rounded-full bg-ink px-4 text-[13.5px] font-semibold text-ink-foreground"
+          >
+            Open collaborations
+          </Link>
+        </div>
+      ) : pendingApps.length > 0 ? (
+        <div className="mb-6 rounded-3xl border border-border bg-card p-4">
+          <p className="text-[14px] font-semibold">
+            {pendingApps.length} application{pendingApps.length === 1 ? "" : "s"} in review
+          </p>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Brands will shortlist or select creators. Track status on Applications.
+          </p>
+          <Link
+            to="/applications"
+            className="tap mt-3 inline-flex h-10 items-center rounded-full border border-border px-4 text-[13.5px] font-semibold"
+          >
+            Track applications
+          </Link>
+        </div>
+      ) : null}
 
       <SectionHeader
         title="Recommended for you"

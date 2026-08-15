@@ -48,9 +48,9 @@ function Home() {
             <br />
             <span className="text-signal">GROW.</span>
           </h1>
-          <p className="mt-4 max-w-sm text-[14.5px] leading-relaxed text-ink-foreground/75">
-            Discover collaborations. Work with brands. Build your creator
-            journey.
+          <p className="mt-4 max-w-md text-[14.5px] leading-relaxed text-ink-foreground/75">
+            Nepal&apos;s marketplace for creators and brands. Find real campaigns,
+            apply in minutes, and collaborate without middlemen.
           </p>
 
           <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
@@ -98,9 +98,9 @@ function Home() {
       <Container className="pt-8">
         <div className="grid gap-3 sm:grid-cols-3">
           {[
-            ["Create", "Post or find a collaboration in minutes."],
-            ["Connect", "Brands and creators match directly — no middlemen."],
-            ["Grow", "Deliver, get reviewed, build your reputation."],
+            ["1. Discover", "Browse open campaigns from real brands in Nepal."],
+            ["2. Apply", "Send your pitch in a few minutes — no long forms."],
+            ["3. Collaborate", "Get selected, deliver work, and build your reputation."],
           ].map(([title, body]) => (
             <div
               key={title}

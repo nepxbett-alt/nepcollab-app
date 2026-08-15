@@ -142,14 +142,17 @@ function CampaignDetail() {
               <Gift className="size-5" /> What you get
             </h2>
             <ul className="mt-3 space-y-2">
-              {campaign.perks.map((p) => (
+              {(campaign.perks?.length
+                ? campaign.perks
+                : ["Details arranged directly with the brand"]
+              ).map((p) => (
                 <li key={p} className="flex items-center gap-2 text-sm font-medium">
                   <CheckCircle2 className="size-4 text-success" /> {p}
                 </li>
               ))}
             </ul>
             {campaign.giftValue ? (
-              <p className="mt-3 rounded-2xl bg-card p-3 text-sm">
+              <p className="mt-3 rounded-2xl bg-card p-3 text-sm font-medium">
                 {campaign.giftValue}
               </p>
             ) : null}

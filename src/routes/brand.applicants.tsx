@@ -118,47 +118,61 @@ function Applicants() {
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={async () => {
-                      try {
-                        await setApplicationStatus(a.id, "SHORTLISTED");
-                        toast.success("Creator shortlisted");
-                      } catch (err: any) {
-                        toast.error(err?.message || "Could not shortlist");
-                      }
-                    }}
-                  >
-                    Shortlist
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        await setApplicationStatus(a.id, "SELECTED");
-                        toast.success("Creator selected — collaboration created");
-                      } catch (err: any) {
-                        toast.error(err?.message || "Could not select creator");
-                      }
-                    }}
-                  >
-                    Select
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={async () => {
-                      try {
-                        await setApplicationStatus(a.id, "REJECTED");
-                        toast("Application rejected");
-                      } catch (err: any) {
-                        toast.error(err?.message || "Could not reject");
-                      }
-                    }}
-                  >
-                    Reject
-                  </Button>
+                  {a.status === "APPLIED" || a.status === "UNDER_REVIEW" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          await setApplicationStatus(a.id, "SHORTLISTED");
+                          toast.success("Creator shortlisted");
+                        } catch (err: any) {
+                          toast.error(err?.message || "Could not shortlist");
+                        }
+                      }}
+                    >
+                      Shortlist
+                    </Button>
+                  ) : null}
+                  {a.status === "APPLIED" || a.status === "UNDER_REVIEW" || a.status === "SHORTLISTED" ? (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            await setApplicationStatus(a.id, "SELECTED");
+                            toast.success("Creator selected — collaboration started");
+                          } catch (err: any) {
+                            toast.error(err?.message || "Could not select creator");
+                          }
+                        }}
+                      >
+                        Select & start collab
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={async () => {
+                          try {
+                            await setApplicationStatus(a.id, "REJECTED");
+                            toast("Application rejected");
+                          } catch (err: any) {
+                            toast.error(err?.message || "Could not reject");
+                          }
+                        }}
+                      >
+                        Reject
+                      </Button>
+                    </>
+                  ) : null}
+                  {a.status === "SELECTED" ? (
+                    <p className="w-full text-[12.5px] font-medium text-success">
+                      Selected — open Collaborations to manage deliverables.
+                    </p>
+                  ) : null}
+                  {a.status === "REJECTED" ? (
+                    <p className="w-full text-[12.5px] text-muted-foreground">Rejected</p>
+                  ) : null}
                   <Button asChild size="sm" variant="ghost">
                     <Link to="/messages">Message</Link>
                   </Button>

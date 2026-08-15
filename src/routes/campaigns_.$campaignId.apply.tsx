@@ -161,7 +161,7 @@ function ApplyPage() {
     setBusy(true);
     try {
       await applyToCampaign({ campaignId, message, contentIdea, availability });
-      toast.success("Application submitted");
+      toast.success("Application submitted — track status under Applications");
       navigate({ to: "/applications" });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Could not submit application";

@@ -43,11 +43,11 @@ const ORDER = [
 ] as const;
 
 const DESCRIPTIONS: Record<string, string> = {
-  Applied: "Your application reached the brand.",
-  "Under review": "The brand is comparing creator profiles.",
-  Selected: "You were picked for this collaboration.",
-  "Content in progress": "Create and prepare your deliverables.",
-  Submitted: "Your work has been sent to the brand.",
+  Applied: "Your application reached the brand. Waiting for their review.",
+  "Under review": "The brand is reviewing creators — hang tight.",
+  Selected: "You were picked. Open Collaborations to see deliverables.",
+  "Content in progress": "Create your content and submit before the deadline.",
+  Submitted: "Your work is with the brand for review.",
   "Brand review": "The brand is reviewing your submission.",
   Approved: "Your content was approved.",
   Completed: "Collaboration wrapped up. Nice work.",
