@@ -47,6 +47,19 @@ function ApplyPage() {
   const [contentIdea, setContentIdea] = useState("");
   const [availability, setAvailability] = useState("");
 
+  if (campaign && campaign.status && !["APPLICATIONS_OPEN", "ACTIVE"].includes(String(campaign.status))) {
+    return (
+      <Container>
+        <EmptyState
+          title="Applications closed"
+          body="This campaign is not accepting applications right now."
+          actionLabel="Browse campaigns"
+          actionTo="/campaigns"
+        />
+      </Container>
+    );
+  }
+
   if (!campaign) {
     return (
       <Container>

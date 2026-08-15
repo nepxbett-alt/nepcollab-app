@@ -152,6 +152,9 @@ function AdminOverview() {
               <Stat label="Active collabs" value={stats.activeCollabs} to="/admin/collaborations" />
               <Stat label="Completed collabs" value={stats.completedCollabs} />
               <Stat label="Open reports" value={stats.openReports} to="/admin/reports" />
+              <Stat label="Open disputes" value={stats.openDisputes} to="/admin/disputes" />
+              <Stat label="Pending verifications" value={stats.pendingVerifications} to="/admin/verification" />
+              <Stat label="New users 7d / 30d" value={`${stats.new7} / ${stats.new30}`} />
               <Stat label="Campaign budget (NPR)" value={stats.totalBudgetNpr.toLocaleString()} />
             </div>
           </section>
@@ -164,6 +167,7 @@ function AdminOverview() {
           <ul className="mt-3 space-y-2 text-sm">
             <li><Link className="text-primary underline" to="/admin/verification">Verification queue</Link></li>
             <li><Link className="text-primary underline" to="/admin/reports">Reports & moderation</Link></li>
+            <li><Link className="text-primary underline" to="/admin/disputes">Disputes</Link></li>
             <li><Link className="text-primary underline" to="/admin/content">Featured content</Link></li>
             <li><Link className="text-primary underline" to="/admin/settings">Platform settings</Link></li>
             <li><Link className="text-primary underline" to="/admin/audit">Audit log</Link></li>

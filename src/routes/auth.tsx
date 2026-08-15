@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useStore } from "@/lib/store";
+import { fetchPublicSettings } from "@/lib/admin";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/data/types";
 
@@ -33,6 +34,17 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
+      const settings = await fetchPublicSettings();
+      const reg = settings.find((s) => s.key === "registration_open");
+      if (reg && reg.value === "false") {
+        toast.error("Registration is temporarily closed.");
+        return;
+      }
+      const maint = settings.find((s) => s.key === "maintenance_mode");
+      if (maint && maint.value === "true") {
+        toast.error("NepCollab is in maintenance mode. Try again later.");
+        return;
+      }
       await requestMagicLink(email, role, name);
       setSent(true);
       toast.success("Magic link sent. Check your email.");

@@ -24,6 +24,7 @@ import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
 import { Route as AdminCollaborationsRouteImport } from './routes/admin.collaborations'
 import { Route as AdminContentRouteImport } from './routes/admin.content'
 import { Route as AdminCreatorsRouteImport } from './routes/admin.creators'
+import { Route as AdminDisputesRouteImport } from './routes/admin.disputes'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -112,6 +113,11 @@ const AdminCreatorsRoute = AdminCreatorsRouteImport.update({
   path: '/admin/creators',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDisputesRoute = AdminDisputesRouteImport.update({
+  id: '/admin/disputes',
+  path: '/admin/disputes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminReportsRoute = AdminReportsRouteImport.update({
   id: '/admin/reports',
   path: '/admin/reports',
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/admin/collaborations': typeof AdminCollaborationsRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/creators': typeof AdminCreatorsRoute
+  '/admin/disputes': typeof AdminDisputesRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/admin/collaborations': typeof AdminCollaborationsRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/creators': typeof AdminCreatorsRoute
+  '/admin/disputes': typeof AdminDisputesRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -248,6 +256,7 @@ export interface FileRoutesById {
   '/admin/collaborations': typeof AdminCollaborationsRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/creators': typeof AdminCreatorsRoute
+  '/admin/disputes': typeof AdminDisputesRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -279,6 +288,7 @@ export interface FileRouteTypes {
     | '/admin/collaborations'
     | '/admin/content'
     | '/admin/creators'
+    | '/admin/disputes'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
@@ -308,6 +318,7 @@ export interface FileRouteTypes {
     | '/admin/collaborations'
     | '/admin/content'
     | '/admin/creators'
+    | '/admin/disputes'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
@@ -337,6 +348,7 @@ export interface FileRouteTypes {
     | '/admin/collaborations'
     | '/admin/content'
     | '/admin/creators'
+    | '/admin/disputes'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/users'
@@ -367,6 +379,7 @@ export interface RootRouteChildren {
   AdminCollaborationsRoute: typeof AdminCollaborationsRoute
   AdminContentRoute: typeof AdminContentRoute
   AdminCreatorsRoute: typeof AdminCreatorsRoute
+  AdminDisputesRoute: typeof AdminDisputesRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -488,6 +501,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCreatorsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/disputes': {
+      id: '/admin/disputes'
+      path: '/admin/disputes'
+      fullPath: '/admin/disputes'
+      preLoaderRoute: typeof AdminDisputesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/reports': {
       id: '/admin/reports'
       path: '/admin/reports'
@@ -601,6 +621,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminCollaborationsRoute: AdminCollaborationsRoute,
   AdminContentRoute: AdminContentRoute,
   AdminCreatorsRoute: AdminCreatorsRoute,
+  AdminDisputesRoute: AdminDisputesRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,

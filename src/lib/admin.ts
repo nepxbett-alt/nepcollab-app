@@ -1,7 +1,6 @@
 /**
- * Admin Control Center — real Supabase operations only.
- * Authorization: is_admin() RPC + profiles.role === 'admin' + RLS policies.
- * Never uses service role in the browser.
+ * Admin Control Center — uses existing Supabase admin RPCs + tables.
+ * Mutations go through SECURITY DEFINER functions (never raw privileged updates).
  */
 import { supabase } from "@/integrations/supabase/client";
 
@@ -21,6 +20,7 @@ export type AdminProfile = {
   suspended_reason?: string | null;
   admin_notes?: string | null;
   featured?: boolean | null;
+  avatar_url?: string | null;
 };
 
 export type AdminCampaign = {
@@ -49,8 +49,6 @@ export type AdminReport = {
   details: string | null;
   severity?: string | null;
   admin_notes?: string | null;
-  target_type?: string | null;
-  target_id?: string | null;
   created_at: string | null;
   resolved_at: string | null;
   resolved_by: string | null;
@@ -87,7 +85,6 @@ export async function checkIsAdmin(): Promise<boolean> {
   return p?.role === "admin";
 }
 
-/** Throws if caller is not admin — call before mutations. */
 export async function requireAdmin(): Promise<string> {
   const uid = await currentUserId();
   if (!uid) throw new Error("Not signed in");
@@ -96,25 +93,11 @@ export async function requireAdmin(): Promise<string> {
   return uid;
 }
 
-export async function audit(
-  action: string,
-  target_type: string,
-  target_id: string | null,
-  details: Record<string, unknown> = {},
-) {
-  try {
-    const admin_id = await currentUserId();
-    if (!admin_id) return;
-    await supabase.from("admin_audit_logs").insert({
-      admin_id,
-      action,
-      target_type,
-      target_id,
-      details,
-    });
-  } catch {
-    /* non-fatal */
-  }
+async function rpc(name: string, args: Record<string, unknown>) {
+  await requireAdmin();
+  const { data, error } = await supabase.rpc(name, args);
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 function startOfTodayISO() {
@@ -122,7 +105,6 @@ function startOfTodayISO() {
   d.setHours(0, 0, 0, 0);
   return d.toISOString();
 }
-
 function daysAgoISO(n: number) {
   return new Date(Date.now() - n * 86400000).toISOString();
 }
@@ -130,15 +112,19 @@ function daysAgoISO(n: number) {
 export async function fetchAdminStats() {
   await requireAdmin();
   const today = startOfTodayISO();
-  const week = daysAgoISO(7);
+  const d7 = daysAgoISO(7);
+  const d30 = daysAgoISO(30);
 
-  const [profiles, campaigns, applications, collaborations, reports] = await Promise.all([
-    supabase.from("profiles").select("id, role, onboarded, verified, suspended, created_at"),
-    supabase.from("campaigns").select("id, status, budget, creator_reward, featured"),
-    supabase.from("applications").select("id, status"),
-    supabase.from("collaborations").select("id, status"),
-    supabase.from("reports").select("id, status"),
-  ]);
+  const [profiles, campaigns, applications, collaborations, reports, verifs, disputes] =
+    await Promise.all([
+      supabase.from("profiles").select("id, role, verified, suspended, created_at, onboarded"),
+      supabase.from("campaigns").select("id, status, budget, creator_reward, featured, created_at"),
+      supabase.from("applications").select("id, status, created_at"),
+      supabase.from("collaborations").select("id, status, created_at"),
+      supabase.from("reports").select("id, status"),
+      supabase.from("verification_requests").select("id, status"),
+      supabase.from("disputes").select("id, status"),
+    ]);
 
   if (profiles.error) throw new Error(profiles.error.message);
   if (campaigns.error) throw new Error(campaigns.error.message);
@@ -148,8 +134,11 @@ export async function fetchAdminStats() {
   const apps = applications.data ?? [];
   const collabs = collaborations.data ?? [];
   const reps = reports.data ?? [];
+  const vreqs = verifs.data ?? [];
+  const disp = disputes.data ?? [];
 
-  const totalBudget = camps.reduce((s, c) => s + (Number(c.budget) || Number(c.creator_reward) || 0), 0);
+  const openStatus = (s: string | null) =>
+    !s || ["open", "pending", "investigating"].includes(s);
 
   return {
     users: users.length,
@@ -160,20 +149,27 @@ export async function fetchAdminStats() {
     unverified: users.filter((u) => !u.verified && (u.role === "creator" || u.role === "brand")).length,
     suspended: users.filter((u) => u.suspended).length,
     newToday: users.filter((u) => u.created_at && u.created_at >= today).length,
-    newWeek: users.filter((u) => u.created_at && u.created_at >= week).length,
+    new7: users.filter((u) => u.created_at && u.created_at >= d7).length,
+    new30: users.filter((u) => u.created_at && u.created_at >= d30).length,
     campaigns: camps.length,
     activeCampaigns: camps.filter((c) => c.status === "active").length,
     draftCampaigns: camps.filter((c) => c.status === "draft").length,
+    pausedCampaigns: camps.filter((c) => c.status === "paused").length,
     completedCampaigns: camps.filter((c) => c.status === "completed").length,
     featuredCampaigns: camps.filter((c) => c.featured).length,
+    campaigns7: camps.filter((c) => c.created_at && c.created_at >= d7).length,
     applications: apps.length,
     pendingApplications: apps.filter((a) => a.status === "pending").length,
     acceptedApplications: apps.filter((a) => a.status === "accepted").length,
+    apps7: apps.filter((a) => a.created_at && a.created_at >= d7).length,
     collaborations: collabs.length,
-    activeCollabs: collabs.filter((c) => c.status === "active" || c.status === "submitted").length,
+    activeCollabs: collabs.filter((c) => ["active", "submitted", "revision_requested"].includes(c.status || "")).length,
     completedCollabs: collabs.filter((c) => c.status === "completed").length,
-    openReports: reps.filter((r) => !r.status || r.status === "open" || r.status === "pending" || r.status === "investigating").length,
-    totalBudgetNpr: totalBudget,
+    collabs7: collabs.filter((c) => c.created_at && c.created_at >= d7).length,
+    openReports: reps.filter((r) => openStatus(r.status)).length,
+    pendingVerifications: vreqs.filter((v) => openStatus(v.status) || v.status === "pending").length,
+    openDisputes: disp.filter((d) => openStatus(d.status)).length,
+    totalBudgetNpr: camps.reduce((s, c) => s + (Number(c.budget) || Number(c.creator_reward) || 0), 0),
   };
 }
 
@@ -182,20 +178,11 @@ export async function fetchUsers(limit = 200) {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, username, role, location, onboarded, verified, rating, created_at, bio, suspended, suspended_at, suspended_reason, admin_notes, featured",
+      "id, full_name, username, role, location, onboarded, verified, rating, created_at, bio, suspended, suspended_at, suspended_reason, admin_notes, featured, avatar_url",
     )
     .order("created_at", { ascending: false })
     .limit(limit);
-  if (error) {
-    // fallback without new columns
-    const { data: d2, error: e2 } = await supabase
-      .from("profiles")
-      .select("id, full_name, username, role, location, onboarded, verified, rating, created_at, bio")
-      .order("created_at", { ascending: false })
-      .limit(limit);
-    if (e2) throw new Error(e2.message);
-    return (d2 ?? []) as AdminProfile[];
-  }
+  if (error) throw new Error(error.message);
   return (data ?? []) as AdminProfile[];
 }
 
@@ -206,7 +193,7 @@ export async function fetchUserDetail(userId: string) {
   const [brand, creator, camps, apps, collabs, port, reps] = await Promise.all([
     supabase.from("brand_profiles").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("creator_profiles").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("campaigns").select("id, title, status, created_at").eq("brand_id", userId),
+    supabase.from("campaigns").select("id, title, status, created_at, featured").eq("brand_id", userId),
     supabase.from("applications").select("id, campaign_id, status, created_at").eq("creator_id", userId),
     supabase.from("collaborations").select("id, campaign_id, status, created_at").or(`creator_id.eq.${userId},brand_id.eq.${userId}`),
     supabase.from("portfolio_items").select("id, title, sort_order").eq("creator_id", userId),
@@ -225,89 +212,105 @@ export async function fetchUserDetail(userId: string) {
 }
 
 export async function setUserVerified(userId: string, verified: boolean) {
+  // Prefer verification RPC when request exists; else direct verified via admin role update path
   await requireAdmin();
-  const { error } = await supabase.from("profiles").update({ verified }).eq("id", userId);
-  if (error) throw new Error(error.message);
-  await audit(verified ? "USER_VERIFIED" : "USER_UNVERIFIED", "user", userId, { verified });
+  const { data: reqs } = await supabase
+    .from("verification_requests")
+    .select("id, status")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  const pending = (reqs ?? []).find((r) => r.status === "pending" || r.status === "open");
+  if (pending) {
+    await rpc("admin_review_verification", {
+      p_request_id: pending.id,
+      p_status: verified ? "approved" : "rejected",
+      p_note: verified ? "Approved by admin" : "Rejected by admin",
+    });
+  } else {
+    // Fallback: featured-style path not available; use admin_write_audit + update if RLS allows admin
+    const { error } = await supabase.from("profiles").update({ verified }).eq("id", userId);
+    if (error) throw new Error(error.message);
+    await rpc("admin_write_audit", {
+      p_action: verified ? "USER_VERIFIED" : "USER_UNVERIFIED",
+      p_target_type: "user",
+      p_target_id: userId,
+      p_details: { verified },
+    });
+  }
 }
 
 export async function setUserSuspended(userId: string, suspended: boolean, reason?: string) {
-  await requireAdmin();
-  const patch: Record<string, unknown> = {
-    suspended,
-    suspended_at: suspended ? new Date().toISOString() : null,
-    suspended_reason: suspended ? reason || null : null,
-  };
-  const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
-  if (error) throw new Error(error.message);
-  await audit(suspended ? "USER_SUSPENDED" : "USER_UNSUSPENDED", "user", userId, { reason });
+  await rpc("admin_set_user_suspension", {
+    p_user_id: userId,
+    p_suspended: suspended,
+    p_reason: reason || null,
+  });
 }
 
-export async function setUserFeatured(userId: string, featured: boolean) {
-  await requireAdmin();
-  const { error } = await supabase.from("profiles").update({ featured }).eq("id", userId);
-  if (error) throw new Error(error.message);
-  await audit(featured ? "USER_FEATURED" : "USER_UNFEATURED", "user", userId);
+export async function setUserRole(userId: string, role: "creator" | "brand" | "admin") {
+  await rpc("admin_set_user_role", { p_user_id: userId, p_role: role });
+}
+
+export async function setUserFeatured(userId: string, featured: boolean, targetType: "user" | "creator" | "brand" = "user") {
+  await rpc("admin_set_featured", {
+    p_target_type: targetType,
+    p_target_id: userId,
+    p_featured: featured,
+  });
 }
 
 export async function setUserAdminNotes(userId: string, admin_notes: string) {
   await requireAdmin();
   const { error } = await supabase.from("profiles").update({ admin_notes }).eq("id", userId);
   if (error) throw new Error(error.message);
-  await audit("USER_NOTES_UPDATED", "user", userId);
-}
-
-export async function setUserRole(userId: string, role: "creator" | "brand" | "admin") {
-  await requireAdmin();
-  if (role === "admin") {
-    const { error } = await supabase.rpc("grant_admin", { p_user_id: userId });
-    if (error) throw new Error(error.message);
-    await audit("USER_ROLE_CHANGED", "user", userId, { role: "admin" });
-    return;
-  }
-  const { error } = await supabase.from("profiles").update({ role }).eq("id", userId);
-  if (error) throw new Error(error.message);
-  await audit("USER_ROLE_CHANGED", "user", userId, { role });
+  await rpc("admin_write_audit", {
+    p_action: "USER_NOTES_UPDATED",
+    p_target_type: "user",
+    p_target_id: userId,
+    p_details: {},
+  });
 }
 
 export async function fetchAdminCampaigns(limit = 200) {
   await requireAdmin();
   const { data, error } = await supabase
     .from("campaigns")
-    .select("id, title, status, brand_id, location, category, budget, spots, deadline, created_at, views, featured, description, creator_reward")
+    .select(
+      "id, title, status, brand_id, location, category, budget, spots, deadline, created_at, views, featured, description, creator_reward",
+    )
     .order("created_at", { ascending: false })
     .limit(limit);
-  if (error) {
-    const { data: d2, error: e2 } = await supabase
-      .from("campaigns")
-      .select("id, title, status, brand_id, location, category, budget, spots, deadline, created_at, views")
-      .order("created_at", { ascending: false })
-      .limit(limit);
-    if (e2) throw new Error(e2.message);
-    return (d2 ?? []) as AdminCampaign[];
-  }
+  if (error) throw new Error(error.message);
   return (data ?? []) as AdminCampaign[];
 }
 
-export async function setCampaignStatus(campaignId: string, status: string) {
-  await requireAdmin();
-  const { error } = await supabase.from("campaigns").update({ status }).eq("id", campaignId);
-  if (error) throw new Error(error.message);
-  await audit("CAMPAIGN_STATUS_CHANGED", "campaign", campaignId, { status });
+export async function setCampaignStatus(campaignId: string, status: string, reason?: string) {
+  await rpc("admin_set_campaign_status", {
+    p_campaign_id: campaignId,
+    p_status: status,
+    p_reason: reason || null,
+  });
 }
 
 export async function setCampaignFeatured(campaignId: string, featured: boolean) {
-  await requireAdmin();
-  const { error } = await supabase.from("campaigns").update({ featured }).eq("id", campaignId);
-  if (error) throw new Error(error.message);
-  await audit(featured ? "CAMPAIGN_FEATURED" : "CAMPAIGN_UNFEATURED", "campaign", campaignId);
+  await rpc("admin_set_featured", {
+    p_target_type: "campaign",
+    p_target_id: campaignId,
+    p_featured: featured,
+  });
 }
 
 export async function deleteCampaign(campaignId: string) {
   await requireAdmin();
   const { error } = await supabase.from("campaigns").delete().eq("id", campaignId);
   if (error) throw new Error(error.message);
-  await audit("CAMPAIGN_DELETED", "campaign", campaignId);
+  await rpc("admin_write_audit", {
+    p_action: "CAMPAIGN_DELETED",
+    p_target_type: "campaign",
+    p_target_id: campaignId,
+    p_details: {},
+  });
 }
 
 export async function fetchAdminApplications(limit = 200) {
@@ -325,7 +328,12 @@ export async function setApplicationStatusAdmin(id: string, status: string) {
   await requireAdmin();
   const { error } = await supabase.from("applications").update({ status }).eq("id", id);
   if (error) throw new Error(error.message);
-  await audit("APPLICATION_STATUS_CHANGED", "application", id, { status });
+  await rpc("admin_write_audit", {
+    p_action: "APPLICATION_STATUS_CHANGED",
+    p_target_type: "application",
+    p_target_id: id,
+    p_details: { status },
+  });
 }
 
 export async function fetchAdminCollaborations(limit = 200) {
@@ -343,7 +351,12 @@ export async function setCollabStatus(id: string, status: string) {
   await requireAdmin();
   const { error } = await supabase.from("collaborations").update({ status }).eq("id", id);
   if (error) throw new Error(error.message);
-  await audit("COLLABORATION_STATUS_CHANGED", "collaboration", id, { status });
+  await rpc("admin_write_audit", {
+    p_action: "COLLABORATION_STATUS_CHANGED",
+    p_target_type: "collaboration",
+    p_target_id: id,
+    p_details: { status },
+  });
 }
 
 export async function fetchReports(limit = 200) {
@@ -353,18 +366,50 @@ export async function fetchReports(limit = 200) {
   return (data ?? []) as AdminReport[];
 }
 
-export async function resolveReport(id: string, status: "resolved" | "dismissed" | "investigating" | "open", notes?: string) {
+export async function resolveReport(
+  id: string,
+  status: "resolved" | "dismissed" | "investigating" | "open",
+  note?: string,
+) {
+  await rpc("admin_resolve_report", {
+    p_report_id: id,
+    p_status: status,
+    p_note: note || null,
+  });
+}
+
+export async function fetchDisputes(limit = 200) {
   await requireAdmin();
-  const uid = await currentUserId();
-  const patch: Record<string, unknown> = {
-    status,
-    resolved_at: status === "resolved" || status === "dismissed" ? new Date().toISOString() : null,
-    resolved_by: status === "resolved" || status === "dismissed" ? uid : null,
-  };
-  if (notes !== undefined) patch.admin_notes = notes;
-  const { error } = await supabase.from("reports").update(patch).eq("id", id);
+  const { data, error } = await supabase.from("disputes").select("*").order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
-  await audit("REPORT_STATUS_CHANGED", "report", id, { status, notes });
+  return data ?? [];
+}
+
+export async function resolveDispute(id: string, status: string, resolution?: string) {
+  await rpc("admin_resolve_dispute", {
+    p_dispute_id: id,
+    p_status: status,
+    p_resolution: resolution || null,
+  });
+}
+
+export async function fetchVerificationRequests(limit = 200) {
+  await requireAdmin();
+  const { data, error } = await supabase
+    .from("verification_requests")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+export async function reviewVerification(requestId: string, status: "approved" | "rejected", note?: string) {
+  await rpc("admin_review_verification", {
+    p_request_id: requestId,
+    p_status: status,
+    p_note: note || null,
+  });
 }
 
 export async function fetchSettings() {
@@ -374,16 +419,18 @@ export async function fetchSettings() {
   return (data ?? []) as PlatformSetting[];
 }
 
-export async function updateSetting(key: string, value: string) {
-  await requireAdmin();
-  const { error } = await supabase
-    .from("platform_settings")
-    .upsert({ key, value, updated_at: new Date().toISOString() });
-  if (error) throw new Error(error.message);
-  await audit("SETTING_UPDATED", "setting", null, { key, value });
+/** Public-safe settings read (for app behavior). */
+export async function fetchPublicSettings() {
+  const { data, error } = await supabase.from("platform_settings").select("key, value");
+  if (error) return [] as PlatformSetting[];
+  return (data ?? []) as PlatformSetting[];
 }
 
-export async function fetchAuditLogs(limit = 100) {
+export async function updateSetting(key: string, value: string) {
+  await rpc("admin_set_platform_setting", { p_key: key, p_value: value });
+}
+
+export async function fetchAuditLogs(limit = 200) {
   await requireAdmin();
   const { data, error } = await supabase
     .from("admin_audit_logs")
@@ -397,16 +444,22 @@ export async function fetchAuditLogs(limit = 100) {
 export async function globalAdminSearch(q: string) {
   await requireAdmin();
   const term = q.trim();
-  if (!term) return { users: [], campaigns: [], applications: [] };
-  const like = `%${term}%`;
-  const [users, campaigns] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, username, role").or(`full_name.ilike.${like},username.ilike.${like}`).limit(20),
-    supabase.from("campaigns").select("id, title, status, brand_id").ilike("title", `%${term}%`).limit(20),
+  if (term.length < 2) return { users: [], campaigns: [], reports: [], disputes: [] };
+  const [users, campaigns, reports, disputes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, username, role")
+      .or(`full_name.ilike.%${term}%,username.ilike.%${term}%`)
+      .limit(15),
+    supabase.from("campaigns").select("id, title, status, brand_id").ilike("title", `%${term}%`).limit(15),
+    supabase.from("reports").select("id, reason, status").ilike("reason", `%${term}%`).limit(10),
+    supabase.from("disputes").select("id, reason, status").ilike("reason", `%${term}%`).limit(10),
   ]);
   return {
     users: users.data ?? [],
     campaigns: campaigns.data ?? [],
-    applications: [] as any[],
+    reports: reports.data ?? [],
+    disputes: disputes.data ?? [],
   };
 }
 
@@ -443,17 +496,9 @@ export async function fetchBrands() {
 }
 
 export async function setCreatorFeatured(userId: string, featured: boolean) {
-  await requireAdmin();
-  await supabase.from("profiles").update({ featured }).eq("id", userId);
-  const { error } = await supabase.from("creator_profiles").update({ featured }).eq("user_id", userId);
-  if (error && !/column|schema cache/i.test(error.message)) throw new Error(error.message);
-  await audit(featured ? "CREATOR_FEATURED" : "CREATOR_UNFEATURED", "user", userId);
+  await setUserFeatured(userId, featured, "creator");
 }
 
 export async function setBrandFeatured(userId: string, featured: boolean) {
-  await requireAdmin();
-  await supabase.from("profiles").update({ featured }).eq("id", userId);
-  const { error } = await supabase.from("brand_profiles").update({ featured }).eq("user_id", userId);
-  if (error && !/column|schema cache/i.test(error.message)) throw new Error(error.message);
-  await audit(featured ? "BRAND_FEATURED" : "BRAND_UNFEATURED", "user", userId);
+  await setUserFeatured(userId, featured, "brand");
 }

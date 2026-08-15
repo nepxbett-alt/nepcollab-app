@@ -42,6 +42,7 @@ const adminNav = [
   { to: "/admin/applications", label: "Applications", icon: FileText },
   { to: "/admin/collaborations", label: "Collabs", icon: MessageCircle },
   { to: "/admin/reports", label: "Reports", icon: Flag },
+  { to: "/admin/disputes", label: "Disputes", icon: Flag },
   { to: "/admin/verification", label: "Verify", icon: Bell },
   { to: "/admin/content", label: "Content", icon: Home },
   { to: "/admin/settings", label: "Settings", icon: Settings },

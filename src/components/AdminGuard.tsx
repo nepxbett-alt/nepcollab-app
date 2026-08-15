@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Container } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
@@ -8,6 +8,7 @@ import { useStore } from "@/lib/store";
 export function AdminGuard({ children }: { children: ReactNode }) {
   const { signedIn, role, loading } = useStore();
   const [ok, setOk] = useState<boolean | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
@@ -17,8 +18,10 @@ export function AdminGuard({ children }: { children: ReactNode }) {
         if (!cancelled) setOk(false);
         return;
       }
+      // Fast path from store, then confirm with is_admin RPC
       if (role === "admin") {
-        if (!cancelled) setOk(true);
+        const confirmed = await checkIsAdmin();
+        if (!cancelled) setOk(confirmed);
         return;
       }
       const admin = await checkIsAdmin();
@@ -28,6 +31,12 @@ export function AdminGuard({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [signedIn, role, loading]);
+
+  useEffect(() => {
+    if (ok === false && !loading && signedIn === false) {
+      // leave message on page
+    }
+  }, [ok, loading, signedIn, navigate]);
 
   if (loading || ok === null) {
     return (
@@ -42,17 +51,13 @@ export function AdminGuard({ children }: { children: ReactNode }) {
       <Container>
         <EmptyState
           title="Admin access required"
-          body="This area is only for platform administrators. Sign in with an admin account."
-          actionLabel="Go to sign in"
-          actionTo="/auth"
+          body="Only authorized platform administrators can open this area."
+          actionLabel={signedIn ? "Back to home" : "Sign in"}
+          actionTo={signedIn ? "/dashboard" : "/auth"}
         />
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          First-time setup: run the admin SQL migration, then{" "}
-          <code className="rounded bg-muted px-1">bootstrap_first_admin</code> for your user id.
-        </p>
-        <div className="mt-2 text-center">
-          <Link to="/dashboard" className="text-sm text-primary underline">
-            Back to app
+        <div className="mt-4 text-center">
+          <Link to="/" className="text-sm text-primary underline">
+            Public site
           </Link>
         </div>
       </Container>

@@ -87,6 +87,12 @@ function Discover() {
 
   const results = useMemo(() => {
     const list = campaigns.filter((c) => {
+      // Public discover: only open campaigns (paused/closed/draft hidden)
+      if (c.status && c.status !== "APPLICATIONS_OPEN" && c.status !== "ACTIVE") {
+        // mapCampaign maps active -> APPLICATIONS_OPEN; keep that
+        const st = String(c.status);
+        if (["PAUSED", "CLOSED", "COMPLETED", "DRAFT", "CANCELLED", "ARCHIVED"].includes(st)) return false;
+      }
       const brand = getBrand(c.brandId);
       const haystack =
         `${c.title} ${c.description} ${brand?.name ?? ""} ${c.types.join(" ")} ${c.perks.join(" ")}`.toLowerCase();
