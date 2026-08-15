@@ -125,15 +125,15 @@ const appStatus = (s: string): ApplicationStatus =>
 const dbAppStatus = (s: ApplicationStatus) =>
   (
     {
-      APPLIED: "applied",
-      UNDER_REVIEW: "applied",
+      APPLIED: "pending",
+      UNDER_REVIEW: "under_review",
       SHORTLISTED: "shortlisted",
       SELECTED: "accepted",
       REJECTED: "rejected",
       WITHDRAWN: "withdrawn",
       EXPIRED: "completed",
     } as any
-  )[s] ?? "applied";
+  )[s] ?? "pending";
 
 const collabStatus = (s: string): Collaboration["status"] =>
   (
@@ -163,26 +163,29 @@ function mapCampaign(r: any): Campaign {
   const platforms = arr<string>(r.platforms) as Campaign["platforms"];
   const deliverableTitles = arr<string>(r.deliverables);
   const types = arr<string>(r.content_types);
-  const deadline =
-    r.application_deadline ?? r.deadline ?? r.campaign_end_date ?? today();
+  const deadline = r.deadline ?? r.campaign_end ?? today();
   return {
     id: r.id,
     title: r.title,
     brandId: r.brand_id,
-    description: r.description ?? "",
+    description: r.description ?? r.brief ?? "",
     category: r.category ?? "General",
     types: types.length ? types : deliverableTitles.length ? deliverableTitles : ["Collaboration"],
     platforms,
     perks: arr<string>(r.perks),
-    giftValue: r.budget ? `${r.currency ?? "NPR"} ${r.budget}` : undefined,
+    giftValue: r.creator_reward
+      ? "NPR " + r.creator_reward
+      : r.budget
+        ? `${r.currency ?? "NPR"} ${r.budget}`
+        : undefined,
     location: r.location ?? "Remote",
     remote: Boolean(r.remote || r.location === "Remote"),
-    startDate: r.campaign_start_date ?? r.campaign_start ?? today(),
-    endDate: r.campaign_end_date ?? r.campaign_end ?? deadline,
+    startDate: r.campaign_start ?? today(),
+    endDate: r.campaign_end ?? deadline,
     deadline,
-    creatorsNeeded: r.creators_needed ?? r.spots ?? 1,
+    creatorsNeeded: r.spots ?? 1,
     status: campaignStatus(r.status),
-    cover: r.cover_image ?? r.image_url ?? "/app-icon.png",
+    cover: r.image_url ?? "/app-icon.png",
     requirements: {
       minFollowers: r.min_followers ?? req.minFollowers ?? 0,
       maxFollowers: req.maxFollowers,
@@ -196,8 +199,8 @@ function mapCampaign(r: any): Campaign {
       title,
       platform: (platforms[0] ?? "Instagram") as any,
       contentType: title,
-      dueDate: r.campaign_end_date ?? deadline,
-      instructions: "Follow the campaign brief.",
+      dueDate: r.campaign_end ?? deadline,
+      instructions: r.brief ?? "Follow the campaign brief.",
       status: "PENDING" as const,
     })),
     createdAt: r.created_at?.slice(0, 10) ?? today(),
@@ -206,62 +209,42 @@ function mapCampaign(r: any): Campaign {
 }
 
 const mapBrand = (p: any, b: any): Brand => ({
-  id: p.id ?? b?.profile_id,
-  name: b?.company_name ?? b?.business_name ?? p.display_name ?? p.full_name ?? "Brand",
-  logo: b?.logo_url ?? p.avatar_url ?? avatarFor(p.id ?? b?.profile_id ?? "brand"),
-  category: b?.industry ?? b?.category ?? "Brand",
-  description: b?.description ?? p.bio ?? "",
-  location: b?.location ?? p.location ?? "Nepal",
-  website: b?.website ?? p.website ?? "",
-  verified: Boolean(b?.verified ?? p.verified),
+  id: p.id ?? b?.user_id,
+  name: b?.business_name ?? p.full_name ?? "Brand",
+  logo: p.avatar_url ?? avatarFor(p.id ?? b?.user_id ?? "brand"),
+  category: b?.category ?? "Brand",
+  description: p.bio ?? "",
+  location: p.location ?? "Nepal",
+  website: b?.website ?? "",
+  verified: Boolean(p.verified),
   rating: Number(p.rating ?? 0),
   completedCampaigns: 0,
   responseRate: Number(p.response_rate ?? 0),
 });
 
 const mapCreator = (p: any, c: any, socials: any[] = []): Creator => {
-  const builtSocials = [
-    ...(c?.instagram_url
-      ? [
-          {
-            platform: "Instagram" as const,
-            username: c.instagram_url,
-            followers: c?.audience_size ?? 0,
-            engagement: Number(c?.engagement_rate ?? 0),
-            verified: Boolean(c?.verified),
-          },
-        ]
-      : []),
-    ...(c?.tiktok_url
-      ? [{ platform: "TikTok" as const, username: c.tiktok_url, followers: 0, engagement: 0, verified: false }]
-      : []),
-    ...(c?.youtube_url
-      ? [{ platform: "YouTube" as const, username: c.youtube_url, followers: 0, engagement: 0, verified: false }]
-      : []),
-    ...socials.map((s: any) => ({
-      platform: s.platform,
-      username: s.handle,
-      followers: s.followers ?? 0,
-      engagement: Number(s.engagement_rate ?? 0),
-      verified: Boolean(s.verified),
-    })),
-  ];
   return {
-    id: p.id ?? c?.profile_id,
-    name: p.display_name ?? p.full_name ?? "Creator",
+    id: p.id ?? c?.user_id,
+    name: p.full_name ?? "Creator",
     username: p.username ?? (p.id ? String(p.id).slice(0, 8) : "creator"),
     avatar: p.avatar_url ?? avatarFor(p.id ?? "creator"),
-    bio: p.bio ?? c?.headline ?? "",
+    bio: p.bio ?? "",
     location: p.location ?? "Nepal",
     languages: arr<string>(c?.languages).length ? arr<string>(c?.languages) : ["Nepali"],
     niches: arr<string>(c?.niches),
-    socials: builtSocials as any,
+    socials: socials.map((s: any) => ({
+      platform: s.platform,
+      username: s.handle ?? s.username ?? "",
+      followers: s.followers ?? 0,
+      engagement: Number(s.engagement_rate ?? 0),
+      verified: Boolean(s.verified),
+    })) as any,
     portfolio: [],
     reviews: [],
     rating: 0,
     completedCollaborations: 0,
     verified: Boolean(c?.verified),
-    available: c?.available !== false,
+    available: true,
     preferredTypes: arr<string>(c?.platforms),
   };
 };
@@ -286,10 +269,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     // Apply role/display_name from auth metadata on first login if profile incomplete
     try {
       const meta = sessionData.session?.user?.user_metadata ?? {};
-      if (meta.role || meta.display_name) {
+      if (meta.role || meta.display_name || meta.full_name) {
         const patch: Record<string, unknown> = {};
         if (meta.role) patch.role = meta.role;
-        if (meta.display_name) patch.display_name = meta.display_name;
+        const name = meta.display_name || meta.full_name;
+        if (name) patch.full_name = name;
         if (Object.keys(patch).length) {
           await db.from("profiles").update(patch).eq("id", uid).is("role", null);
         }
@@ -314,7 +298,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       db.from("applications").select("*").order("applied_at", { ascending: false }),
       db.from("collaborations").select("*").order("created_at", { ascending: false }),
       Promise.resolve({ data: [] as any[] }), // no campaign_invites table in V1
-      db.from("saved_campaigns").select("campaign_id").eq("creator_id", uid),
+      db.from("saved_campaigns").select("campaign_id").eq("user_id", uid),
       db.from("notifications").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
       db
         .from("conversations")
@@ -332,7 +316,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       contentIdea: a.content_idea ?? "",
       availability: a.availability ?? "",
       appliedAt: a.applied_at?.slice(0, 10) ?? today(),
-      note: a.brand_note ?? a.note ?? undefined,
+      note: a.brand_remarks ?? a.note ?? undefined,
     }));
 
     const collaborations: Collaboration[] = (collabRows ?? []).map((c: any) => ({
@@ -393,8 +377,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         ...(campaignRows ?? []).map((r: any) => r.brand_id),
         ...(appRows ?? []).map((r: any) => r.creator_id),
         ...(collabRows ?? []).map((r: any) => r.creator_id),
-        ...(brandRows ?? []).map((r: any) => r.profile_id ?? r.user_id),
-        ...(creatorRows ?? []).map((r: any) => r.profile_id ?? r.user_id),
+        ...(brandRows ?? []).map((r: any) => r.user_id),
+        ...(creatorRows ?? []).map((r: any) => r.user_id),
         uid,
       ].filter(Boolean)),
     ];
@@ -404,8 +388,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       : { data: [] };
 
     const pm = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-    const bm = new Map((brandRows ?? []).map((b: any) => [b.profile_id ?? b.user_id, b]));
-    const cm = new Map((creatorRows ?? []).map((c: any) => [c.profile_id ?? c.user_id, c]));
+    const bm = new Map((brandRows ?? []).map((b: any) => [b.user_id, b]));
+    const cm = new Map((creatorRows ?? []).map((c: any) => [c.user_id, c]));
 
     setLookupData(
       [...bm.keys()].map((id) => mapBrand(pm.get(id) ?? { id }, bm.get(id))),
@@ -497,7 +481,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             emailRedirectTo: window.location.origin + "/dashboard",
             data: {
               role,
-              display_name: name,
+              full_name: name,
             },
           },
         });
@@ -508,7 +492,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
       },
       completeOnboarding: async (input) => {
-        // Always resolve session — don't rely on stale userId alone
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = userId || sessionData.session?.user?.id || "";
         if (!uid) {
@@ -524,14 +507,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           ? rawUsername.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 30) || null
           : null;
 
-        const profilePayload = {
+        const profilePayload: Record<string, unknown> = {
           id: uid,
           role,
-          display_name: (input?.name || "").trim() || null,
+          full_name: (input?.name || "").trim() || null,
           username,
           bio: (input?.bio || "").trim() || null,
           location: (input?.location || "").trim() || null,
-          website: (input?.website || "").trim() || null,
           onboarded: true,
         };
         const { error } = await db.from("profiles").upsert(profilePayload, { onConflict: "id" });
@@ -545,28 +527,27 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (role === "brand") {
           const { error: e } = await db.from("brand_profiles").upsert(
             {
-              profile_id: uid,
-              company_name: (input?.name || "").trim() || "My Brand",
+              user_id: uid,
+              business_name: (input?.name || "").trim() || "My Brand",
               website: (input?.website || "").trim() || null,
-              location: (input?.location || "").trim() || null,
+              category: "Brand",
             },
-            { onConflict: "profile_id" },
+            { onConflict: "user_id" },
           );
           if (e) throw new Error(e.message || "Could not save brand profile.");
         } else {
           const { error: e } = await db.from("creator_profiles").upsert(
             {
-              profile_id: uid,
+              user_id: uid,
               languages: ["Nepali"],
               niches: [],
               platforms: [],
             },
-            { onConflict: "profile_id" },
+            { onConflict: "user_id" },
           );
           if (e) throw new Error(e.message || "Could not save creator profile.");
         }
 
-        // Optimistic UI so the gate closes even if refresh is slow
         setState((s) => ({
           ...s,
           role,
@@ -580,29 +561,33 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           await db
             .from("saved_campaigns")
             .delete()
-            .eq("creator_id", userId)
+            .eq("user_id", userId)
             .eq("campaign_id", campaignId);
         } else {
           await db
             .from("saved_campaigns")
             .upsert(
-              { creator_id: userId, campaign_id: campaignId },
-              { onConflict: "creator_id,campaign_id" },
+              { user_id: userId, campaign_id: campaignId },
+              { onConflict: "user_id,campaign_id" },
             );
         }
         await refresh();
       },
       addCampaign: async (campaign) => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) throw new Error("Not signed in");
         const { error } = await db
           .from("campaigns")
           .insert({
-            brand_id: userId,
+            brand_id: uid,
             title: campaign.title,
             description: campaign.description,
             category: campaign.category,
             location: campaign.location,
             remote: campaign.remote,
             perks: campaign.perks ?? [],
+            content_types: campaign.types ?? [],
             platforms: campaign.platforms ?? [],
             deliverables: (campaign.deliverables ?? []).map((d: any) => d.title ?? d),
             requirements:
@@ -610,36 +595,41 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
                 ? campaign.requirements
                 : JSON.stringify(campaign.requirements ?? {}),
             min_followers: campaign.requirements?.minFollowers ?? 0,
-            creators_needed: campaign.creatorsNeeded ?? 1,
-            application_deadline: campaign.deadline || null,
-            campaign_start_date: campaign.startDate || null,
-            campaign_end_date: campaign.endDate || null,
-            status: "published",
-            cover_image: campaign.cover || null,
+            spots: campaign.creatorsNeeded ?? 1,
+            deadline: campaign.deadline || null,
+            campaign_start: campaign.startDate || null,
+            campaign_end: campaign.endDate || null,
+            status: "active",
+            image_url: campaign.cover || null,
+            brief: campaign.description || null,
           })
           .select()
           .single();
-        if (error) throw error;
-        await refresh();
+        if (error) throw new Error(error.message);
+        await load(uid);
       },
       applyToCampaign: async ({ campaignId, message, contentIdea, availability }) => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) throw new Error("Not signed in");
         const { error } = await db.from("applications").insert({
           campaign_id: campaignId,
-          creator_id: userId,
+          creator_id: uid,
+          pitch: message,
           message,
           content_idea: contentIdea,
           availability,
-          status: "applied",
+          status: "pending",
         });
-        if (error) throw error;
-        await refresh();
+        if (error) throw new Error(error.message);
+        await load(uid);
       },
       withdrawApplication: async (id) => {
         const { error } = await db
           .from("applications")
           .update({ status: "withdrawn" })
           .eq("id", id)
-          .eq("creator_id", userId);
+          .eq("user_id", userId);
         if (error) throw error;
         await refresh();
       },
@@ -661,7 +651,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       setApplicantNote: async (id, note) => {
         const { error } = await db
           .from("applications")
-          .update({ brand_note: note })
+          .update({ brand_remarks: note })
           .eq("id", id);
         if (error) throw error;
         await refresh();
@@ -680,18 +670,18 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         await refresh();
       },
       submitDeliverable: async (collaborationId, deliverableId, submission) => {
-        const collab = state.collaborations.find((c) => c.id === collaborationId);
-        if (!collab) throw new Error("Collaboration not found");
-        // Store submission on collaboration notes (V1 has no deliverables/submissions tables)
-        const note = [submission.note, submission.link].filter(Boolean).join(" — ");
         const { error } = await db
           .from("collaborations")
-          .update({
-            status: "work_submitted",
-            notes: note || null,
-          })
+          .update({ status: "work_submitted" })
           .eq("id", collaborationId);
-        if (error) throw error;
+        if (error) {
+          // status value may differ — try generic submitted
+          const { error: e2 } = await db
+            .from("collaborations")
+            .update({ status: "submitted" })
+            .eq("id", collaborationId);
+          if (e2) throw new Error(e2.message || error.message);
+        }
         await refresh();
       },
       reviewDeliverable: async (collaborationId, deliverableId, status) => {
@@ -707,7 +697,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           .from("collaborations")
           .update({ status: collabStatusDb })
           .eq("id", collaborationId);
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         await refresh();
       },
       sendMessage: async (threadId, text) => {
@@ -715,22 +705,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = userId || sessionData.session?.user?.id || "";
         if (!uid) throw new Error("Not signed in");
-
-        const { data: conv, error: convErr } = await db
-          .from("conversations")
-          .select("id, brand_id, creator_id")
-          .eq("id", threadId)
-          .maybeSingle();
-        if (convErr) throw new Error(convErr.message);
-        if (!conv) throw new Error("Conversation not found");
-
-        const recipientId =
-          conv.brand_id === uid ? conv.creator_id : conv.brand_id;
-
         const { error } = await db.from("messages").insert({
           conversation_id: threadId,
           sender_id: uid,
-          recipient_id: recipientId,
           body: text.trim(),
         });
         if (error) throw new Error(error.message);
