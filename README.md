@@ -5,13 +5,17 @@ Nepal-first creator × brand collaboration marketplace (PWA).
 **Model:** Brands post campaigns → Creators discover & apply → Brands select → Collaborate → Submit work → Complete.  
 No payment processing on the platform.
 
+**Repo:** https://github.com/nepxbett-alt/nepcollab-app  
+
+See **[LAUNCH.md](./LAUNCH.md)** for the full production checklist.
+
 ## Stack
 
 - TanStack Start (Vite + React 19)
-- Supabase (Auth, Postgres, Storage, Realtime)
+- Supabase Auth / Postgres / Storage / Realtime
 - Tailwind CSS 4 + shadcn/ui
 
-## Existing Supabase
+## Supabase
 
 Project: `ntnbhnazqncszasmwjyw`  
 URL: `https://ntnbhnazqncszasmwjyw.supabase.co`
@@ -20,10 +24,10 @@ URL: `https://ntnbhnazqncszasmwjyw.supabase.co`
 
 ```bash
 cp .env.example .env
-# paste your publishable key into .env
+# set VITE_SUPABASE_PUBLISHABLE_KEY in .env
 
-bun install   # or npm install
-bun run dev   # or npm run dev
+npm install
+npm run dev
 ```
 
 ## Environment
@@ -34,37 +38,16 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 VITE_SUPABASE_PROJECT_ID=ntnbhnazqncszasmwjyw
 ```
 
-Never commit `.env`. Use `.env.example` only.
-
-## Supabase setup (one-time)
-
-1. Confirm the migration in `supabase/migrations/` has been applied.
-2. **Authentication → URL Configuration**
-   - Site URL: your production domain
-   - Redirect URLs: production origin + local dev origins
-3. Enable **Email** (magic link) provider.
-4. Confirm storage buckets exist.
+Never commit `.env`.
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `bun run dev` | Local development |
-| `bun run build` | Production build |
-| `bun run preview` | Preview production build |
+| `npm run dev` | Local development |
+| `npm run build` | Production build |
+| `npm run preview` | Preview production build |
 
 ## Deploy
 
-Connect this repo to **Netlify** or **Vercel**. Set the `VITE_*` env vars. After deploy, update Supabase Auth redirect URLs to the live domain.
-
-## Core flows to test before public launch
-
-1. Magic-link sign-in → choose Creator / Brand → onboarding  
-2. Brand: create + publish campaign  
-3. Creator: discover → apply  
-4. Brand: review applicants → accept  
-5. Collaboration + messaging  
-
-## License
-
-Private / all rights reserved unless otherwise stated.
+Import on **Vercel** or **Netlify**, set the `VITE_*` env vars, deploy, then update Supabase Auth redirect URLs. Details in [LAUNCH.md](./LAUNCH.md).
