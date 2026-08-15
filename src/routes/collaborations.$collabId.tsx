@@ -93,9 +93,13 @@ function Workspace() {
                   <div className="mt-3 flex gap-2">
                     <Button
                       size="sm"
-                      onClick={() => {
-                        reviewDeliverable(collab.id, d.id, "APPROVED");
-                        toast.success("Deliverable approved");
+                      onClick={async () => {
+                        try {
+                          await reviewDeliverable(collab.id, d.id, "APPROVED");
+                          toast.success("Deliverable approved");
+                        } catch (err: any) {
+                          toast.error(err?.message || "Could not approve");
+                        }
                       }}
                     >
                       Approve
@@ -103,9 +107,13 @@ function Workspace() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        reviewDeliverable(collab.id, d.id, "REVISION_REQUESTED");
-                        toast("Revision requested");
+                      onClick={async () => {
+                        try {
+                          await reviewDeliverable(collab.id, d.id, "REVISION_REQUESTED");
+                          toast("Revision requested");
+                        } catch (err: any) {
+                          toast.error(err?.message || "Could not request changes");
+                        }
                       }}
                     >
                       Request changes
@@ -132,12 +140,16 @@ function Workspace() {
                       <div className="flex gap-2">
                         <Button
                           size="sm"
-                          onClick={() => {
-                            submitDeliverable(collab.id, d.id, { note, link });
-                            setOpen(null);
-                            setNote("");
-                            setLink("");
-                            toast.success("Work submitted for review");
+                          onClick={async () => {
+                            try {
+                              await submitDeliverable(collab.id, d.id, { note, link });
+                              setOpen(null);
+                              setNote("");
+                              setLink("");
+                              toast.success("Work submitted for review");
+                            } catch (err: any) {
+                              toast.error(err?.message || "Could not submit work");
+                            }
                           }}
                         >
                           Submit work

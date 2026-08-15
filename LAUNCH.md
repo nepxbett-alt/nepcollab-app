@@ -78,7 +78,7 @@ npm run dev
 
 ## Critical notes (post-polish)
 
-- App data layer is aligned with the production migration (`profile_id`, `display_name`, `creators_needed`, application status `applied`, campaign status `published`).
+- App data layer is aligned with the **live** production schema (`user_id`, `full_name`, `business_name`, `spots`, `deadline`, `campaign_start`/`campaign_end`, `image_url`, application status `pending`/`accepted`, campaign status `active`/`draft`).
 - Storage buckets must exist before avatar/campaign uploads work.
 - After first deploy, magic-link emails only work if the production URL is in Supabase Redirect URLs.
 

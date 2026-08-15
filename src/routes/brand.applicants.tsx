@@ -109,18 +109,26 @@ function Applicants() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      setApplicationStatus(a.id, "SHORTLISTED");
-                      toast.success("Creator shortlisted");
+                    onClick={async () => {
+                      try {
+                        await setApplicationStatus(a.id, "SHORTLISTED");
+                        toast.success("Creator shortlisted");
+                      } catch (err: any) {
+                        toast.error(err?.message || "Could not shortlist");
+                      }
                     }}
                   >
                     Shortlist
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => {
-                      setApplicationStatus(a.id, "SELECTED");
-                      toast.success("Creator selected — collaboration created");
+                    onClick={async () => {
+                      try {
+                        await setApplicationStatus(a.id, "SELECTED");
+                        toast.success("Creator selected — collaboration created");
+                      } catch (err: any) {
+                        toast.error(err?.message || "Could not select creator");
+                      }
                     }}
                   >
                     Select
@@ -128,9 +136,13 @@ function Applicants() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => {
-                      setApplicationStatus(a.id, "REJECTED");
-                      toast("Application rejected");
+                    onClick={async () => {
+                      try {
+                        await setApplicationStatus(a.id, "REJECTED");
+                        toast("Application rejected");
+                      } catch (err: any) {
+                        toast.error(err?.message || "Could not reject");
+                      }
                     }}
                   >
                     Reject

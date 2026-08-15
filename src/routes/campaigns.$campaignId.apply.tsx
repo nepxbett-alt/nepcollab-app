@@ -73,15 +73,19 @@ function ApplyPage() {
     );
   }
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim().length < 20) {
       toast.error("Tell the brand a little more — at least 20 characters.");
       return;
     }
-    applyToCampaign({ campaignId, message, contentIdea, availability });
-    toast.success("Application submitted");
-    navigate({ to: "/applications" });
+    try {
+      await applyToCampaign({ campaignId, message, contentIdea, availability });
+      toast.success("Application submitted");
+      navigate({ to: "/applications" });
+    } catch (err: any) {
+      toast.error(err?.message || "Could not submit application");
+    }
   };
 
   return (

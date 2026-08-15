@@ -99,7 +99,7 @@ function NewCampaign() {
       };
     });
 
-  const publish = () => {
+  const publish = async () => {
     if (!form.title.trim() || !form.description.trim()) {
       toast.error("Add a title and description first.");
       setStep(0);
@@ -122,7 +122,7 @@ function NewCampaign() {
       deadline: form.deadline || "2026-08-30",
       creatorsNeeded: Number(form.creatorsNeeded) || 1,
       status: "APPLICATIONS_OPEN",
-      cover: `https://picsum.photos/seed/${Math.random().toString(36).slice(2, 8)}/900/560`,
+      cover: "/app-icon.png",
       requirements: {
         minFollowers: Number(form.minFollowers) || 0,
         niches: form.niches.length ? form.niches : ["Lifestyle"],
@@ -144,9 +144,13 @@ function NewCampaign() {
       createdAt: new Date().toISOString().slice(0, 10),
       views: 0,
     };
-    addCampaign(campaign);
-    toast.success("Campaign published");
-    navigate({ to: "/brand/campaigns" });
+    try {
+      await addCampaign(campaign);
+      toast.success("Campaign published");
+      navigate({ to: "/brand/campaigns" });
+    } catch (err: any) {
+      toast.error(err?.message || "Could not publish campaign");
+    }
   };
 
   return (

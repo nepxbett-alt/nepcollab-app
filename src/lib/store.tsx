@@ -319,7 +319,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       { data: saveRows },
       { data: notificationRows },
       { data: conversationRows },
-      { data: messageRows },
+      { data: deliverableRows },
+      { data: submissionRows },
     ] = await Promise.all([
       db.from("profiles").select("*").eq("id", uid).maybeSingle(),
       db.from("campaigns").select("*").order("created_at", { ascending: false }),
@@ -332,7 +333,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         .from("conversations")
         .select("*")
         .or("brand_id.eq." + uid + ",creator_id.eq." + uid),
-      db.from("messages").select("*").order("created_at", { ascending: true }),
+      db.from("deliverables").select("*"),
+      db.from("submissions").select("*").order("created_at", { ascending: false }),
     ]);
 
     const apps: Application[] = (appRows ?? []).map((a: any) => ({
@@ -347,27 +349,98 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       note: a.brand_remarks ?? a.note ?? undefined,
     }));
 
-    const collaborations: Collaboration[] = (collabRows ?? []).map((c: any) => ({
-      id: c.id,
-      campaignId: c.campaign_id,
-      creatorId: c.creator_id,
-      status: collabStatus(c.status),
-      startedAt: c.created_at?.slice(0, 10) ?? today(),
-      deliverables: [],
-      timeline: [
+    const deliverableStatusMap = (s: string): DeliverableStatus =>
+      (
         {
-          id: "created-" + c.id,
-          label: "Collaboration started",
-          date: c.created_at?.slice(0, 10) ?? today(),
-        },
-      ],
-    }));
+          pending: "PENDING",
+          submitted: "SUBMITTED",
+          approved: "APPROVED",
+          revision_requested: "REVISION_REQUESTED",
+          changes_requested: "REVISION_REQUESTED",
+        } as any
+      )[String(s || "").toLowerCase()] ?? "PENDING";
+
+    const delivByApp = new Map<string, any[]>();
+    for (const d of deliverableRows ?? []) {
+      const key = d.application_id;
+      if (!key) continue;
+      const list = delivByApp.get(key) ?? [];
+      list.push(d);
+      delivByApp.set(key, list);
+    }
+    const subByCollab = new Map<string, any[]>();
+    for (const s of submissionRows ?? []) {
+      const key = s.collaboration_id;
+      if (!key) continue;
+      const list = subByCollab.get(key) ?? [];
+      list.push(s);
+      subByCollab.set(key, list);
+    }
+
+    const collaborations: Collaboration[] = (collabRows ?? []).map((c: any) => {
+      const appId = c.application_id;
+      const rawDelivs = delivByApp.get(appId) ?? [];
+      const subs = subByCollab.get(c.id) ?? [];
+      const latestSub = subs[0];
+      const deliverables = rawDelivs.map((d: any) => ({
+        id: d.id,
+        title: d.title ?? "Deliverable",
+        platform: (d.platform ?? "Instagram") as any,
+        contentType: d.kind ?? d.title ?? "Content",
+        dueDate: d.due_at?.slice?.(0, 10) ?? c.deadline?.slice?.(0, 10) ?? today(),
+        instructions: d.instructions ?? "Follow the campaign brief.",
+        status: deliverableStatusMap(d.status),
+        submission:
+          d.submission_link || d.submission_note
+            ? {
+                note: d.submission_note ?? "",
+                link: d.submission_link ?? "",
+                submittedAt: d.submitted_at?.slice?.(0, 10) ?? today(),
+              }
+            : latestSub
+              ? {
+                  note: latestSub.caption ?? latestSub.feedback ?? "",
+                  link: latestSub.content_url ?? latestSub.url ?? latestSub.proof_url ?? "",
+                  submittedAt: latestSub.submitted_at?.slice?.(0, 10) ?? today(),
+                }
+              : undefined,
+      }));
+      return {
+        id: c.id,
+        campaignId: c.campaign_id,
+        creatorId: c.creator_id,
+        status: collabStatus(c.status),
+        startedAt: c.created_at?.slice(0, 10) ?? today(),
+        deliverables,
+        timeline: [
+          {
+            id: "created-" + c.id,
+            label: "Collaboration started",
+            date: c.created_at?.slice(0, 10) ?? today(),
+          },
+        ],
+      };
+    });
+
+    // Messages: only for conversations the user belongs to (already filtered),
+    // paginate per conversation (last 100) to avoid loading the entire table.
+    const convIds = (conversationRows ?? []).map((c: any) => c.id).filter(Boolean);
+    let messageRows: any[] = [];
+    if (convIds.length) {
+      const { data: msgs } = await db
+        .from("messages")
+        .select("id, conversation_id, sender_id, body, created_at, read_at")
+        .in("conversation_id", convIds)
+        .order("created_at", { ascending: true })
+        .limit(500);
+      messageRows = msgs ?? [];
+    }
 
     const threads: Thread[] = (conversationRows ?? []).map((c: any) => ({
       id: c.id,
       campaignId: c.campaign_id,
       creatorId: c.creator_id,
-      messages: (messageRows ?? [])
+      messages: messageRows
         .filter((m: any) => m.conversation_id === c.id)
         .map((m: any) => ({
           id: m.id,
@@ -633,7 +706,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             campaign_start: campaign.startDate || null,
             campaign_end: campaign.endDate || null,
             status: "active",
-            image_url: campaign.cover || null,
+            image_url: campaign.cover && !String(campaign.cover).startsWith("/") && !String(campaign.cover).includes("picsum") ? campaign.cover : null,
             brief: campaign.description || null,
           })
           .select()
@@ -765,28 +838,92 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         await refresh();
       },
       submitDeliverable: async (collaborationId, deliverableId, submission) => {
-        const { error } = await db
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) throw new Error("Not signed in");
+
+        const { data: collab } = await db
           .from("collaborations")
-          .update({ status: "work_submitted" })
+          .select("id, application_id, campaign_id")
+          .eq("id", collaborationId)
+          .maybeSingle();
+        if (!collab) throw new Error("Collaboration not found");
+
+        // Prefer updating the real deliverable row
+        const now = new Date().toISOString();
+        if (deliverableId && /^[0-9a-f-]{36}$/i.test(deliverableId)) {
+          const { error: dErr } = await db
+            .from("deliverables")
+            .update({
+              status: "submitted",
+              submission_note: submission.note || null,
+              submission_link: submission.link || null,
+              submitted_at: now,
+            })
+            .eq("id", deliverableId);
+          if (dErr) throw new Error(dErr.message);
+        }
+
+        // Persist authoritative submission row
+        const { error: sErr } = await db.from("submissions").insert({
+          collaboration_id: collaborationId,
+          application_id: collab.application_id,
+          creator_id: uid,
+          content_url: submission.link || null,
+          url: submission.link || null,
+          proof_url: submission.link || null,
+          caption: submission.note || null,
+          status: "submitted",
+          submitted_at: now,
+        });
+        if (sErr) throw new Error(sErr.message);
+
+        const { error: cErr } = await db
+          .from("collaborations")
+          .update({ status: "submitted" })
           .eq("id", collaborationId);
-        if (error) {
-          // status value may differ — try generic submitted
-          const { error: e2 } = await db
-            .from("collaborations")
-            .update({ status: "submitted" })
-            .eq("id", collaborationId);
-          if (e2) throw new Error(e2.message || error.message);
+        if (cErr) {
+          await db.from("collaborations").update({ status: "active" }).eq("id", collaborationId);
         }
         await refresh();
       },
       reviewDeliverable: async (collaborationId, deliverableId, status) => {
+        const now = new Date().toISOString();
+        const delivStatus =
+          status === "APPROVED"
+            ? "approved"
+            : status === "REVISION_REQUESTED"
+              ? "revision_requested"
+              : status === "SUBMITTED"
+                ? "submitted"
+                : "pending";
+        if (deliverableId && /^[0-9a-f-]{36}$/i.test(deliverableId)) {
+          const { error: dErr } = await db
+            .from("deliverables")
+            .update({ status: delivStatus })
+            .eq("id", deliverableId);
+          if (dErr) throw new Error(dErr.message);
+        }
+        // Update latest submission for this collab
+        const subStatus =
+          status === "APPROVED"
+            ? "approved"
+            : status === "REVISION_REQUESTED"
+              ? "changes_requested"
+              : "submitted";
+        await db
+          .from("submissions")
+          .update({ status: subStatus, reviewed_at: now })
+          .eq("collaboration_id", collaborationId)
+          .eq("status", "submitted");
+
         const collabStatusDb =
           status === "APPROVED"
             ? "completed"
             : status === "REVISION_REQUESTED"
               ? "revision_requested"
               : status === "SUBMITTED"
-                ? "work_submitted"
+                ? "submitted"
                 : "active";
         const { error } = await db
           .from("collaborations")
