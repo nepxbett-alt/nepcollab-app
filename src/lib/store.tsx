@@ -34,10 +34,11 @@ interface Store extends State {
   currentBrandId: string;
   setRole: (role: Role) => void;
   signIn: (role?: Role) => void;
-  requestMagicLink: (email: string, role: Role, name: string) => Promise<void>;
+  requestMagicLink: (email: string) => Promise<void>;
   verifyEmailOtp: (email: string, token: string) => Promise<void>;
   passwordSignIn: (email: string, password: string) => Promise<void>;
   demoSignIn: (kind: "creator" | "brand") => Promise<void>;
+  handleAuthCallback: () => Promise<{ userId: string; onboarded: boolean }>;
   signOut: () => Promise<void>;
   completeOnboarding: (input?: {
     name?: string;
@@ -47,6 +48,7 @@ interface Store extends State {
     website?: string;
     niches?: string[];
     languages?: string[];
+    role?: Role;
   }) => Promise<void>;
   upsertSocialAccount: (input: {
     platform: string;
@@ -782,28 +784,76 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         // Deprecated local-only sign-in removed — use passwordSignIn / demoSignIn / OTP.
         console.warn("signIn() is disabled; use real auth methods.");
       },
-      requestMagicLink: async (email, role, name) => {
+      requestMagicLink: async (email) => {
         const normalized = email.trim().toLowerCase();
+        if (!normalized.includes("@")) {
+          throw new Error("Enter a valid email address.");
+        }
         try {
-          localStorage.setItem(
-            "nepcollab.auth.pref",
-            JSON.stringify({ email: normalized, role, name: name.trim() }),
-          );
+          localStorage.setItem("nepcollab.auth.email", normalized);
         } catch {
           /* ignore */
         }
+        const siteUrl =
+          (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, "") ||
+          (typeof window !== "undefined" ? window.location.origin : "https://nepcollab-app.vercel.app");
         const { error } = await supabase.auth.signInWithOtp({
           email: normalized,
           options: {
             shouldCreateUser: true,
-            emailRedirectTo: window.location.origin + "/dashboard",
-            data: {
-              role,
-              full_name: name.trim(),
-            },
+            emailRedirectTo: `${siteUrl}/auth/callback`,
           },
         });
-        if (error) throw error;
+        if (error) {
+          const msg = (error.message || "").toLowerCase();
+          if (msg.includes("rate") || msg.includes("limit")) {
+            throw new Error("Too many requests. Please wait a minute and try again.");
+          }
+          throw new Error("We couldn't send the login link. Please try again.");
+        }
+      },
+      handleAuthCallback: async () => {
+        // Exchange PKCE code or pick up session from URL hash
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          const errDesc =
+            url.searchParams.get("error_description") ||
+            url.searchParams.get("error") ||
+            "";
+          if (errDesc) {
+            const lower = errDesc.toLowerCase();
+            if (lower.includes("expir")) {
+              throw new Error("That link has expired. Request a new one.");
+            }
+            if (lower.includes("already") || lower.includes("used")) {
+              throw new Error("This link has already been used. Request a new one.");
+            }
+            throw new Error("That login link is invalid. Request a new one.");
+          }
+          const code = url.searchParams.get("code");
+          if (code) {
+            const { error } = await supabase.auth.exchangeCodeForSession(code);
+            if (error) {
+              throw new Error("That login link is invalid or expired. Request a new one.");
+            }
+          }
+        }
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw new Error("Could not restore your session. Try again.");
+        const uid = sessionData.session?.user?.id;
+        if (!uid) {
+          throw new Error("No active session. Open the link from your email again.");
+        }
+        await load(uid);
+        const { data: profile } = await db
+          .from("profiles")
+          .select("onboarded, role")
+          .eq("id", uid)
+          .maybeSingle();
+        return {
+          userId: uid,
+          onboarded: Boolean(profile?.onboarded),
+        };
       },
       verifyEmailOtp: async (email, token) => {
         const normalized = email.trim().toLowerCase();
@@ -866,7 +916,17 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (!userId) setUserId(uid);
 
         const metaRole = sessionData.session?.user?.user_metadata?.role as Role | undefined;
-        const role = (state.role ?? metaRole ?? "creator") as Role;
+        const inputRole = (input as any)?.role as Role | undefined;
+        // Prefer explicit onboarding choice; never invent admin from client
+        const role = (
+          inputRole === "creator" || inputRole === "brand"
+            ? inputRole
+            : state.role === "creator" || state.role === "brand"
+              ? state.role
+              : metaRole === "creator" || metaRole === "brand"
+                ? metaRole
+                : "creator"
+        ) as Role;
 
         const rawUsername = (input?.username || "").trim().replace(/^@+/, "");
         const username = rawUsername

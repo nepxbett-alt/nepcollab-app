@@ -19,6 +19,7 @@ export const Route = createFileRoute("/onboarding")({
 function OnboardingPage() {
   const navigate = useNavigate();
   const { signedIn, role, completeOnboarding, loading } = useStore();
+  const [pickedRole, setPickedRole] = useState<Role>((role as Role) || "creator");
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
   const [location, setLocation] = useState("Kathmandu");
@@ -38,7 +39,7 @@ function OnboardingPage() {
     }
     setBusy(true);
     try {
-      const r = (role as Role) || "creator";
+      const r = pickedRole || (role as Role) || "creator";
       await completeOnboarding({
         role: r,
         name: name.trim(),
@@ -63,6 +64,22 @@ function OnboardingPage() {
         Brands and creators need a complete profile to collaborate.
       </p>
       <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setPickedRole("creator")}
+            className={`rounded-2xl border p-3 text-left text-sm font-semibold ${pickedRole === "creator" ? "border-signal bg-accent/50" : "border-border"}`}
+          >
+            I'm a Creator
+          </button>
+          <button
+            type="button"
+            onClick={() => setPickedRole("brand")}
+            className={`rounded-2xl border p-3 text-left text-sm font-semibold ${pickedRole === "brand" ? "border-signal bg-accent/50" : "border-border"}`}
+          >
+            I'm a Brand
+          </button>
+        </div>
         <div>
           <Label htmlFor="name">Display name</Label>
           <Input id="name" className="mt-2" value={name} onChange={(e) => setName(e.target.value)} required />
