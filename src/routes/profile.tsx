@@ -1,13 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BadgeCheck, Bookmark, Clock, Star } from "lucide-react";
+import { BadgeCheck, Bookmark, Clock, Plus, Star, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Container, SectionHeader } from "@/components/AppShell";
 import { CampaignCard } from "@/components/CampaignCard";
 import { EmptyState } from "@/components/EmptyState";
 import { ProfileProgress } from "@/components/ProfileProgress";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { formatFollowers, getBrand, getCreator } from "@/lib/lookup";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import type { Platform } from "@/data/types";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -73,7 +78,54 @@ function Profile() {
     toggleSaved,
     collaborations,
     signedIn,
+    upsertSocialAccount,
+    removeSocialAccount,
   } = useStore();
+
+  const PLATFORMS: Platform[] = ["Instagram", "TikTok", "YouTube", "Facebook", "X"];
+  const [platform, setPlatform] = useState<Platform>("Instagram");
+  const [handle, setHandle] = useState("");
+  const [followers, setFollowers] = useState("");
+  const [engagement, setEngagement] = useState("");
+  const [socialBusy, setSocialBusy] = useState(false);
+
+  const addSocial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (socialBusy) return;
+    setSocialBusy(true);
+    try {
+      await upsertSocialAccount({
+        platform,
+        handle,
+        followers: Number(followers) || 0,
+        engagementRate: Number(engagement) || 0,
+      });
+      setHandle("");
+      setFollowers("");
+      setEngagement("");
+      toast.success(`${platform} connected`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Could not connect account");
+    } finally {
+      setSocialBusy(false);
+    }
+  };
+
+  const removeSocial = async (id?: string, label?: string) => {
+    if (!id) {
+      toast.error("This account cannot be removed yet.");
+      return;
+    }
+    setSocialBusy(true);
+    try {
+      await removeSocialAccount(id);
+      toast.success(`${label || "Account"} removed`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Could not remove account");
+    } finally {
+      setSocialBusy(false);
+    }
+  };
 
   if (!signedIn) {
     return (
@@ -200,28 +252,117 @@ function Profile() {
       ) : null}
 
       <div className="mt-8">
-        <SectionHeader title="Social accounts" />
-        <ul className="space-y-2.5">
-          {creator?.socials.map((s) => (
-            <li
-              key={s.platform}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-[14px] font-semibold">
-                  {s.platform}{" "}
-                  <span className="font-normal text-muted-foreground">
-                    @{s.username}
-                  </span>
-                </p>
-                <p className="text-[11.5px] text-muted-foreground">
-                  {formatFollowers(s.followers)} followers · {s.engagement}% eng.
-                </p>
-              </div>
-              <VerificationPill state={s.verified ? "verified" : "pending"} />
-            </li>
-          ))}
-        </ul>
+        <SectionHeader title="Social accounts" hint="Connect platforms brands can review" />
+        {(creator?.socials.length ?? 0) === 0 ? (
+          <EmptyState
+            title="No social accounts yet"
+            body="Add Instagram, TikTok or YouTube so brands can see your audience."
+          />
+        ) : (
+          <ul className="space-y-2.5">
+            {creator?.socials.map((s) => (
+              <li
+                key={`${s.platform}-${s.username}-${s.id ?? ""}`}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-[14px] font-semibold">
+                    {s.platform}{" "}
+                    <span className="font-normal text-muted-foreground">
+                      @{s.username}
+                    </span>
+                  </p>
+                  <p className="text-[11.5px] text-muted-foreground">
+                    {formatFollowers(s.followers)} followers · {s.engagement}% eng.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <VerificationPill state={s.verified ? "verified" : "pending"} />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={socialBusy}
+                    aria-label={`Remove ${s.platform}`}
+                    onClick={() => void removeSocial(s.id, s.platform)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form
+          onSubmit={(e) => void addSocial(e)}
+          className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-4"
+        >
+          <p className="text-[13px] font-semibold">Connect a platform</p>
+          <div className="flex flex-wrap gap-2">
+            {PLATFORMS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPlatform(p)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-[12.5px] font-medium",
+                  platform === p
+                    ? "border-ink bg-ink text-ink-foreground"
+                    : "border-border bg-background text-muted-foreground",
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <div>
+            <Label htmlFor="handle">Handle</Label>
+            <Input
+              id="handle"
+              className="mt-1.5"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              placeholder="@yourhandle"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="followers">Followers</Label>
+              <Input
+                id="followers"
+                className="mt-1.5"
+                inputMode="numeric"
+                value={followers}
+                onChange={(e) => setFollowers(e.target.value.replace(/[^\d]/g, ""))}
+                placeholder="12500"
+              />
+            </div>
+            <div>
+              <Label htmlFor="engagement">Engagement %</Label>
+              <Input
+                id="engagement"
+                className="mt-1.5"
+                inputMode="decimal"
+                value={engagement}
+                onChange={(e) => setEngagement(e.target.value)}
+                placeholder="3.5"
+              />
+            </div>
+          </div>
+          <Button
+            type="submit"
+            disabled={socialBusy || !handle.trim()}
+            className="h-10 w-full rounded-full"
+          >
+            <Plus className="size-4" />
+            {socialBusy ? "Saving…" : "Save social account"}
+          </Button>
+          <p className="text-[11px] text-muted-foreground">
+            Manual connect for now. OAuth verification can be added later without changing this data model.
+          </p>
+        </form>
       </div>
 
       {creator && creator.portfolio.length > 0 ? (

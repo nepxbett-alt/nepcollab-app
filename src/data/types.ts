@@ -46,6 +46,7 @@ export type DeliverableStatus =
 export type Platform = "Instagram" | "TikTok" | "YouTube" | "Facebook" | "X";
 
 export interface SocialAccount {
+  id?: string;
   platform: Platform;
   username: string;
   followers: number;
