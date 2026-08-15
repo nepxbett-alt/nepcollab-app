@@ -1,7 +1,6 @@
-import mark from "@/assets/nepcollab-mark.png.asset.json";
 import { cn } from "@/lib/utils";
 
-export const logoUrl = mark.url;
+export const logoUrl = "/app-icon.png";
 
 export function Logo({
   className,
@@ -15,7 +14,7 @@ export function Logo({
   return (
     <span className={cn("flex items-center gap-2", className)}>
       <img
-        src={mark.url}
+        src="/app-icon.png"
         alt="NepCollab logo"
         width={size}
         height={size}

@@ -273,6 +273,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState("");
 
   const load = useCallback(async (forcedId?: string) => {
+    try {
     const { data: sessionData } = await supabase.auth.getSession();
     const uid = forcedId ?? sessionData.session?.user?.id ?? "";
     if (!uid) {
@@ -424,6 +425,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       saved: (saveRows ?? []).map((s: any) => s.campaign_id),
       loading: false,
     });
+    } catch (err) {
+      console.error("[NepCollab] load failed", err);
+      setState((s) => ({ ...s, loading: false }));
+    }
   }, []);
 
   useEffect(() => {

@@ -36,6 +36,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold">This page didn't load</h1>
         <p className="mt-2 text-sm text-muted-foreground">Something went wrong. Try again or head back home.</p>
+        {error?.message ? (
+          <p className="mt-3 max-w-sm break-words rounded-md bg-muted px-3 py-2 text-left text-xs text-muted-foreground">
+            {error.message}
+          </p>
+        ) : null}
         <div className="mt-6 flex justify-center gap-2">
           <button
             onClick={() => {
