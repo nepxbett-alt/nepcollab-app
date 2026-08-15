@@ -292,6 +292,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             "id, brand_id, title, description, category, location, platforms, spots, deadline, deliverables, requirements, status, created_at, brief, image_url, min_followers, views, content_types, perks, remote, campaign_start, campaign_end, featured, creator_reward, budget, currency, visibility",
           )
           .eq("status", "active")
+          .eq("visibility", "public")
           .order("created_at", { ascending: false })
           .limit(100);
         const brandIds = [...new Set((campaignRows ?? []).map((r: any) => r.brand_id).filter(Boolean))];
@@ -941,68 +942,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (!uid) throw new Error("Not signed in");
 
         if (status === "SELECTED") {
-          // Prefer RPC if present; otherwise manual accept on live schema
+          // Only the secure SECURITY DEFINER RPC — creates collaboration,
+          // deliverables, conversation, members, and notification atomically.
           const { error: rpcError } = await db.rpc("accept_application", {
             _application_id: id,
           });
-          if (rpcError) {
-            const { data: app, error: appErr } = await db
-              .from("applications")
-              .select("*")
-              .eq("id", id)
-              .maybeSingle();
-            if (appErr || !app) throw new Error(appErr?.message || "Application not found");
-
-            const { error: upErr } = await db
-              .from("applications")
-              .update({ status: "accepted" })
-              .eq("id", id);
-            if (upErr) throw new Error(upErr.message);
-
-            const { data: camp } = await db
-              .from("campaigns")
-              .select("brand_id")
-              .eq("id", app.campaign_id)
-              .maybeSingle();
-
-            const { data: existingCollab } = await db
-              .from("collaborations")
-              .select("id")
-              .eq("campaign_id", app.campaign_id)
-              .eq("creator_id", app.creator_id)
-              .maybeSingle();
-            if (!existingCollab) {
-              const { error: cErr } = await db.from("collaborations").insert({
-                campaign_id: app.campaign_id,
-                creator_id: app.creator_id,
-                brand_id: camp?.brand_id ?? uid,
-                application_id: id,
-                status: "active",
-              });
-              if (cErr) throw new Error(cErr.message);
-            } else {
-              await db
-                .from("collaborations")
-                .update({ status: "active", application_id: id })
-                .eq("id", existingCollab.id);
-            }
-
-            // Open conversation if possible (ignore if already exists)
-            const { data: existingConv } = await db
-              .from("conversations")
-              .select("id")
-              .eq("campaign_id", app.campaign_id)
-              .eq("brand_id", camp?.brand_id ?? uid)
-              .eq("creator_id", app.creator_id)
-              .maybeSingle();
-            if (!existingConv) {
-              await db.from("conversations").insert({
-                campaign_id: app.campaign_id,
-                brand_id: camp?.brand_id ?? uid,
-                creator_id: app.creator_id,
-              });
-            }
-          }
+          if (rpcError) throw new Error(rpcError.message || "Could not accept application");
         } else {
           const { error } = await db
             .from("applications")
