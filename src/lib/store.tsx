@@ -19,6 +19,7 @@ interface State {
   role: Role | null;
   signedIn: boolean;
   onboarded: boolean;
+  accountSuspended: boolean;
   campaigns: Campaign[];
   applications: Application[];
   collaborations: Collaboration[];
@@ -66,6 +67,7 @@ interface Store extends State {
   }) => Promise<void>;
   toggleSaved: (campaignId: string) => Promise<void>;
   addCampaign: (campaign: Campaign) => Promise<void>;
+  updateCampaignStatus: (campaignId: string, status: string) => Promise<void>;
   applyToCampaign: (input: {
     campaignId: string;
     message: string;
@@ -99,6 +101,7 @@ const initial: State = {
   role: null,
   signedIn: false,
   onboarded: false,
+  accountSuspended: false,
   campaigns: [],
   applications: [],
   collaborations: [],
@@ -642,6 +645,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       role: me?.role === "admin" ? "admin" : me?.role === "brand" ? "brand" : me?.role === "creator" ? "creator" : null,
       signedIn: true,
       onboarded: Boolean(me?.onboarded),
+      accountSuspended: Boolean(me?.suspended),
       campaigns: (campaignRows ?? []).map(mapCampaign),
       applications: apps,
       collaborations,
@@ -1020,6 +1024,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = userId || sessionData.session?.user?.id || "";
         if (!uid) throw new Error("Not signed in");
+        const { data: meRow } = await db.from("profiles").select("suspended").eq("id", uid).maybeSingle();
+        if (meRow?.suspended) throw new Error("Your account is suspended. Contact support.");
 
         const spots = Number(campaign.creatorsNeeded) || 0;
         if (spots < 1) throw new Error("Spots must be at least 1.");
@@ -1082,10 +1088,24 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (error) throw new Error(error.message);
         await load(uid);
       },
+      updateCampaignStatus: async (campaignId, status) => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) throw new Error("Not signed in");
+        const allowed = ["active", "paused", "closed", "completed", "draft", "cancelled"];
+        if (!allowed.includes(status)) throw new Error("Invalid campaign status.");
+        const { data: camp } = await db.from("campaigns").select("brand_id").eq("id", campaignId).maybeSingle();
+        if (!camp || camp.brand_id !== uid) throw new Error("You can only manage your own campaigns.");
+        const { error } = await db.from("campaigns").update({ status }).eq("id", campaignId);
+        if (error) throw new Error(error.message);
+        await load(uid);
+      },
       applyToCampaign: async ({ campaignId, message, contentIdea, availability }) => {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = userId || sessionData.session?.user?.id || "";
         if (!uid) throw new Error("Not signed in");
+        const { data: meRow } = await db.from("profiles").select("suspended").eq("id", uid).maybeSingle();
+        if (meRow?.suspended) throw new Error("Your account is suspended. Contact support.");
         const { data: camp, error: campErr } = await db
           .from("campaigns")
           .select("id, status, deadline, visibility")

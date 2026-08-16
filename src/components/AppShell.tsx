@@ -419,7 +419,7 @@ function SidebarNav({ sections, badges }: { sections: NavSection[]; badges: Retu
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { role, signedIn, loading } = useStore();
+  const { role, signedIn, loading, accountSuspended } = useStore();
   const badges = useNavBadges();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -540,6 +540,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       ) : null}
 
       {/* Main content */}
+
+      {accountSuspended ? (
+        <div className="border-b border-destructive/30 bg-destructive/10 px-4 py-2.5 text-center text-sm text-destructive">
+          Your account is suspended. You can browse but can&apos;t apply or publish. Contact support if this is a mistake.
+        </div>
+      ) : null}
       <main
         className={cn(
           "min-w-0 flex-1",

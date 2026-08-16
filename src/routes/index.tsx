@@ -32,7 +32,9 @@ function Home() {
   const openCampaigns = campaigns.filter(
     (c) => c.status === "APPLICATIONS_OPEN" || c.status === "PUBLISHED",
   );
-  const featured = openCampaigns.slice(0, 3);
+  const featured = [...openCampaigns]
+    .sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)))
+    .slice(0, 3);
   const openCount = openCampaigns.length;
 
   return (
