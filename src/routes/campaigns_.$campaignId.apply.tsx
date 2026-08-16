@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { formatFollowers, getCreator } from "@/lib/lookup";
 import { supabase } from "@/integrations/supabase/client";
+import { toUserError } from "@/lib/user-error";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/campaigns_/$campaignId/apply")({

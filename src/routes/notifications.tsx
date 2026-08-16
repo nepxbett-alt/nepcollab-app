@@ -32,8 +32,8 @@ function Notifications() {
       <PageHeader title="Notifications" />
       {mine.length === 0 ? (
         <EmptyState
-          title="Nothing new"
-          body="Updates about your campaigns and applications will show up here."
+          title="You're all caught up"
+          body="Updates about campaigns, applications, and collaborations will show up here."
           actionLabel="Browse campaigns"
           actionTo="/campaigns"
         />

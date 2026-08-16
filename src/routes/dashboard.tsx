@@ -406,7 +406,9 @@ function Dashboard() {
         {mine.length === 0 && myCollabs.length === 0 ? (
           <EmptyState
             title="No applications yet"
-            body="Your next collaboration could start here."
+            actionLabel="Discover campaigns"
+            actionTo="/campaigns"
+            body="Start by discovering open campaigns from brands across Nepal. Your next collaboration could start here."
             actionLabel="Explore campaigns"
             actionTo="/campaigns"
           />

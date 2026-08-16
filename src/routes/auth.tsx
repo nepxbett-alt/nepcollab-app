@@ -7,6 +7,7 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toUserError } from "@/lib/user-error";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/auth")({
@@ -72,7 +73,7 @@ function AuthPage() {
       setSent(true);
       toast.success("Check your email for the login link.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "We couldn't send the login link. Please try again.");
+      toast.error(toUserError(error, "We couldn't send your login link right now. Please try again later."));
     } finally {
       setBusy(false);
     }
@@ -92,7 +93,7 @@ function AuthPage() {
             <strong className="text-foreground">{lastEmail}</strong>.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Open your email and tap the link to continue. You can close this tab after you open the link.
+            Open your email and tap the link to continue. You can close this tab after you open the link on your phone.
           </p>
           <form
             className="mt-6 space-y-3 text-left"

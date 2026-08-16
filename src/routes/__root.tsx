@@ -15,12 +15,25 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold">404</h1>
-        <h2 className="mt-4 text-xl font-semibold">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">The page you're looking for doesn't exist or has been moved.</p>
-        <Link to="/" className="mt-6 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-          Go home
-        </Link>
+        <p className="text-[13px] font-medium text-signal">NepCollab</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight">Page not found</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          That link doesn&apos;t match any page. Head back to discover campaigns or your dashboard.
+        </p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <Link
+            to="/"
+            className="inline-flex h-11 items-center rounded-full bg-ink px-5 text-sm font-semibold text-ink-foreground"
+          >
+            Go to NepCollab
+          </Link>
+          <Link
+            to="/campaigns"
+            className="inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold"
+          >
+            Discover
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -36,12 +49,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold">This page didn't load</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Something went wrong. Try again or head back home.</p>
-        {error?.message ? (
-          <p className="mt-3 max-w-sm break-words rounded-md bg-muted px-3 py-2 text-left text-xs text-muted-foreground">
-            {error.message}
-          </p>
-        ) : null}
+        <p className="mt-2 text-sm text-muted-foreground">
+          NepCollab is having trouble right now. Try again or head back home.
+        </p>
         <div className="mt-6 flex justify-center gap-2">
           <button
             onClick={() => {
