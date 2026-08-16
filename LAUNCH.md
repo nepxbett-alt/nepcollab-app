@@ -97,3 +97,8 @@ SELECT public.bootstrap_first_admin('YOUR_USER_UUID'::uuid);
 
 Admin can: view platform stats, manage users (verify / role), moderate campaigns,
 applications & collaborations, resolve reports, edit platform settings, audit log.
+
+## Auth (production)
+
+- Magic-link (OTP) only — no demo logins, no password UI.
+- Redirect URL: `VITE_SITE_URL/auth/callback` must be allowed in Supabase Auth → URL configuration.

@@ -12,7 +12,7 @@ import { formatFollowers, getCreator } from "@/lib/lookup";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 
-export const Route = createFileRoute("/campaigns/$campaignId/apply")({
+export const Route = createFileRoute("/campaigns_/$campaignId/apply")({
   head: () => ({
     meta: [
       { title: "Apply to campaign — NepCollab" },

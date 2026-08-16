@@ -33,11 +33,8 @@ interface Store extends State {
   currentCreatorId: string;
   currentBrandId: string;
   setRole: (role: Role) => void;
-  signIn: (role?: Role) => void;
   requestMagicLink: (email: string) => Promise<void>;
   verifyEmailOtp: (email: string, token: string) => Promise<void>;
-  passwordSignIn: (email: string, password: string) => Promise<void>;
-  demoSignIn: (kind: "creator" | "brand") => Promise<void>;
   handleAuthCallback: () => Promise<{ userId: string; onboarded: boolean }>;
   signOut: () => Promise<void>;
   completeOnboarding: (input?: {
@@ -780,10 +777,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (role === "admin") return;
         setState((s) => ({ ...s, role }));
       },
-      signIn: (_role) => {
-        // Deprecated local-only sign-in removed — use passwordSignIn / demoSignIn / OTP.
-        console.warn("signIn() is disabled; use real auth methods.");
-      },
       requestMagicLink: async (email) => {
         const normalized = email.trim().toLowerCase();
         if (!normalized.includes("@")) {
@@ -867,38 +860,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (!data.session?.user?.id) {
           throw new Error("Could not start a session. Try the link in your email.");
         }
-        await load(data.session.user.id);
-      },
-      passwordSignIn: async (email, password) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim().toLowerCase(),
-          password,
-        });
-        if (error) throw error;
-        if (!data.session?.user?.id) throw new Error("Could not sign in.");
-        await load(data.session.user.id);
-      },
-      demoSignIn: async (_kind) => {
-        // Production builds must not expose demo credentials.
-        const demoEnabled =
-          !import.meta.env.PROD || import.meta.env.VITE_ENABLE_DEMO_LOGIN === "true";
-        if (!demoEnabled) {
-          throw new Error("Demo login is disabled in production.");
-        }
-        const email =
-          _kind === "brand"
-            ? (import.meta.env.VITE_DEMO_BRAND_EMAIL as string) || "brand@nepcollab.test"
-            : (import.meta.env.VITE_DEMO_CREATOR_EMAIL as string) || "creator@nepcollab.test";
-        const password = (import.meta.env.VITE_DEMO_PASSWORD as string) || "";
-        if (!password) {
-          throw new Error("Demo password is not configured.");
-        }
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        if (!data.session?.user?.id) throw new Error("Demo login failed.");
         await load(data.session.user.id);
       },
       signOut: async () => {
