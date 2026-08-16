@@ -28,7 +28,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { requestMagicLink, signedIn, loading, onboarded } = useStore();
+  const { requestMagicLink, verifyEmailOtp, signedIn, loading, onboarded } = useStore();
   const { next } = Route.useSearch();
   const safeNext =
     typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
@@ -37,6 +37,7 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [lastEmail, setLastEmail] = useState("");
+  const [otp, setOtp] = useState("");
 
   useEffect(() => {
     try {
@@ -93,7 +94,37 @@ function AuthPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             Open your email and tap the link to continue. You can close this tab after you open the link.
           </p>
-          <div className="mt-6 flex flex-col gap-2">
+          <form
+            className="mt-6 space-y-3 text-left"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (busy || otp.trim().length < 6) return;
+              setBusy(true);
+              try {
+                await verifyEmailOtp(lastEmail, otp.trim());
+                toast.success("Signed in");
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Invalid or expired code.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Label htmlFor="otp">Or enter the 6-digit code from the email</Label>
+            <Input
+              id="otp"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="000000"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              className="h-12 tracking-widest"
+            />
+            <Button type="submit" className="h-11 w-full rounded-full" disabled={busy || otp.length < 6}>
+              {busy ? "Verifying…" : "Verify code"}
+            </Button>
+          </form>
+          <div className="mt-4 flex flex-col gap-2">
             <Button
               type="button"
               variant="outline"

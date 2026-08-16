@@ -779,30 +779,74 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       },
       requestMagicLink: async (email) => {
         const normalized = email.trim().toLowerCase();
-        if (!normalized.includes("@")) {
-          throw new Error("Enter a valid email address.");
+        if (!normalized.includes("@") || normalized.length < 5) {
+          throw new Error("Please enter a valid email address.");
         }
         try {
           localStorage.setItem("nepcollab.auth.email", normalized);
         } catch {
           /* ignore */
         }
-        const siteUrl =
-          (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, "") ||
-          (typeof window !== "undefined" ? window.location.origin : "https://nepcollab-app.vercel.app");
+        // Prefer live browser origin so localhost + production both work.
+        // Fall back to VITE_SITE_URL only when origin is unavailable (SSR).
+        const origin =
+          typeof window !== "undefined" && window.location?.origin
+            ? window.location.origin.replace(/\/$/, "")
+            : ((import.meta.env.VITE_SITE_URL as string | undefined) || "https://nepcollab.vercel.app").replace(
+                /\/$/,
+                "",
+              );
+        const emailRedirectTo = `${origin}/auth/callback`;
+
         const { error } = await supabase.auth.signInWithOtp({
           email: normalized,
           options: {
             shouldCreateUser: true,
-            emailRedirectTo: `${siteUrl}/auth/callback`,
+            emailRedirectTo,
           },
         });
+
         if (error) {
+          // Safe diagnostics — never log tokens/secrets
+          console.error("Magic link error:", {
+            message: error.message,
+            status: (error as { status?: number }).status,
+            code: (error as { code?: string }).code,
+            redirect: emailRedirectTo,
+          });
+
           const msg = (error.message || "").toLowerCase();
-          if (msg.includes("rate") || msg.includes("limit")) {
-            throw new Error("Too many requests. Please wait a minute and try again.");
+          const status = (error as { status?: number }).status;
+          const code = ((error as { code?: string }).code || "").toLowerCase();
+
+          if (msg.includes("rate") || msg.includes("limit") || status === 429) {
+            throw new Error("Too many login attempts. Please wait a few minutes before requesting another link.");
           }
-          throw new Error("We couldn't send the login link. Please try again.");
+          if (
+            msg.includes("sending confirmation email") ||
+            msg.includes("error sending") ||
+            msg.includes("mail") ||
+            code === "unexpected_failure" ||
+            status === 500
+          ) {
+            throw new Error(
+              "We couldn't send your login email right now. The email service is temporarily unavailable — try again in a few minutes.",
+            );
+          }
+          if (msg.includes("redirect") || msg.includes("not allowed") || msg.includes("whitelist")) {
+            throw new Error(
+              "This app URL is not allowed for login redirects. Please contact support or try the primary site URL.",
+            );
+          }
+          if (msg.includes("signups") || msg.includes("disabled") || msg.includes("not allowed")) {
+            throw new Error("New sign-ups are temporarily closed. If you already have an account, try again later.");
+          }
+          // User-safe message; still more specific than a total black box
+          throw new Error(
+            error.message?.trim()
+              ? `Could not send login link: ${error.message}`
+              : "We couldn't send your login link right now. Please try again later.",
+          );
         }
       },
       handleAuthCallback: async () => {
@@ -827,7 +871,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           if (code) {
             const { error } = await supabase.auth.exchangeCodeForSession(code);
             if (error) {
-              throw new Error("That login link is invalid or expired. Request a new one.");
+              console.error("exchangeCodeForSession failed:", {
+              message: error.message,
+              status: (error as { status?: number }).status,
+              code: (error as { code?: string }).code,
+            });
+            throw new Error("This login link is invalid or has expired. Please request a new one.");
             }
           }
         }
