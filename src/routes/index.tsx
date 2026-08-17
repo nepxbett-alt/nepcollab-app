@@ -78,6 +78,31 @@ function Home() {
           </p>
         </Container>
       </section>
+      <section className="border-b border-border bg-background">
+        <Container className="py-10">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+              <h2 className="text-lg font-bold tracking-tight">For creators</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Find real brand campaigns in Nepal, apply in minutes, and track collaborations from one home.
+              </p>
+              <Link to="/campaigns" className="mt-4 inline-flex text-sm font-semibold text-signal hover:underline">
+                Browse campaigns →
+              </Link>
+            </div>
+            <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+              <h2 className="text-lg font-bold tracking-tight">For brands</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Publish a brief, review applicants, and message talent. Payments stay between you and the creator.
+              </p>
+              <Link to="/creators" className="mt-4 inline-flex text-sm font-semibold text-signal hover:underline">
+                Explore creators →
+              </Link>
+            </div>
+          </div>
+        </Container>
+      </section>
+
 
       <Container className="pt-7">
         <SectionHeader

@@ -157,7 +157,7 @@ function CampaignDetail() {
               </p>
             ) : null}
             <p className="mt-3 text-xs text-muted-foreground">
-              NepCollab does not process payments. Any compensation is arranged
+              NepCollab does not process payments (no escrow). Agree fee or barter directly—bank transfer, eSewa, Khalti, or product—and confirm in Messages. Any compensation is arranged
               directly with the brand.
             </p>
           </section>

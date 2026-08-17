@@ -36,29 +36,48 @@ export function CampaignCard({
         params={{ campaignId: campaign.id }}
         className="block"
       >
-        <div className="relative aspect-[16/10] overflow-hidden">
+        <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-ink via-[#1a3a7a] to-signal/80">
+          {campaign.cover && !String(campaign.cover).includes("app-icon") ? (
           <img
             src={campaign.cover}
             alt=""
             loading="lazy"
             decoding="async"
             className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
+          ) : (
+            <div className="flex size-full items-end p-4">
+              <span className="text-lg font-bold tracking-tight text-white/90 line-clamp-2">
+                {campaign.title}
+              </span>
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/10 to-transparent" />
 
-          {shownMatch != null ? (
-            <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-bold text-foreground backdrop-blur">
-              {shownMatch}% match
-            </span>
-          ) : null}
+          <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+            {campaign.featured ? (
+              <span className="rounded-full bg-signal px-2.5 py-1 text-[11px] font-bold text-signal-foreground">
+                Featured
+              </span>
+            ) : null}
+            {shownMatch != null ? (
+              <span className="rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-bold text-foreground backdrop-blur">
+                {shownMatch}% match
+              </span>
+            ) : null}
+          </div>
 
           <div className="absolute inset-x-3 bottom-3 flex items-center gap-2">
-            <img
-              src={brand?.logo}
-              alt=""
-              loading="lazy"
-              className="size-8 shrink-0 rounded-full border border-white/40 object-cover"
-            />
+            <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/20 text-[11px] font-bold text-white">
+              {brand?.logo && !String(brand.logo).includes("app-icon") ? (
+                <img src={brand.logo} alt="" loading="lazy" className="size-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              ) : (
+                <span>{(brand?.name || "B").slice(0, 1).toUpperCase()}</span>
+              )}
+            </div>
             <span className="flex min-w-0 items-center gap-1 text-[13px] font-semibold text-ink-foreground">
               <span className="truncate">{brand?.name}</span>
               {brand?.verified ? (

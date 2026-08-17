@@ -90,7 +90,12 @@ function Discover() {
     const list = campaigns.filter((c) => {
       // Public discover: only open campaigns
       const st = String(c.status || "");
-      if (st !== "APPLICATIONS_OPEN" && st !== "ACTIVE") return false;
+      const open =
+        st === "APPLICATIONS_OPEN" ||
+        st === "ACTIVE" ||
+        st === "PUBLISHED" ||
+        st.toLowerCase() === "active";
+      if (!open) return false;
       if (c.deadline && new Date(c.deadline) < new Date(new Date().toDateString())) return false;
       const brand = getBrand(c.brandId);
       const haystack =
