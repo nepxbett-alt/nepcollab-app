@@ -133,6 +133,15 @@ function Home() {
           >
             Join NepCollab
           </Link>
+          <p className="mt-4 text-[11px] text-muted-foreground">
+            <Link to="/help" className="underline">Help</Link>
+            {" · "}
+            <Link to="/terms" className="underline">Terms</Link>
+            {" · "}
+            <Link to="/privacy" className="underline">Privacy</Link>
+            {" · "}
+            <Link to="/creators" className="underline">Creators</Link>
+          </p>
         </Container>
       </section>
     </div>

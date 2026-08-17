@@ -70,6 +70,7 @@ function NewCampaign() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     title: "",
+    imageUrl: "",
     description: "",
     category: "",
     types: [] as string[],
@@ -149,7 +150,7 @@ function NewCampaign() {
       deadline: form.deadline || "",
       creatorsNeeded: Number(form.creatorsNeeded) || 1,
       status: "APPLICATIONS_OPEN",
-      cover: "/app-icon.png",
+      cover: form.imageUrl.trim() || "/app-icon.png",
       requirements: {
         minFollowers: Number(form.minFollowers) || 0,
         niches: form.niches.length ? form.niches : ["Lifestyle"],
@@ -191,6 +192,9 @@ function NewCampaign() {
             <div>
               <Label htmlFor="title">Campaign title</Label>
               <Input id="title" className="mt-2" maxLength={120} value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Food Creator Collaboration — Pokhara" />
+              <Label htmlFor="imageUrl" className="mt-4 block">Cover image URL (optional)</Label>
+              <Input id="imageUrl" className="mt-2" value={form.imageUrl} onChange={(e) => set("imageUrl", e.target.value)} placeholder="https://…" />
+              <p className="mt-1 text-[11px] text-muted-foreground">Use a public image link so your campaign stands out in Discover.</p>
             </div>
             <div>
               <Label htmlFor="desc">Description</Label>

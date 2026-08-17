@@ -61,6 +61,7 @@ interface Store extends State {
     username?: string;
     bio?: string;
     location?: string;
+    avatarUrl?: string;
     niches?: string[];
     languages?: string[];
     availability?: string;
@@ -322,19 +323,24 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           .order("created_at", { ascending: false })
           .limit(100);
         const brandIds = [...new Set((campaignRows ?? []).map((r: any) => r.brand_id).filter(Boolean))];
-        const [{ data: brandRows }, { data: profiles }] = await Promise.all([
+        const [{ data: brandRows }, { data: profiles }, { data: creatorProfiles }, { data: creatorRows }] =
+          await Promise.all([
           brandIds.length
             ? db.from("brand_profiles").select("user_id, business_name, category, website").in("user_id", brandIds)
             : Promise.resolve({ data: [] as any[] }),
           brandIds.length
             ? db.from("profiles").select("id, full_name, avatar_url, bio, location, verified, rating, response_rate").in("id", brandIds)
             : Promise.resolve({ data: [] as any[] }),
+          db.from("creator_profiles").select("user_id, niches, platforms, followers, engagement_rate, languages, featured").limit(120),
+          db.from("profiles").select("id, full_name, username, avatar_url, bio, location, verified, rating, review_count, response_rate, onboarded").eq("role", "creator").eq("onboarded", true).limit(120),
         ]);
         const pm = new Map((profiles ?? []).map((p: any) => [p.id, p]));
         const bm = new Map((brandRows ?? []).map((b: any) => [b.user_id, b]));
+        const cm = new Map((creatorProfiles ?? []).map((c: any) => [c.user_id, c]));
+        const creators = (creatorRows ?? []).map((p: any) => mapCreator(p, cm.get(p.id), []));
         setLookupData(
           brandIds.map((id) => mapBrand(pm.get(id) ?? { id }, bm.get(id))),
-          [],
+          creators,
         );
         setState({
           ...initial,

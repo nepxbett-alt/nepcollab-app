@@ -118,6 +118,7 @@ const adminSections: NavSection[] = [
 const creatorTabs: NavItem[] = [
   { to: "/dashboard", label: "Home", icon: Home },
   { to: "/campaigns", label: "Discover", icon: Compass },
+  { to: "/creators", label: "Creators", icon: Users },
   { to: "/applications", label: "Apply", icon: FileText, badgeKey: "applications" },
   { to: "/messages", label: "Chat", icon: MessageCircle, badgeKey: "messages" },
   { to: "/profile", label: "You", icon: User },
@@ -126,6 +127,7 @@ const creatorTabs: NavItem[] = [
 const brandTabs: NavItem[] = [
   { to: "/dashboard", label: "Home", icon: Home },
   { to: "/brand/campaigns", label: "Campaigns", icon: LayoutGrid },
+  { to: "/creators", label: "Creators", icon: Users },
   { to: "/brand/applicants", label: "Applicants", icon: Users, badgeKey: "applications" },
   { to: "/messages", label: "Chat", icon: MessageCircle, badgeKey: "messages" },
   { to: "/profile", label: "You", icon: User },

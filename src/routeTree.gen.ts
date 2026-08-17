@@ -13,10 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApplicationsRouteImport } from './routes/applications'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminApplicationsRouteImport } from './routes/admin.applications'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
@@ -36,6 +39,8 @@ import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
 import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
 import { Route as CollaborationsIndexRouteImport } from './routes/collaborations.index'
 import { Route as CollaborationsCollabIdRouteImport } from './routes/collaborations.$collabId'
+import { Route as CreatorsIndexRouteImport } from './routes/creators.index'
+import { Route as CreatorsCreatorIdRouteImport } from './routes/creators.$creatorId'
 import { Route as BrandCampaignsIndexRouteImport } from './routes/brand.campaigns.index'
 import { Route as BrandCampaignsNewRouteImport } from './routes/brand.campaigns.new'
 import { Route as CampaignsCampaignIdIndexRouteImport } from './routes/campaigns.$campaignId.index'
@@ -61,6 +66,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MessagesRoute = MessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
@@ -76,9 +86,19 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -176,6 +196,16 @@ const CollaborationsCollabIdRoute = CollaborationsCollabIdRouteImport.update({
   path: '/collaborations/$collabId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CreatorsIndexRoute = CreatorsIndexRouteImport.update({
+  id: '/creators/',
+  path: '/creators/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreatorsCreatorIdRoute = CreatorsCreatorIdRouteImport.update({
+  id: '/creators/$creatorId',
+  path: '/creators/$creatorId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BrandCampaignsIndexRoute = BrandCampaignsIndexRouteImport.update({
   id: '/brand/campaigns/',
   path: '/brand/campaigns/',
@@ -204,10 +234,13 @@ export interface FileRoutesByFullPath {
   '/applications': typeof ApplicationsRoute
   '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/help': typeof HelpRoute
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/terms': typeof TermsRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/brands': typeof AdminBrandsRoute
@@ -224,9 +257,11 @@ export interface FileRoutesByFullPath {
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
+  '/creators/$creatorId': typeof CreatorsCreatorIdRoute
   '/admin/': typeof AdminIndexRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/collaborations/': typeof CollaborationsIndexRoute
+  '/creators/': typeof CreatorsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
   '/campaigns/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
   '/brand/campaigns/': typeof BrandCampaignsIndexRoute
@@ -237,10 +272,13 @@ export interface FileRoutesByTo {
   '/applications': typeof ApplicationsRoute
   '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/help': typeof HelpRoute
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/terms': typeof TermsRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/brands': typeof AdminBrandsRoute
@@ -256,9 +294,11 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
+  '/creators/$creatorId': typeof CreatorsCreatorIdRoute
   '/admin': typeof AdminIndexRoute
   '/campaigns': typeof CampaignsIndexRoute
   '/collaborations': typeof CollaborationsIndexRoute
+  '/creators': typeof CreatorsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
   '/campaigns/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
   '/brand/campaigns': typeof BrandCampaignsIndexRoute
@@ -270,10 +310,13 @@ export interface FileRoutesById {
   '/applications': typeof ApplicationsRoute
   '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/help': typeof HelpRoute
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/terms': typeof TermsRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/brands': typeof AdminBrandsRoute
@@ -290,9 +333,11 @@ export interface FileRoutesById {
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
+  '/creators/$creatorId': typeof CreatorsCreatorIdRoute
   '/admin/': typeof AdminIndexRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/collaborations/': typeof CollaborationsIndexRoute
+  '/creators/': typeof CreatorsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
   '/campaigns_/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
   '/brand/campaigns/': typeof BrandCampaignsIndexRoute
@@ -305,10 +350,13 @@ export interface FileRouteTypes {
     | '/applications'
     | '/auth'
     | '/dashboard'
+    | '/help'
     | '/messages'
     | '/notifications'
     | '/onboarding'
+    | '/privacy'
     | '/profile'
+    | '/terms'
     | '/admin/applications'
     | '/admin/audit'
     | '/admin/brands'
@@ -325,9 +373,11 @@ export interface FileRouteTypes {
     | '/brand/applicants'
     | '/campaigns/$campaignId'
     | '/collaborations/$collabId'
+    | '/creators/$creatorId'
     | '/admin/'
     | '/campaigns/'
     | '/collaborations/'
+    | '/creators/'
     | '/brand/campaigns/new'
     | '/campaigns/$campaignId/apply'
     | '/brand/campaigns/'
@@ -338,10 +388,13 @@ export interface FileRouteTypes {
     | '/applications'
     | '/auth'
     | '/dashboard'
+    | '/help'
     | '/messages'
     | '/notifications'
     | '/onboarding'
+    | '/privacy'
     | '/profile'
+    | '/terms'
     | '/admin/applications'
     | '/admin/audit'
     | '/admin/brands'
@@ -357,9 +410,11 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/brand/applicants'
     | '/collaborations/$collabId'
+    | '/creators/$creatorId'
     | '/admin'
     | '/campaigns'
     | '/collaborations'
+    | '/creators'
     | '/brand/campaigns/new'
     | '/campaigns/$campaignId/apply'
     | '/brand/campaigns'
@@ -370,10 +425,13 @@ export interface FileRouteTypes {
     | '/applications'
     | '/auth'
     | '/dashboard'
+    | '/help'
     | '/messages'
     | '/notifications'
     | '/onboarding'
+    | '/privacy'
     | '/profile'
+    | '/terms'
     | '/admin/applications'
     | '/admin/audit'
     | '/admin/brands'
@@ -390,9 +448,11 @@ export interface FileRouteTypes {
     | '/brand/applicants'
     | '/campaigns/$campaignId'
     | '/collaborations/$collabId'
+    | '/creators/$creatorId'
     | '/admin/'
     | '/campaigns/'
     | '/collaborations/'
+    | '/creators/'
     | '/brand/campaigns/new'
     | '/campaigns_/$campaignId/apply'
     | '/brand/campaigns/'
@@ -404,10 +464,13 @@ export interface RootRouteChildren {
   ApplicationsRoute: typeof ApplicationsRoute
   AuthRoute: typeof AuthRouteWithChildren
   DashboardRoute: typeof DashboardRoute
+  HelpRoute: typeof HelpRoute
   MessagesRoute: typeof MessagesRoute
   NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
+  TermsRoute: typeof TermsRoute
   AdminApplicationsRoute: typeof AdminApplicationsRoute
   AdminAuditRoute: typeof AdminAuditRoute
   AdminBrandsRoute: typeof AdminBrandsRoute
@@ -423,9 +486,11 @@ export interface RootRouteChildren {
   BrandApplicantsRoute: typeof BrandApplicantsRoute
   CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRouteWithChildren
   CollaborationsCollabIdRoute: typeof CollaborationsCollabIdRoute
+  CreatorsCreatorIdRoute: typeof CreatorsCreatorIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
   CampaignsIndexRoute: typeof CampaignsIndexRoute
   CollaborationsIndexRoute: typeof CollaborationsIndexRoute
+  CreatorsIndexRoute: typeof CreatorsIndexRoute
   BrandCampaignsNewRoute: typeof BrandCampaignsNewRoute
   CampaignsCampaignIdApplyRoute: typeof CampaignsCampaignIdApplyRoute
   BrandCampaignsIndexRoute: typeof BrandCampaignsIndexRoute
@@ -461,6 +526,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/messages': {
       id: '/messages'
       path: '/messages'
@@ -482,11 +554,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -622,6 +708,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollaborationsCollabIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/creators/': {
+      id: '/creators/'
+      path: '/creators'
+      fullPath: '/creators/'
+      preLoaderRoute: typeof CreatorsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/creators/$creatorId': {
+      id: '/creators/$creatorId'
+      path: '/creators/$creatorId'
+      fullPath: '/creators/$creatorId'
+      preLoaderRoute: typeof CreatorsCreatorIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/brand/campaigns/': {
       id: '/brand/campaigns/'
       path: '/brand/campaigns'
@@ -679,10 +779,13 @@ const rootRouteChildren: RootRouteChildren = {
   ApplicationsRoute: ApplicationsRoute,
   AuthRoute: AuthRouteWithChildren,
   DashboardRoute: DashboardRoute,
+  HelpRoute: HelpRoute,
   MessagesRoute: MessagesRoute,
   NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,
+  PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
+  TermsRoute: TermsRoute,
   AdminApplicationsRoute: AdminApplicationsRoute,
   AdminAuditRoute: AdminAuditRoute,
   AdminBrandsRoute: AdminBrandsRoute,
@@ -698,9 +801,11 @@ const rootRouteChildren: RootRouteChildren = {
   BrandApplicantsRoute: BrandApplicantsRoute,
   CampaignsCampaignIdRoute: CampaignsCampaignIdRouteWithChildren,
   CollaborationsCollabIdRoute: CollaborationsCollabIdRoute,
+  CreatorsCreatorIdRoute: CreatorsCreatorIdRoute,
   AdminIndexRoute: AdminIndexRoute,
   CampaignsIndexRoute: CampaignsIndexRoute,
   CollaborationsIndexRoute: CollaborationsIndexRoute,
+  CreatorsIndexRoute: CreatorsIndexRoute,
   BrandCampaignsNewRoute: BrandCampaignsNewRoute,
   CampaignsCampaignIdApplyRoute: CampaignsCampaignIdApplyRoute,
   BrandCampaignsIndexRoute: BrandCampaignsIndexRoute,

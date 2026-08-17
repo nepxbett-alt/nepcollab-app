@@ -69,6 +69,8 @@ function VerificationPill({ state }: { state: "verified" | "pending" | "none" })
 
 function Profile() {
   const {
+    uploadFile,
+    updateProfile,
     role,
     currentCreatorId,
     currentBrandId,
@@ -204,11 +206,32 @@ function Profile() {
       <section className="overflow-hidden rounded-3xl border border-border bg-card">
         <div className="h-20 bg-gradient-to-r from-ink to-ink/80" />
         <div className="-mt-9 px-5 pb-5">
-          <img
-            src={creator?.avatar}
-            alt=""
-            className="size-18 rounded-full border-4 border-card object-cover"
-          />
+          <div className="relative inline-block">
+            <img
+              src={creator?.avatar}
+              alt=""
+              className="size-18 rounded-full border-4 border-card object-cover bg-muted"
+            />
+            <label className="absolute bottom-0 right-0 cursor-pointer rounded-full bg-ink px-2 py-1 text-[10px] font-semibold text-ink-foreground">
+              Photo
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !currentCreatorId) return;
+                  try {
+                    const url = await uploadFile("avatars", `${currentCreatorId}/${Date.now()}-${file.name}`, file);
+                    await updateProfile({ avatarUrl: url });
+                    toast.success("Photo updated");
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Upload failed");
+                  }
+                }}
+              />
+            </label>
+          </div>
           <h1 className="mt-2 flex items-center gap-1.5 text-xl font-bold tracking-tight">
             {creator?.name}
             {creator?.verified ? (

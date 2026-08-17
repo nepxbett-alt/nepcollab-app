@@ -10,6 +10,8 @@ export function setLookupData(brands: Brand[], creators: Creator[]) {
 
 export const getBrand = (id: string) => brandMap.get(id);
 export const getCreator = (id: string) => creatorMap.get(id);
+export const listCreators = () => [...creatorMap.values()];
+export const listBrands = () => [...brandMap.values()];
 
 export function formatFollowers(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
