@@ -77,6 +77,26 @@ function CampaignDetail() {
     );
   }
   if (!campaign) throw notFound();
+
+  const shareCampaign = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: campaign.title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied");
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied");
+      } catch {
+        toast.error("Could not share");
+      }
+    }
+  };
+
   const brand = getBrand(campaign.brandId);
   const application = applications.find(
     (a) => a.campaignId === campaign.id && a.creatorId === currentCreatorId,
@@ -298,6 +318,14 @@ function CampaignDetail() {
               >
                 <Bookmark className={cn("size-4", isSaved && "fill-current")} />
                 {isSaved ? "Saved" : "Save"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 rounded-full"
+                onClick={() => void shareCampaign()}
+              >
+                Share
               </Button>
               <Button
                 variant="ghost"

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Container } from "@/components/AppShell";
 import { CampaignCard } from "@/components/CampaignCard";
 import { EmptyState } from "@/components/EmptyState";
+import { CampaignGridSkeleton } from "@/components/Skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -257,7 +258,7 @@ function Discover() {
       </p>
 
       {loading && campaigns.length === 0 ? (
-        <p className="py-16 text-center text-sm text-muted-foreground">Loading campaigns…</p>
+        <CampaignGridSkeleton count={6} />
       ) : results.length === 0 ? (
         <EmptyState
           title="No campaigns match your filters"
