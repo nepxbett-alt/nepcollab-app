@@ -20,6 +20,7 @@ interface State {
   signedIn: boolean;
   onboarded: boolean;
   accountSuspended: boolean;
+  maintenanceMode: boolean;
   campaigns: Campaign[];
   applications: Application[];
   collaborations: Collaboration[];
@@ -103,6 +104,7 @@ const initial: State = {
   signedIn: false,
   onboarded: false,
   accountSuspended: false,
+  maintenanceMode: false,
   campaigns: [],
   applications: [],
   collaborations: [],
@@ -306,6 +308,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(async (forcedId?: string) => {
     try {
+    let maintenanceMode = false;
+    try {
+      const { data: settings } = await db.from("platform_settings").select("key, value").in("key", ["maintenance_mode"]);
+      const row = (settings ?? []).find((s: any) => s.key === "maintenance_mode");
+      const v = row?.value;
+      maintenanceMode = v === true || v === "true" || (typeof v === "object" && v && (v as any).enabled === true);
+    } catch {
+      /* settings optional */
+    }
     const { data: sessionData } = await supabase.auth.getSession();
     const uid = forcedId ?? sessionData.session?.user?.id ?? "";
     if (!uid) {
@@ -345,6 +356,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         setState({
           ...initial,
           campaigns: (campaignRows ?? []).map(mapCampaign),
+          maintenanceMode,
           loading: false,
         });
       } catch (err) {
@@ -652,6 +664,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       signedIn: true,
       onboarded: Boolean(me?.onboarded),
       accountSuspended: Boolean(me?.suspended),
+      maintenanceMode,
       campaigns: (campaignRows ?? []).map(mapCampaign),
       applications: apps,
       collaborations,
@@ -1030,6 +1043,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = userId || sessionData.session?.user?.id || "";
         if (!uid) throw new Error("Not signed in");
+        if (state.maintenanceMode && state.role !== "admin") {
+          throw new Error("NepCollab is under maintenance. Please try again shortly.");
+        }
         const { data: meRow } = await db.from("profiles").select("suspended").eq("id", uid).maybeSingle();
         if (meRow?.suspended) throw new Error("Your account is suspended. Contact support.");
 
@@ -1110,6 +1126,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = userId || sessionData.session?.user?.id || "";
         if (!uid) throw new Error("Not signed in");
+        if (state.maintenanceMode && state.role !== "admin") {
+          throw new Error("NepCollab is under maintenance. Please try again shortly.");
+        }
+        if (state.accountSuspended) {
+          throw new Error("Your account is suspended. Contact support.");
+        }
         const { data: meRow } = await db.from("profiles").select("suspended").eq("id", uid).maybeSingle();
         if (meRow?.suspended) throw new Error("Your account is suspended. Contact support.");
         const { data: camp, error: campErr } = await db

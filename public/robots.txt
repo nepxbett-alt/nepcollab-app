@@ -1,17 +1,10 @@
 User-agent: *
 Allow: /
 
-# Allow major crawlers explicitly for launch marketing
 User-agent: Googlebot
 Allow: /
 
 User-agent: Bingbot
 Allow: /
 
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
-Sitemap: https://nepcollab.app/sitemap.xml
+Sitemap: https://nepcollab.vercel.app/sitemap.xml
