@@ -36,6 +36,7 @@ interface Store extends State {
   currentBrandId: string;
   setRole: (role: Role) => void;
   requestMagicLink: (email: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   verifyEmailOtp: (email: string, token: string) => Promise<void>;
   handleAuthCallback: () => Promise<{ userId: string; onboarded: boolean }>;
   signOut: () => Promise<void>;
@@ -367,20 +368,40 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     }
     setUserId(uid);
 
-    // Apply role/display_name from auth metadata on first login if profile incomplete
+    // Seed profile from OAuth/email metadata only when fields are still empty (never overwrite user edits)
     try {
-      const meta = sessionData.session?.user?.user_metadata ?? {};
-      if (meta.role || meta.display_name || meta.full_name) {
-        const patch: Record<string, unknown> = {};
-        if (meta.role) patch.role = meta.role;
-        const name = meta.display_name || meta.full_name;
-        if (name) patch.full_name = name;
-        if (Object.keys(patch).length) {
-          await db.from("profiles").update(patch).eq("id", uid).is("role", null);
+      const user = sessionData.session?.user;
+      const meta = user?.user_metadata ?? {};
+      const { data: existing } = await db
+        .from("profiles")
+        .select("id, full_name, avatar_url, role, onboarded")
+        .eq("id", uid)
+        .maybeSingle();
+      const patch: Record<string, unknown> = {};
+      const googleName =
+        (typeof meta.full_name === "string" && meta.full_name) ||
+        (typeof meta.name === "string" && meta.name) ||
+        (typeof meta.display_name === "string" && meta.display_name) ||
+        "";
+      const googleAvatar =
+        (typeof meta.avatar_url === "string" && meta.avatar_url) ||
+        (typeof meta.picture === "string" && meta.picture) ||
+        "";
+      if (!existing?.full_name && googleName) patch.full_name = googleName;
+      if (!existing?.avatar_url && googleAvatar) patch.avatar_url = googleAvatar;
+      // role only if missing — never escalate to admin from client metadata
+      if (!existing?.role && (meta.role === "creator" || meta.role === "brand")) {
+        patch.role = meta.role;
+      }
+      if (Object.keys(patch).length) {
+        if (existing?.id) {
+          await db.from("profiles").update(patch).eq("id", uid);
+        } else {
+          await db.from("profiles").upsert({ id: uid, ...patch }, { onConflict: "id" });
         }
       }
     } catch {
-      /* non-fatal */
+      /* non-fatal — onboarding will collect required fields */
     }
 
     const [
@@ -800,6 +821,39 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (role === "admin") return;
         setState((s) => ({ ...s, role }));
       },
+      signInWithGoogle: async () => {
+        const origin =
+          typeof window !== "undefined" && window.location?.origin
+            ? window.location.origin.replace(/\/$/, "")
+            : ((import.meta.env.VITE_SITE_URL as string | undefined) || "https://nepcollab.vercel.app").replace(
+                /\/$/,
+                "",
+              );
+        const redirectTo = `${origin}/auth/callback`;
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo,
+            queryParams: {
+              access_type: "offline",
+              prompt: "select_account",
+            },
+          },
+        });
+        if (error) {
+          console.error("Google OAuth error:", {
+            message: error.message,
+            status: (error as { status?: number }).status,
+            code: (error as { code?: string }).code,
+          });
+          const msg = (error.message || "").toLowerCase();
+          if (msg.includes("provider is not enabled") || msg.includes("unsupported provider")) {
+            throw new Error("Google sign-in is not enabled yet. Please use email, or try again later.");
+          }
+          throw new Error("Unable to sign in with Google. Please try again.");
+        }
+        // Browser navigates to Google; no further action here
+      },
       requestMagicLink: async (email) => {
         const normalized = email.trim().toLowerCase();
         if (!normalized.includes("@") || normalized.length < 5) {
@@ -873,41 +927,50 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         }
       },
       handleAuthCallback: async () => {
-        // Exchange PKCE code or pick up session from URL hash
+        // PKCE code exchange (email magic link + Google OAuth) or session already detected from URL
         if (typeof window !== "undefined") {
           const url = new URL(window.location.href);
+          const errCode = (url.searchParams.get("error") || "").toLowerCase();
           const errDesc =
             url.searchParams.get("error_description") ||
             url.searchParams.get("error") ||
             "";
-          if (errDesc) {
-            const lower = errDesc.toLowerCase();
+          if (errCode || errDesc) {
+            const lower = (errDesc || errCode).toLowerCase();
+            if (lower.includes("access_denied") || lower.includes("cancel")) {
+              throw new Error("Google sign-in was cancelled. You can try again.");
+            }
             if (lower.includes("expir")) {
-              throw new Error("That link has expired. Request a new one.");
+              throw new Error("That link has expired. Please sign in again.");
             }
             if (lower.includes("already") || lower.includes("used")) {
-              throw new Error("This link has already been used. Request a new one.");
+              throw new Error("This link has already been used. Please sign in again.");
             }
-            throw new Error("That login link is invalid. Request a new one.");
+            throw new Error("Sign-in could not be completed. Please try again.");
           }
           const code = url.searchParams.get("code");
           if (code) {
             const { error } = await supabase.auth.exchangeCodeForSession(code);
             if (error) {
               console.error("exchangeCodeForSession failed:", {
-              message: error.message,
-              status: (error as { status?: number }).status,
-              code: (error as { code?: string }).code,
-            });
-            throw new Error("This login link is invalid or has expired. Please request a new one.");
+                message: error.message,
+                status: (error as { status?: number }).status,
+                code: (error as { code?: string }).code,
+              });
+              throw new Error("Sign-in could not be completed. Please try again.");
             }
           }
         }
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw new Error("Could not restore your session. Try again.");
-        const uid = sessionData.session?.user?.id;
+
+        // detectSessionInUrl may already have set the session; retry briefly if needed
+        let session = (await supabase.auth.getSession()).data.session;
+        if (!session?.user?.id) {
+          await new Promise((r) => setTimeout(r, 250));
+          session = (await supabase.auth.getSession()).data.session;
+        }
+        const uid = session?.user?.id;
         if (!uid) {
-          throw new Error("No active session. Open the link from your email again.");
+          throw new Error("No active session. Please sign in again.");
         }
         await load(uid);
         const { data: profile } = await db

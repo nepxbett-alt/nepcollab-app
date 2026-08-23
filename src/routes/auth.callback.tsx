@@ -37,7 +37,7 @@ function AuthCallbackPage() {
         }
       } catch (err) {
         if (cancelled) return;
-        setError(toUserError(err, "This login link is invalid or has expired. Please request a new one."));
+        setError(toUserError(err, "Sign-in could not be completed. Please try again."));
         setPhase("error");
       }
     })();
@@ -54,7 +54,7 @@ function AuthCallbackPage() {
         <p className="mt-2 text-sm text-muted-foreground">{error}</p>
         <div className="mt-6 flex flex-col gap-2">
           <Button className="h-11 rounded-full" onClick={() => navigate({ to: "/auth" })}>
-            Request a new link
+            Back to sign in
           </Button>
           <Button variant="ghost" className="h-11 rounded-full" onClick={() => navigate({ to: "/" })}>
             Back to home
