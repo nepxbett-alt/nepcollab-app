@@ -30,11 +30,22 @@ function AuthCallbackPage() {
         } catch {
           /* ignore */
         }
-        if (result.onboarded) {
-          navigate({ to: "/dashboard" });
-        } else {
+        if (!result.onboarded) {
           navigate({ to: "/onboarding" });
+          return;
         }
+        // Prefer stored intent only if profile role missing; otherwise use account role
+        let dest = "/dashboard";
+        try {
+          const intent = localStorage.getItem("nepcollab.auth.intent");
+          // result may include role from profile
+          const r = (result as { role?: string }).role;
+          if (r === "brand" || intent === "brand") dest = "/brand/campaigns";
+          else if (r === "admin") dest = "/admin";
+        } catch {
+          /* ignore */
+        }
+        navigate({ to: dest as "/" });
       } catch (err) {
         if (cancelled) return;
         setError(toUserError(err, "Sign-in could not be completed. Please try again."));

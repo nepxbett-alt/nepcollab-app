@@ -38,7 +38,7 @@ interface Store extends State {
   requestMagicLink: (email: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   verifyEmailOtp: (email: string, token: string) => Promise<void>;
-  handleAuthCallback: () => Promise<{ userId: string; onboarded: boolean }>;
+  handleAuthCallback: () => Promise<{ userId: string; onboarded: boolean; role?: string | null }>;
   signOut: () => Promise<void>;
   completeOnboarding: (input?: {
     name?: string;
@@ -981,6 +981,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         return {
           userId: uid,
           onboarded: Boolean(profile?.onboarded),
+          role: profile?.role ?? null,
         };
       },
       verifyEmailOtp: async (email, token) => {

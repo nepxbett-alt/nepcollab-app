@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Mail } from "lucide-react";
+import { Building2, Mail, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Container } from "@/components/AppShell";
@@ -9,17 +9,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toUserError } from "@/lib/user-error";
 import { useStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
+import type { Role } from "@/data/types";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
     next: typeof search.next === "string" ? search.next : undefined,
+    as: search.as === "brand" || search.as === "creator" ? search.as : undefined,
   }),
   head: () => ({
     meta: [
       { title: "Sign in — NepCollab" },
       {
         name: "description",
-        content: "Sign in to NepCollab with Google or a secure email link.",
+        content: "Sign in to NepCollab as a creator or brand — Google or email.",
       },
       { property: "og:title", content: "Sign in — NepCollab" },
     ],
@@ -27,20 +30,48 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+function readIntent(): Role | null {
+  try {
+    const v = localStorage.getItem("nepcollab.auth.intent");
+    if (v === "brand" || v === "creator") return v;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function writeIntent(role: Role) {
+  try {
+    localStorage.setItem("nepcollab.auth.intent", role);
+  } catch {
+    /* ignore */
+  }
+}
+
 function AuthPage() {
   const navigate = useNavigate();
-  const { requestMagicLink, signInWithGoogle, verifyEmailOtp, signedIn, loading, onboarded } =
+  const { requestMagicLink, signInWithGoogle, verifyEmailOtp, signedIn, loading, onboarded, role } =
     useStore();
-  const { next } = Route.useSearch();
+  const { next, as } = Route.useSearch();
   const safeNext =
-    typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+    typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : null;
 
+  const [intent, setIntent] = useState<Role | null>(() =>
+    as === "brand" || as === "creator" ? as : readIntent(),
+  );
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [lastEmail, setLastEmail] = useState("");
   const [otp, setOtp] = useState("");
+
+  useEffect(() => {
+    if (as === "brand" || as === "creator") {
+      setIntent(as);
+      writeIntent(as);
+    }
+  }, [as]);
 
   useEffect(() => {
     try {
@@ -54,15 +85,28 @@ function AuthPage() {
   useEffect(() => {
     if (loading) return;
     if (signedIn && onboarded) {
-      navigate({ to: safeNext as "/" });
+      const dest =
+        safeNext ||
+        (role === "brand" ? "/brand/campaigns" : role === "admin" ? "/admin" : "/dashboard");
+      navigate({ to: dest as "/" });
     } else if (signedIn && !onboarded) {
       navigate({ to: "/onboarding" });
     }
-  }, [loading, signedIn, onboarded, navigate, safeNext]);
+  }, [loading, signedIn, onboarded, navigate, safeNext, role]);
+
+  const chooseIntent = (r: Role) => {
+    setIntent(r);
+    writeIntent(r);
+  };
 
   const sendLink = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (busy || googleBusy) return;
+    if (!intent) {
+      toast.error("Choose Creator or Brand first.");
+      return;
+    }
+    writeIntent(intent);
     const normalized = email.trim().toLowerCase();
     if (!normalized || !normalized.includes("@")) {
       toast.error("Enter a valid email address.");
@@ -85,10 +129,14 @@ function AuthPage() {
 
   const continueWithGoogle = async () => {
     if (busy || googleBusy) return;
+    if (!intent) {
+      toast.error("Choose Creator or Brand first.");
+      return;
+    }
+    writeIntent(intent);
     setGoogleBusy(true);
     try {
       await signInWithGoogle();
-      // Redirect to Google — keep button disabled
     } catch (error) {
       setGoogleBusy(false);
       toast.error(toUserError(error, "Unable to sign in with Google. Please try again."));
@@ -115,9 +163,8 @@ function AuthPage() {
           <br />
           <span className="font-medium text-foreground">{lastEmail}</span>
         </p>
-        <p className="mt-4 text-sm text-muted-foreground">
-          Open your email and tap the link to continue. You can close this tab after you open the link
-          on your phone.
+        <p className="mt-3 text-xs text-muted-foreground">
+          Signing in as <strong className="text-foreground">{intent === "brand" ? "Brand" : "Creator"}</strong>
         </p>
 
         <form
@@ -182,15 +229,42 @@ function AuthPage() {
       <p className="mt-4 text-[13px] font-medium text-signal">Create. Connect. Grow.</p>
       <h1 className="mt-1 text-2xl font-bold tracking-tight">Sign in or create your account</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Continue with Google, or use a secure email link—no password required.
+        Choose how you use NepCollab, then continue with Google or email.
       </p>
+
+      <div className="mt-6 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => chooseIntent("creator")}
+          className={cn(
+            "flex min-h-[4.5rem] flex-col items-start rounded-2xl border p-3 text-left transition",
+            intent === "creator" ? "border-signal bg-accent/50" : "border-border bg-card hover:border-foreground/20",
+          )}
+        >
+          <UserRound className="size-5 text-signal" aria-hidden />
+          <span className="mt-2 text-sm font-semibold">I&apos;m a Creator</span>
+          <span className="text-[11px] text-muted-foreground">Apply to campaigns</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => chooseIntent("brand")}
+          className={cn(
+            "flex min-h-[4.5rem] flex-col items-start rounded-2xl border p-3 text-left transition",
+            intent === "brand" ? "border-signal bg-accent/50" : "border-border bg-card hover:border-foreground/20",
+          )}
+        >
+          <Building2 className="size-5 text-signal" aria-hidden />
+          <span className="mt-2 text-sm font-semibold">I&apos;m a Brand</span>
+          <span className="text-[11px] text-muted-foreground">Post campaigns</span>
+        </button>
+      </div>
 
       <Button
         type="button"
         size="lg"
         variant="outline"
-        className="mt-8 h-12 w-full rounded-full border-border bg-card text-[15px] font-semibold"
-        disabled={busy || googleBusy}
+        className="mt-6 h-12 w-full rounded-full border-border bg-card text-[15px] font-semibold"
+        disabled={busy || googleBusy || !intent}
         onClick={() => void continueWithGoogle()}
       >
         {googleBusy ? (
@@ -220,12 +294,13 @@ function AuthPage() {
             inputMode="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
+            placeholder={intent === "brand" ? "marketing@yourbrand.com" : "you@example.com"}
             className="mt-2 h-12"
+            disabled={!intent}
           />
         </div>
         <Button
-          disabled={busy || googleBusy}
+          disabled={busy || googleBusy || !intent}
           type="submit"
           size="lg"
           className="h-12 w-full rounded-full bg-signal text-signal-foreground hover:bg-signal/90"
@@ -234,14 +309,14 @@ function AuthPage() {
         </Button>
       </form>
 
+      {!intent ? (
+        <p className="mt-3 text-center text-[12px] text-muted-foreground">Select Creator or Brand to continue.</p>
+      ) : null}
+
       <p className="mt-6 text-center text-[12px] text-muted-foreground">
-        By continuing you agree to our{" "}
-        <a href="/terms" className="underline">
-          Terms
-        </a>{" "}
-        and{" "}
-        <a href="/privacy" className="underline">
-          Privacy
+        Brand? You can also open{" "}
+        <a href="/auth?as=brand" className="font-medium text-signal underline">
+          sign in as brand
         </a>
         .
       </p>

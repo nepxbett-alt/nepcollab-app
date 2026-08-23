@@ -143,9 +143,14 @@ function Home() {
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 Publish a brief, review applicants, and message talent. Explore the creator directory anytime.
               </p>
-              <Link to="/creators" className="mt-4 inline-flex text-sm font-semibold text-signal hover:underline">
-                Explore creators →
-              </Link>
+              <div className="mt-4 flex flex-col gap-1">
+                <Link to="/auth" search={{ as: "brand" }} className="inline-flex text-sm font-semibold text-signal hover:underline">
+                  Sign in as brand →
+                </Link>
+                <Link to="/creators" className="inline-flex text-sm text-muted-foreground hover:underline">
+                  Browse creators
+                </Link>
+              </div>
             </div>
           </div>
         </Container>

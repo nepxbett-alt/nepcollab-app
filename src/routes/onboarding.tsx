@@ -21,7 +21,14 @@ function OnboardingPage() {
   const navigate = useNavigate();
   const { signedIn, role, completeOnboarding, loading, onboarded } = useStore();
   const [step, setStep] = useState(1);
-  const [pickedRole, setPickedRole] = useState<Role>((role as Role) || "creator");
+  const [pickedRole, setPickedRole] = useState<Role>(() => {
+    if (role === "brand" || role === "creator") return role;
+    try {
+      const intent = localStorage.getItem("nepcollab.auth.intent");
+      if (intent === "brand" || intent === "creator") return intent;
+    } catch { /* ignore */ }
+    return "creator";
+  });
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
@@ -38,9 +45,9 @@ function OnboardingPage() {
       return;
     }
     if (onboarded) {
-      navigate({ to: "/dashboard" });
+      navigate({ to: role === "brand" ? "/brand/campaigns" : role === "admin" ? "/admin" : "/dashboard" });
     }
-  }, [loading, signedIn, onboarded, navigate]);
+  }, [loading, signedIn, onboarded, navigate, role]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,8 +75,10 @@ function OnboardingPage() {
           .map((s) => s.trim())
           .filter(Boolean),
       } as any);
-      toast.success("Profile saved — welcome to NepCollab");
-      navigate({ to: "/dashboard" });
+      toast.success(
+        r === "brand" ? "Brand profile ready — publish your first campaign" : "Profile saved — welcome to NepCollab",
+      );
+      navigate({ to: r === "brand" ? "/brand/campaigns" : "/dashboard" });
     } catch (err: unknown) {
       toast.error(toUserError(err, "We couldn't save your profile. Please try again."));
     } finally {
