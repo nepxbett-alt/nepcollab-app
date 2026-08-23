@@ -125,7 +125,7 @@ const creatorTabs: NavItem[] = [
 ];
 
 const brandTabs: NavItem[] = [
-  { to: "/dashboard", label: "Home", icon: Home },
+  { to: "/brand", label: "Home", icon: Home },
   { to: "/brand/campaigns", label: "Campaigns", icon: LayoutGrid },
   { to: "/creators", label: "Creators", icon: Users },
   { to: "/brand/applicants", label: "Applicants", icon: Users, badgeKey: "applications" },
@@ -150,7 +150,7 @@ const guestTabs: NavItem[] = [
 
 
 function isActive(pathname: string, to: string) {
-  if (to === "/dashboard" || to === "/admin") return pathname === to;
+  if (to === "/dashboard" || to === "/admin" || to === "/brand") return pathname === to;
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
@@ -454,7 +454,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         >
           <Link
-            to={signedIn ? (role === "admin" ? "/admin" : "/dashboard") : "/"}
+            to={signedIn ? (role === "admin" ? "/admin" : role === "brand" ? "/brand" : "/dashboard") : "/"}
             className={cn(
               "flex min-w-0 items-center",
               signedIn && "lg:pointer-events-none lg:opacity-0",
@@ -523,7 +523,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <div className="flex items-center px-5 pb-2 pt-5">
             <Link
-              to={role === "admin" ? "/admin" : "/dashboard"}
+              to={role === "admin" ? "/admin" : role === "brand" ? "/brand" : "/dashboard"}
               className="flex items-center"
               aria-label="NepCollab home"
             >

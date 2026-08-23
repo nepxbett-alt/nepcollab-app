@@ -34,6 +34,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminVerificationRouteImport } from './routes/admin.verification'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as BrandIndexRouteImport } from './routes/brand.index'
 import { Route as BrandApplicantsRouteImport } from './routes/brand.applicants'
 import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
 import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
@@ -171,6 +172,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/callback',
   getParentRoute: () => AuthRoute,
 } as any)
+const BrandIndexRoute = BrandIndexRouteImport.update({
+  id: '/brand/',
+  path: '/brand/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BrandApplicantsRoute = BrandApplicantsRouteImport.update({
   id: '/brand/applicants',
   path: '/brand/applicants',
@@ -259,6 +265,7 @@ export interface FileRoutesByFullPath {
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
   '/creators/$creatorId': typeof CreatorsCreatorIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/brand/': typeof BrandIndexRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/collaborations/': typeof CollaborationsIndexRoute
   '/creators/': typeof CreatorsIndexRoute
@@ -296,6 +303,7 @@ export interface FileRoutesByTo {
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
   '/creators/$creatorId': typeof CreatorsCreatorIdRoute
   '/admin': typeof AdminIndexRoute
+  '/brand': typeof BrandIndexRoute
   '/campaigns': typeof CampaignsIndexRoute
   '/collaborations': typeof CollaborationsIndexRoute
   '/creators': typeof CreatorsIndexRoute
@@ -335,6 +343,7 @@ export interface FileRoutesById {
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
   '/creators/$creatorId': typeof CreatorsCreatorIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/brand/': typeof BrandIndexRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/collaborations/': typeof CollaborationsIndexRoute
   '/creators/': typeof CreatorsIndexRoute
@@ -375,6 +384,7 @@ export interface FileRouteTypes {
     | '/collaborations/$collabId'
     | '/creators/$creatorId'
     | '/admin/'
+    | '/brand/'
     | '/campaigns/'
     | '/collaborations/'
     | '/creators/'
@@ -412,6 +422,7 @@ export interface FileRouteTypes {
     | '/collaborations/$collabId'
     | '/creators/$creatorId'
     | '/admin'
+    | '/brand'
     | '/campaigns'
     | '/collaborations'
     | '/creators'
@@ -450,6 +461,7 @@ export interface FileRouteTypes {
     | '/collaborations/$collabId'
     | '/creators/$creatorId'
     | '/admin/'
+    | '/brand/'
     | '/campaigns/'
     | '/collaborations/'
     | '/creators/'
@@ -488,6 +500,7 @@ export interface RootRouteChildren {
   CollaborationsCollabIdRoute: typeof CollaborationsCollabIdRoute
   CreatorsCreatorIdRoute: typeof CreatorsCreatorIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  BrandIndexRoute: typeof BrandIndexRoute
   CampaignsIndexRoute: typeof CampaignsIndexRoute
   CollaborationsIndexRoute: typeof CollaborationsIndexRoute
   CreatorsIndexRoute: typeof CreatorsIndexRoute
@@ -673,6 +686,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/brand/': {
+      id: '/brand/'
+      path: '/brand'
+      fullPath: '/brand/'
+      preLoaderRoute: typeof BrandIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/brand/applicants': {
       id: '/brand/applicants'
       path: '/brand/applicants'
@@ -803,6 +823,7 @@ const rootRouteChildren: RootRouteChildren = {
   CollaborationsCollabIdRoute: CollaborationsCollabIdRoute,
   CreatorsCreatorIdRoute: CreatorsCreatorIdRoute,
   AdminIndexRoute: AdminIndexRoute,
+  BrandIndexRoute: BrandIndexRoute,
   CampaignsIndexRoute: CampaignsIndexRoute,
   CollaborationsIndexRoute: CollaborationsIndexRoute,
   CreatorsIndexRoute: CreatorsIndexRoute,

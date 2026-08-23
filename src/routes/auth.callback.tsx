@@ -40,7 +40,7 @@ function AuthCallbackPage() {
           const intent = localStorage.getItem("nepcollab.auth.intent");
           // result may include role from profile
           const r = (result as { role?: string }).role;
-          if (r === "brand" || intent === "brand") dest = "/brand/campaigns";
+          if (r === "brand" || intent === "brand") dest = "/brand";
           else if (r === "admin") dest = "/admin";
         } catch {
           /* ignore */

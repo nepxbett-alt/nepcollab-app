@@ -87,7 +87,7 @@ function AuthPage() {
     if (signedIn && onboarded) {
       const dest =
         safeNext ||
-        (role === "brand" ? "/brand/campaigns" : role === "admin" ? "/admin" : "/dashboard");
+        (role === "brand" ? "/brand" : role === "admin" ? "/admin" : "/dashboard");
       navigate({ to: dest as "/" });
     } else if (signedIn && !onboarded) {
       navigate({ to: "/onboarding" });

@@ -45,7 +45,7 @@ function OnboardingPage() {
       return;
     }
     if (onboarded) {
-      navigate({ to: role === "brand" ? "/brand/campaigns" : role === "admin" ? "/admin" : "/dashboard" });
+      navigate({ to: role === "brand" ? "/brand" : role === "admin" ? "/admin" : "/dashboard" });
     }
   }, [loading, signedIn, onboarded, navigate, role]);
 
@@ -78,7 +78,7 @@ function OnboardingPage() {
       toast.success(
         r === "brand" ? "Brand profile ready — publish your first campaign" : "Profile saved — welcome to NepCollab",
       );
-      navigate({ to: r === "brand" ? "/brand/campaigns" : "/dashboard" });
+      navigate({ to: r === "brand" ? "/brand" : "/dashboard" });
     } catch (err: unknown) {
       toast.error(toUserError(err, "We couldn't save your profile. Please try again."));
     } finally {
