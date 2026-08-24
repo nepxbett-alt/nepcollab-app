@@ -85,6 +85,14 @@ function Dashboard() {
     signedIn,
   } = useStore();
 
+  if (signedIn && !role) {
+    return (
+      <Container className="py-16 text-center text-sm text-muted-foreground">
+        Loading your workspace…
+      </Container>
+    );
+  }
+
   if (!signedIn) {
     return (
       <Container>

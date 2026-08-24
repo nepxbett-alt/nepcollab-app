@@ -24,8 +24,8 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-// Known project fallbacks (publishable key is safe for client; env vars still preferred)
-const FALLBACK_URL = 'https://snaldzftgtfcjbgktbtb.supabase.co';
+// Fallback must be URL+key from the SAME project. Vercel env overrides in production.
+const FALLBACK_URL = 'https://ntnbhnazqncszasmwjyw.supabase.co';
 const FALLBACK_KEY = 'sb_publishable_uV9hlMwM-4s9eS4CQAJhkA_J1fZG3Cs';
 
 function createSupabaseClient(): SupabaseClient<Database> {
