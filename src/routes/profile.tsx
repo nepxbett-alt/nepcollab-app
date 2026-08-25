@@ -489,11 +489,38 @@ function Profile() {
             ))}
           </div>
 
-          <div className="mt-4 grid grid-cols-4 gap-2">
-            <Stat value={creator?.completedCollaborations ?? 0} label="Collabs" />
-            <Stat value={creator?.rating ?? 0} label="Rating" />
-            <Stat value={`${Math.round(Number(creator?.completionRate ?? 0))}%`} label="Completion" />
-            <Stat value={creator?.reviews.length ?? 0} label="Reviews" />
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <Stat
+              value={(() => {
+                const total = (creator?.socials ?? []).reduce(
+                  (n, s) => n + (typeof s.followers === "number" ? s.followers : 0),
+                  0,
+                );
+                return total > 0 ? formatFollowers(total) : "—";
+              })()}
+              label="Followers"
+            />
+            <Stat
+              value={(() => {
+                const rates = (creator?.socials ?? [])
+                  .map((s) => (typeof s.engagement === "number" ? s.engagement : null))
+                  .filter((n): n is number => n != null && Number.isFinite(n));
+                if (rates.length) {
+                  const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
+                  return `${avg.toFixed(1)}%`;
+                }
+                return "—";
+              })()}
+              label="Engagement"
+            />
+            <Stat
+              value={
+                typeof creator?.rating === "number" && creator.rating > 0
+                  ? creator.rating.toFixed(1)
+                  : "—"
+              }
+              label="Rating"
+            />
           </div>
         </div>
       </section>
