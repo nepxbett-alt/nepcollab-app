@@ -108,6 +108,7 @@ const adminSections: NavSection[] = [
   {
     title: "System",
     items: [
+      { to: "/admin/vouchers", label: "Vouchers", icon: LayoutGrid },
       { to: "/admin/settings", label: "Settings", icon: Settings },
       { to: "/admin/audit", label: "Audit log", icon: FileText },
     ],
@@ -262,14 +263,32 @@ function AccountMenu() {
         </DropdownMenuLabel>
         <DropdownMenuItem
           className="cursor-pointer gap-2 rounded-lg"
-          onClick={() => navigate({ to: "/profile" })}
+          onSelect={() => navigate({ to: "/profile" })}
         >
           <User className="size-4" />
           Profile
         </DropdownMenuItem>
+        {role !== "admin" ? (
+          <DropdownMenuItem
+            className="cursor-pointer gap-2 rounded-lg"
+            onSelect={() => navigate({ to: "/collaborations" })}
+          >
+            <Handshake className="size-4" />
+            Collaborations
+          </DropdownMenuItem>
+        ) : null}
+        {role === "creator" ? (
+          <DropdownMenuItem
+            className="cursor-pointer gap-2 rounded-lg"
+            onSelect={() => navigate({ to: "/vouchers" })}
+          >
+            <LayoutGrid className="size-4" />
+            Vouchers
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem
           className="cursor-pointer gap-2 rounded-lg"
-          onClick={() => navigate({ to: "/notifications" })}
+          onSelect={() => navigate({ to: "/notifications" })}
         >
           <Bell className="size-4" />
           Notifications
@@ -277,7 +296,7 @@ function AccountMenu() {
         {role === "admin" ? (
           <DropdownMenuItem
             className="cursor-pointer gap-2 rounded-lg"
-            onClick={() => navigate({ to: "/admin/settings" })}
+            onSelect={() => navigate({ to: "/admin/settings" })}
           >
             <Settings className="size-4" />
             Settings
@@ -285,7 +304,7 @@ function AccountMenu() {
         ) : null}
         <DropdownMenuItem
           className="cursor-pointer gap-2 rounded-lg text-destructive focus:text-destructive"
-          onClick={() => void onSignOut()}
+          onSelect={() => void onSignOut()}
         >
           <LogOut className="size-4" />
           Sign out
@@ -344,24 +363,40 @@ function HeaderAccountButton() {
           <p className="text-sm font-semibold">{name}</p>
           <p className="text-xs text-muted-foreground capitalize">{role ?? "member"}</p>
         </DropdownMenuLabel>
-        <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => navigate({ to: "/profile" })}>
+        <DropdownMenuItem className="cursor-pointer gap-2" onSelect={() => navigate({ to: "/profile" })}>
           <User className="size-4" /> Profile
         </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer gap-2"
-          onClick={() => navigate({ to: "/collaborations" })}
+          onSelect={() => navigate({ to: "/collaborations" })}
         >
           <Handshake className="size-4" /> Collaborations
         </DropdownMenuItem>
+        {role === "creator" ? (
+          <DropdownMenuItem
+            className="cursor-pointer gap-2"
+            onSelect={() => navigate({ to: "/vouchers" })}
+          >
+            <LayoutGrid className="size-4" /> Vouchers
+          </DropdownMenuItem>
+        ) : null}
+        {role === "admin" ? (
+          <DropdownMenuItem
+            className="cursor-pointer gap-2"
+            onSelect={() => navigate({ to: "/admin" })}
+          >
+            <Shield className="size-4" /> Admin
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem
           className="cursor-pointer gap-2"
-          onClick={() => navigate({ to: "/notifications" })}
+          onSelect={() => navigate({ to: "/notifications" })}
         >
           <Bell className="size-4" /> Notifications
         </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-          onClick={() => void onSignOut()}
+          onSelect={() => void onSignOut()}
         >
           <LogOut className="size-4" /> Sign out
         </DropdownMenuItem>
