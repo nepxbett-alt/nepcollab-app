@@ -50,11 +50,17 @@ export interface SocialAccount {
   platform: Platform;
   username: string;
   profileUrl?: string;
+  displayName?: string;
+  bio?: string;
+  avatarUrl?: string;
   followers: number;
   engagement: number;
   verified: boolean;
-  /** V1: self_reported | public | verified */
-  statsSource?: "self_reported" | "public" | "verified";
+  /** self_reported | brightdata | public | verified — never show self_reported as Verified */
+  statsSource?: "self_reported" | "brightdata" | "public" | "verified";
+  lastSyncedAt?: string;
+  syncStatus?: string;
+  subscriberCount?: number;
 }
 
 export interface PortfolioItem {

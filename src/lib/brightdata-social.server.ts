@@ -1,6 +1,6 @@
 /**
  * Server-only Bright Data Dataset API client for public social profiles.
- * Token: process.env.BRIGHTDATA_API_TOKEN (never VITE_ / client).
+ * Token: process.env['BRIGHTDATA_API_TOKEN'] (never VITE_ / client).
  */
 export type SocialPlatform = "Instagram" | "TikTok" | "YouTube" | "Facebook";
 
@@ -165,13 +165,13 @@ function parsePayload(
     row = parsed[0] as Record<string, unknown>;
   } else if (parsed && typeof parsed === "object") {
     const obj = parsed as Record<string, unknown>;
-    if (Array.isArray(obj.data) && obj.data[0]) row = obj.data[0] as Record<string, unknown>;
-    else if (Array.isArray(obj.results) && obj.results[0]) row = obj.results[0] as Record<string, unknown>;
+    if (Array.isArray(obj['data']) && obj['data'][0]) row = obj['data'][0] as Record<string, unknown>;
+    else if (Array.isArray(obj['results']) && obj['results'][0]) row = obj['results'][0] as Record<string, unknown>;
     else row = obj;
   }
   if (!row) return { ok: false, error: "Empty profile response", category: "empty" };
-  if (row.error || row.warning) {
-    return { ok: false, error: String(row.error || row.warning), category: "provider" };
+  if (row['error'] || row['warning']) {
+    return { ok: false, error: String(row['error'] || row['warning']), category: "provider" };
   }
   return {
     ok: true,
@@ -184,7 +184,7 @@ export async function fetchSocialProfileFromBrightData(
   profileUrl: string,
   fallbackUsername: string,
 ): Promise<{ ok: true; data: NormalizedSocialProfile } | { ok: false; error: string; category: string }> {
-  const token = process.env.BRIGHTDATA_API_TOKEN || process.env.BRIGHT_DATA_API_TOKEN;
+  const token = process.env['BRIGHTDATA_API_TOKEN'] || process.env['BRIGHT_DATA_API_TOKEN'];
   if (!token) {
     return { ok: false, error: "Bright Data is not configured on the server.", category: "config" };
   }

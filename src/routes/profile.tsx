@@ -16,7 +16,7 @@ import {
   parseSocialProfileUrl,
   type ParsedSocialUrl,
 } from "@/lib/social-url";
-import { lookupSocialProfile } from "@/server/social-lookup";
+import { lookupSocialProfile } from "@/lib/social-lookup";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { Platform } from "@/data/types";
@@ -131,10 +131,11 @@ function Profile() {
     }
     setSocialBusy(true);
     try {
+      const fb = parseFollowerInput(followers);
       const res = await lookupSocialProfile({
         data: {
           profileUrl: result.profileUrl,
-          fallbackFollowers: parseFollowerInput(followers) || undefined,
+          ...(fb > 0 ? { fallbackFollowers: fb } : {}),
         },
       });
       await upsertSocialAccount({
@@ -345,7 +346,7 @@ function Profile() {
           <div className="mt-4 grid grid-cols-4 gap-2">
             <Stat value={creator?.completedCollaborations ?? 0} label="Collabs" />
             <Stat value={creator?.rating ?? 0} label="Rating" />
-            <Stat value={`${Math.round(Number(creator?.completionRate ?? creator?.completion_rate ?? 0))}%`} label="Completion" />
+            <Stat value={`${Math.round(Number(creator?.completionRate ?? 0))}%`} label="Completion" />
             <Stat value={creator?.reviews.length ?? 0} label="Reviews" />
           </div>
         </div>

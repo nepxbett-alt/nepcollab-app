@@ -299,19 +299,19 @@ const mapCreator = (
         platform: s.platform,
         username: s.handle ?? s.username ?? "",
         profileUrl: s.profile_url || undefined,
-        displayName: s.display_name || packed.display_name || undefined,
-        bio: s.bio || packed.bio || undefined,
-        avatarUrl: s.avatar_url || packed.avatar_url || undefined,
+        displayName: s.display_name || packed["display_name"] || undefined,
+        bio: s.bio || packed["bio"] || undefined,
+        avatarUrl: s.avatar_url || packed["avatar_url"] || undefined,
         followers: s.followers ?? 0,
         engagement: Number(s.engagement_rate ?? s.engagement ?? 0),
         verified: Boolean(s.verified),
         statsSource:
           s.stats_source ||
-          packed.stats_source ||
+          packed["stats_source"] ||
           (s.verified ? "verified" : s.followers ? "self_reported" : undefined),
-        lastSyncedAt: s.last_synced_at || packed.last_synced_at || undefined,
-        syncStatus: s.sync_status || packed.sync_status || undefined,
-        subscriberCount: s.subscriber_count ?? packed.subscriber_count ?? undefined,
+        lastSyncedAt: s.last_synced_at || packed["last_synced_at"] || undefined,
+        syncStatus: s.sync_status || packed["sync_status"] || undefined,
+        subscriberCount: s.subscriber_count ?? packed["subscriber_count"] ?? undefined,
       };
     }) as any,
     portfolio: portfolioRows.map((item: any) => ({

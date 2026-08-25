@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { parseSocialProfileUrl } from "@/lib/social-url";
-import { fetchSocialProfileFromBrightData } from "@/server/brightdata-social";
+import { fetchSocialProfileFromBrightData } from "@/lib/brightdata-social.server";
 
 const REFRESH_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const MAX_LOOKUPS_PER_DAY = 8;
@@ -29,6 +29,11 @@ export type SocialLookupResult = {
     syncStatus: string | null;
   };
 };
+
+
+function g(obj: Record<string, unknown>, key: string): unknown {
+  return obj[key];
+}
 
 type PackedMeta = {
   v: 1;
@@ -84,7 +89,7 @@ async function upsertSocialRow(
         .from("social_accounts")
         .update(payload)
         .eq("user_id", userId)
-        .eq("platform", fullPayload.platform)
+        .eq("platform", (fullPayload as any)["platform"])
         .select("id")
         .single();
       return { id: (again?.id as string) || existingId || "", error: upErr };
@@ -98,30 +103,31 @@ async function upsertSocialRow(
     return { id: first.id, error: first.error.message };
   }
 
+  const fp = fullPayload as Record<string, any>;
   const meta: PackedMeta = {
     v: 1,
-    display_name: (fullPayload.display_name as string) ?? null,
-    bio: (fullPayload.bio as string) ?? null,
-    avatar_url: (fullPayload.avatar_url as string) ?? null,
-    following_count: (fullPayload.following_count as number) ?? null,
-    subscriber_count: (fullPayload.subscriber_count as number) ?? null,
-    post_count: (fullPayload.post_count as number) ?? null,
-    video_count: (fullPayload.video_count as number) ?? null,
-    view_count: (fullPayload.view_count as number) ?? null,
-    like_count: (fullPayload.like_count as number) ?? null,
-    stats_source: (fullPayload.stats_source as string) ?? null,
-    last_synced_at: (fullPayload.last_synced_at as string) ?? null,
-    sync_status: (fullPayload.sync_status as string) ?? null,
-    sync_error: (fullPayload.sync_error as string) ?? null,
+    display_name: (fp["display_name"] as string) ?? null,
+    bio: (fp["bio"] as string) ?? null,
+    avatar_url: (fp["avatar_url"] as string) ?? null,
+    following_count: (fp["following_count"] as number) ?? null,
+    subscriber_count: (fp["subscriber_count"] as number) ?? null,
+    post_count: (fp["post_count"] as number) ?? null,
+    video_count: (fp["video_count"] as number) ?? null,
+    view_count: (fp["view_count"] as number) ?? null,
+    like_count: (fp["like_count"] as number) ?? null,
+    stats_source: (fp["stats_source"] as string) ?? null,
+    last_synced_at: (fp["last_synced_at"] as string) ?? null,
+    sync_status: (fp["sync_status"] as string) ?? null,
+    sync_error: (fp["sync_error"] as string) ?? null,
   };
 
   const corePayload: Record<string, unknown> = {
-    user_id: fullPayload.user_id,
-    platform: fullPayload.platform,
-    handle: fullPayload.handle,
-    profile_url: fullPayload.profile_url,
-    followers: fullPayload.followers,
-    engagement_rate: fullPayload.engagement_rate ?? null,
+    user_id: fp["user_id"],
+    platform: fp["platform"],
+    handle: fp["handle"],
+    profile_url: fp["profile_url"],
+    followers: fp["followers"],
+    engagement_rate: fp["engagement_rate"] ?? null,
     verified: false,
     access_token_encrypted: JSON.stringify(meta),
   };
@@ -167,17 +173,17 @@ async function countRecentLookups(supabase: any, userId: string): Promise<number
 }
 
 function unpackExistingMeta(row: Record<string, any>) {
-  if (row.stats_source || row.last_synced_at) {
+  if (row["stats_source"] || row["last_synced_at"]) {
     return {
-      lastSyncedAt: row.last_synced_at ?? null,
-      statsSource: row.stats_source ?? null,
-      syncStatus: row.sync_status ?? null,
-      subscriberCount: row.subscriber_count ?? null,
-      displayName: row.display_name ?? null,
+      lastSyncedAt: row["last_synced_at"] ?? null,
+      statsSource: row["stats_source"] ?? null,
+      syncStatus: row["sync_status"] ?? null,
+      subscriberCount: row["subscriber_count"] ?? null,
+      displayName: row["display_name"] ?? null,
     };
   }
   try {
-    const raw = row.access_token_encrypted;
+    const raw = row["access_token_encrypted"];
     if (!raw || typeof raw !== "string" || !raw.startsWith("{")) {
       return {
         lastSyncedAt: null,
@@ -401,9 +407,9 @@ export const lookupSocialProfile = createServerFn({ method: "POST" })
         username: parsed.username,
         profileUrl: parsed.profileUrl,
         displayName: null,
-        followers: (rowPayload.followers as number) ?? null,
+        followers: (rowPayload["followers"] as number) ?? null,
         subscriberCount: null,
-        statsSource: (rowPayload.stats_source as string) ?? null,
+        statsSource: (rowPayload["stats_source"] as string) ?? null,
         lastSyncedAt: lastSynced,
         syncStatus: "error",
       },
