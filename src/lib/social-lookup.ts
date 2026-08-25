@@ -117,26 +117,40 @@ async function upsertSocialRow(
   }
 
   const fp = fullPayload as Record<string, any>;
+  // Preserve prior packed fields when new value is null (partial provider response)
+  let prev: Record<string, any> = {};
+  try {
+    const raw = fp["access_token_encrypted"];
+    if (typeof raw === "string" && raw.startsWith("{")) {
+      const j = JSON.parse(raw);
+      if (j?.v === 1) prev = j;
+    }
+  } catch { /* */ }
+  const keep = <T,>(next: T | null | undefined, key: string): T | null => {
+    if (next != null && next !== "") return next as T;
+    const p = prev[key];
+    return p != null && p !== "" ? (p as T) : null;
+  };
   const meta: PackedMeta = {
     v: 1,
-    display_name: (fp["display_name"] as string) ?? null,
-    bio: (fp["bio"] as string) ?? null,
-    avatar_url: (fp["avatar_url"] as string) ?? null,
-    followers: (fp["followers"] as number) ?? null,
-    following_count: (fp["following_count"] as number) ?? null,
-    subscriber_count: (fp["subscriber_count"] as number) ?? null,
-    post_count: (fp["post_count"] as number) ?? null,
-    video_count: (fp["video_count"] as number) ?? null,
-    view_count: (fp["view_count"] as number) ?? null,
-    like_count: (fp["like_count"] as number) ?? null,
-    engagement_rate: (fp["engagement_rate"] as number) ?? null,
-    stats_source: (fp["stats_source"] as string) ?? null,
-    last_synced_at: (fp["last_synced_at"] as string) ?? null,
-    sync_status: (fp["sync_status"] as string) ?? null,
+    display_name: keep(fp["display_name"] as string, "display_name"),
+    bio: keep(fp["bio"] as string, "bio"),
+    avatar_url: keep(fp["avatar_url"] as string, "avatar_url"),
+    followers: keep(fp["followers"] as number, "followers"),
+    following_count: keep(fp["following_count"] as number, "following_count"),
+    subscriber_count: keep(fp["subscriber_count"] as number, "subscriber_count"),
+    post_count: keep(fp["post_count"] as number, "post_count"),
+    video_count: keep(fp["video_count"] as number, "video_count"),
+    view_count: keep(fp["view_count"] as number, "view_count"),
+    like_count: keep(fp["like_count"] as number, "like_count"),
+    engagement_rate: keep(fp["engagement_rate"] as number, "engagement_rate"),
+    stats_source: keep(fp["stats_source"] as string, "stats_source"),
+    last_synced_at: keep(fp["last_synced_at"] as string, "last_synced_at"),
+    sync_status: (fp["sync_status"] as string) ?? keep(null, "sync_status"),
     sync_error: (fp["sync_error"] as string) ?? null,
-    verified: (fp["verified"] as boolean) ?? null,
-    verify_code: (fp["verify_code"] as string) ?? null,
-    verify_expires_at: (fp["verify_expires_at"] as string) ?? null,
+    verified: keep(fp["verified"] as boolean, "verified"),
+    verify_code: keep(fp["verify_code"] as string, "verify_code"),
+    verify_expires_at: keep(fp["verify_expires_at"] as string, "verify_expires_at"),
   };
 
   const corePayload: Record<string, unknown> = {
@@ -418,6 +432,15 @@ export const lookupSocialProfile = createServerFn({ method: "POST" })
         updated_at: now,
       };
       await logSync(supabase, userId, parsed.platform, false, bd.category);
+    }
+
+    // Carry prior packed meta so dual-mode upsert can merge
+    if (row?.access_token_encrypted && typeof row.access_token_encrypted === "string") {
+      rowPayload["access_token_encrypted"] = row.access_token_encrypted;
+    }
+    // Prefer non-null followers: never overwrite real count with null on partial fail
+    if (rowPayload["followers"] == null && row?.followers != null) {
+      rowPayload["followers"] = row.followers;
     }
 
     const written = await upsertSocialRow(supabase, userId, row?.id, rowPayload);

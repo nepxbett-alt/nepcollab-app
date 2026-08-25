@@ -32,10 +32,22 @@ const DATASET_IDS: Record<SocialPlatform, string> = {
 
 function num(v: unknown): number | null {
   if (v == null || v === "") return null;
-  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "number" && Number.isFinite(v) && v >= 0) return Math.round(v);
   if (typeof v === "string") {
-    const n = Number(v.replace(/,/g, "").trim());
-    return Number.isFinite(n) ? n : null;
+    let s = v.replace(/,/g, "").trim().toUpperCase();
+    if (!s) return null;
+    const m = s.match(/^([0-9]*\.?[0-9]+)\s*([KMB])?$/i);
+    if (m) {
+      let n = Number(m[1]);
+      if (!Number.isFinite(n) || n < 0) return null;
+      const u = (m[2] || "").toUpperCase();
+      if (u === "K") n *= 1_000;
+      else if (u === "M") n *= 1_000_000;
+      else if (u === "B") n *= 1_000_000_000;
+      return Math.round(n);
+    }
+    const n = Number(s.replace(/[^0-9.]/g, ""));
+    return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
   }
   return null;
 }

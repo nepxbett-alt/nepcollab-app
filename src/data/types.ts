@@ -53,8 +53,9 @@ export interface SocialAccount {
   displayName?: string;
   bio?: string;
   avatarUrl?: string;
-  followers: number;
-  engagement: number;
+  /** null = not fetched / unavailable — never treat missing as 0 */
+  followers: number | null;
+  engagement: number | null;
   verified: boolean;
   /** self_reported | brightdata | public | verified — never show self_reported as Verified */
   statsSource?: "self_reported" | "brightdata" | "public" | "verified";

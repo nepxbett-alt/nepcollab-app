@@ -215,7 +215,7 @@ function Profile() {
         platform: result.platform,
         handle: res.account?.username || result.username,
         profileUrl: res.account?.profileUrl || result.profileUrl,
-        followers: res.account?.followers || fb || 0,
+        followers: res.account?.followers ?? fb ?? null,
         engagementRate: 0,
         statsSource:
           (res.account?.statsSource as any) ||
@@ -281,7 +281,7 @@ function Profile() {
         platform: s.platform as any,
         handle: res.account?.username || s.username,
         profileUrl: nextUrl,
-        followers: res.account?.followers || 0,
+        followers: res.account?.followers ?? null,
         engagementRate: 0,
         statsSource: (res.account?.statsSource as any) || "brightdata",
       });
@@ -334,7 +334,7 @@ function Profile() {
           platform: platform as any,
           handle: existing.username,
           profileUrl: existing.profileUrl,
-          followers: res.followers || existing.followers || 0,
+          followers: res.followers ?? existing.followers ?? null,
           engagementRate: existing.engagement || 0,
           statsSource: "verified",
         });
@@ -570,7 +570,7 @@ function Profile() {
                   className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11.5px] font-medium"
                 >
                   {s.platform}
-                  {s.followers > 0 ? (
+                  {typeof s.followers === "number" && s.followers > 0 ? (
                     <span className="text-muted-foreground">
                       · {formatFollowers(s.followers)}
                     </span>
@@ -607,7 +607,7 @@ function Profile() {
                   ? "Live stats"
                   : s.statsSource === "self_reported"
                     ? "Self-reported"
-                    : s.followers > 0
+                    : typeof s.followers === "number" && s.followers > 0
                       ? "Connected"
                       : "Stats pending";
               const showVerifyPanel =
@@ -636,7 +636,7 @@ function Profile() {
 
                       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px]">
                         <span className="font-semibold">
-                          {s.followers > 0 ? formatFollowers(s.followers) : "—"}{" "}
+                          {typeof s.followers === "number" && s.followers > 0 ? formatFollowers(s.followers) : "—"}{" "}
                           <span className="font-normal text-muted-foreground">
                             {s.platform === "YouTube" ? "subscribers" : "followers"}
                           </span>

@@ -268,37 +268,41 @@ const mapCreator = (
     location: p.location ?? "Nepal",
     languages: arr<string>(c?.languages),
     niches: arr<string>(c?.niches),
-    socials: (
-      socials.length
-        ? socials
-        : c?.followers
-          ? [
-              {
-                id: `agg-${p.id}`,
-                platform: (arr<string>(c?.platforms)[0] as string) || "Instagram",
-                handle: p.username ?? "",
-                followers: Number(c.followers) || 0,
-                engagement_rate: Number(c.engagement_rate) || 0,
-                verified: Boolean(c.social_verified),
-              },
-            ]
-          : []
-    ).map((s: any) => {
+    // ONLY real social_accounts rows — never invent from creator_profiles.followers / audience_size
+    socials: (socials.length ? socials : []).map((s: any) => {
       let packed: Record<string, any> = {};
       try {
         const raw = s.access_token_encrypted;
         if (typeof raw === "string" && raw.startsWith("{")) {
-          const p = JSON.parse(raw);
-          if (p?.v === 1) packed = p;
+          const parsed = JSON.parse(raw);
+          if (parsed?.v === 1) packed = parsed;
         }
       } catch {
         /* ignore */
       }
-      const followersNum =
-        Number(s.followers) ||
-        Number(packed["followers"]) ||
-        Number(packed["subscriber_count"]) ||
-        0;
+      const pickNum = (...vals: unknown[]): number | null => {
+        for (const v of vals) {
+          if (v == null || v === "") continue;
+          const n = typeof v === "number" ? v : Number(v);
+          if (Number.isFinite(n) && n >= 0) return n;
+        }
+        return null;
+      };
+      const followersNum = pickNum(
+        s.followers,
+        packed["followers"],
+        s.platform === "YouTube" ? s.subscriber_count : null,
+        s.platform === "YouTube" ? packed["subscriber_count"] : null,
+      );
+      const eng = pickNum(s.engagement_rate, packed["engagement_rate"], s.engagement);
+      const statsSource =
+        s.stats_source ||
+        packed["stats_source"] ||
+        (s.verified || packed["verified"]
+          ? "verified"
+          : followersNum != null
+            ? "self_reported"
+            : undefined);
       return {
         id: s.id,
         platform: s.platform,
@@ -308,22 +312,15 @@ const mapCreator = (
         bio: s.bio || packed["bio"] || undefined,
         avatarUrl: s.avatar_url || packed["avatar_url"] || undefined,
         followers: followersNum,
-        engagement: Number(s.engagement_rate ?? packed["engagement_rate"] ?? s.engagement ?? 0),
+        engagement: eng,
         verified: Boolean(s.verified || packed["verified"]),
-        statsSource:
-          s.stats_source ||
-          packed["stats_source"] ||
-          (s.verified || packed["verified"]
-            ? "verified"
-            : followersNum
-              ? "self_reported"
-              : undefined),
+        statsSource,
         lastSyncedAt: s.last_synced_at || packed["last_synced_at"] || undefined,
         syncStatus: s.sync_status || packed["sync_status"] || undefined,
-        subscriberCount: s.subscriber_count ?? packed["subscriber_count"] ?? undefined,
-        followingCount: s.following_count ?? packed["following_count"] ?? undefined,
-        postCount: s.post_count ?? packed["post_count"] ?? undefined,
-        videoCount: s.video_count ?? packed["video_count"] ?? undefined,
+        subscriberCount: pickNum(s.subscriber_count, packed["subscriber_count"]) ?? undefined,
+        followingCount: pickNum(s.following_count, packed["following_count"]) ?? undefined,
+        postCount: pickNum(s.post_count, packed["post_count"]) ?? undefined,
+        videoCount: pickNum(s.video_count, packed["video_count"]) ?? undefined,
         verifyCode: packed["verify_code"] || undefined,
         verifyExpiresAt: packed["verify_expires_at"] || undefined,
       };

@@ -13,10 +13,11 @@ export const getCreator = (id: string) => creatorMap.get(id);
 export const listCreators = () => [...creatorMap.values()];
 export const listBrands = () => [...brandMap.values()];
 
-export function formatFollowers(n: number) {
+export function formatFollowers(n: number | null | undefined) {
+  if (n == null || !Number.isFinite(n) || n < 0) return "—";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return String(n);
+  return String(Math.round(n));
 }
 
 export function formatDate(value: string) {
@@ -30,8 +31,25 @@ export function daysLeft(deadline: string) {
   return Math.ceil(diff / 86_400_000);
 }
 
+/** Sum only platforms with real (non-null) follower counts. */
 export function totalFollowers(creatorId: string) {
-  return getCreator(creatorId)?.socials.reduce((sum, s) => sum + s.followers, 0) ?? 0;
+  const socials = getCreator(creatorId)?.socials ?? [];
+  return socials.reduce(
+    (sum, s) => sum + (typeof s.followers === "number" && Number.isFinite(s.followers) ? s.followers : 0),
+    0,
+  );
+}
+
+/** Followers for campaign platforms only (never mix IG into TikTok req). */
+export function platformFollowers(creatorId: string, platforms: string[] | undefined) {
+  const creator = getCreator(creatorId);
+  if (!creator) return 0;
+  const wanted = new Set((platforms || []).map((p) => p.toLowerCase()));
+  if (!wanted.size) return totalFollowers(creatorId);
+  return creator.socials.reduce((sum, s) => {
+    if (!wanted.has(String(s.platform || "").toLowerCase())) return sum;
+    return sum + (typeof s.followers === "number" && Number.isFinite(s.followers) ? s.followers : 0);
+  }, 0);
 }
 
 export function matchScore(campaign: Campaign, creatorId: string) {
@@ -54,7 +72,7 @@ export function matchScore(campaign: Campaign, creatorId: string) {
     score += 16;
   }
   const minF = campaign.requirements?.minFollowers ?? 0;
-  const followers = totalFollowers(creatorId);
+  const followers = platformFollowers(creatorId, campaign.platforms);
   if (minF <= 0 || followers >= minF) score += 12;
   else if (followers >= minF * 0.6) score += 5;
   return Math.min(Math.max(score, 0), 96);
