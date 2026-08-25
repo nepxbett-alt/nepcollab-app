@@ -699,3 +699,114 @@ export const confirmSocialVerification = createServerFn({ method: "POST" })
       followers: audience ?? null,
     };
   });
+
+
+/** Admin marks a social account as ownership-verified after reviewing the creator's public code. */
+export const adminMarkSocialVerified = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .validator((data: { accountId: string; verified?: boolean }) => {
+    if (!data?.accountId) throw new Error("accountId required");
+    return { accountId: String(data.accountId), verified: data.verified !== false };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { data: me } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+    if (me?.role !== "admin") {
+      return { success: false, message: "Admin only." };
+    }
+    const { data: row, error } = await supabase
+      .from("social_accounts")
+      .select("id, user_id, platform, handle, followers, engagement_rate, access_token_encrypted, verified")
+      .eq("id", data.accountId)
+      .maybeSingle();
+    if (error || !row) return { success: false, message: "Account not found." };
+
+    let meta: PackedMeta = { v: 1 };
+    try {
+      if (typeof row.access_token_encrypted === "string" && row.access_token_encrypted.startsWith("{")) {
+        const j = JSON.parse(row.access_token_encrypted);
+        if (j?.v === 1) meta = j;
+      }
+    } catch { /* */ }
+
+    const now = new Date().toISOString();
+    const next: PackedMeta = {
+      ...meta,
+      v: 1,
+      verified: data.verified,
+      verify_code: null,
+      verify_expires_at: null,
+      stats_source: data.verified ? "verified" : meta.stats_source || "brightdata",
+      last_synced_at: now,
+      sync_status: "ok",
+      sync_error: null,
+    };
+
+    const { error: upErr } = await supabase
+      .from("social_accounts")
+      .update({
+        verified: data.verified,
+        access_token_encrypted: JSON.stringify(next),
+      })
+      .eq("id", row.id);
+    if (upErr) return { success: false, message: upErr.message };
+
+    try {
+      await supabase.from("notifications").insert({
+        user_id: row.user_id,
+        title: data.verified ? "Social account verified ✓" : "Social verification updated",
+        body: data.verified
+          ? `Your ${row.platform} @${row.handle} was verified by NepCollab admin.`
+          : `Your ${row.platform} verification was updated.`,
+      });
+    } catch { /* */ }
+
+    return {
+      success: true,
+      message: data.verified
+        ? `${row.platform} @${row.handle} marked verified.`
+        : "Verification cleared.",
+    };
+  });
+
+/** Admin: list social accounts pending ownership (have a code or unverified with stats). */
+export const adminListSocialAccounts = createServerFn({ method: "GET" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { data: me } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+    if (me?.role !== "admin") {
+      return { success: false, message: "Admin only.", accounts: [] as any[] };
+    }
+    const { data, error } = await supabase
+      .from("social_accounts")
+      .select("id, user_id, platform, handle, profile_url, followers, engagement_rate, verified, access_token_encrypted, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) return { success: false, message: error.message, accounts: [] };
+
+    const accounts = (data || []).map((r: any) => {
+      let packed: any = {};
+      try {
+        if (typeof r.access_token_encrypted === "string" && r.access_token_encrypted.startsWith("{")) {
+          const j = JSON.parse(r.access_token_encrypted);
+          if (j?.v === 1) packed = j;
+        }
+      } catch { /* */ }
+      return {
+        id: r.id,
+        userId: r.user_id,
+        platform: r.platform,
+        handle: r.handle,
+        profileUrl: r.profile_url,
+        followers: r.followers ?? packed.followers ?? null,
+        engagement: r.engagement_rate ?? packed.engagement_rate ?? null,
+        verified: Boolean(r.verified || packed.verified),
+        verifyCode: packed.verify_code || null,
+        verifyExpiresAt: packed.verify_expires_at || null,
+        statsSource: packed.stats_source || null,
+        lastSyncedAt: packed.last_synced_at || null,
+      };
+    });
+    return { success: true, accounts };
+  });

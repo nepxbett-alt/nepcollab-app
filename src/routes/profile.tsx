@@ -510,7 +510,7 @@ function Profile() {
       <div className="mt-8">
         <SectionHeader
           title="Social accounts"
-          hint="Add handles to show live reach. Verify ownership with a short bio code."
+          hint="Paste a profile link → we fetch live followers. Verify ownership with a unique bio code (admin can also confirm)."
         />
 
         {(creator?.socials.length ?? 0) > 0 ? (
@@ -522,9 +522,13 @@ function Profile() {
                   Total reach
                 </p>
                 <p className="mt-1 text-[20px] font-bold tracking-tight">
-                  {formatFollowers(
-                    creator!.socials.reduce((n, s) => n + (s.followers || 0), 0),
-                  ) || "—"}
+                  {(() => {
+                    const total = creator!.socials.reduce(
+                      (n, s) => n + (typeof s.followers === "number" ? s.followers : 0),
+                      0,
+                    );
+                    return total > 0 ? formatFollowers(total) : "—";
+                  })()}
                 </p>
               </div>
               <div className="rounded-2xl border border-border bg-card px-3 py-3">
