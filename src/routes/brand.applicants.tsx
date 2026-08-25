@@ -153,23 +153,44 @@ function Applicants() {
                 {(creator?.socials ?? []).length > 0 ? (
                   <ul className="mt-3 space-y-1.5">
                     {creator!.socials.map((s) => {
-                      const handle = (s as { handle?: string; username?: string }).handle || (s as { username?: string }).username;
-                      const eng = Number((s as { engagement?: number }).engagement);
+                      const handle = s.username;
+                      const href =
+                        s.profileUrl ||
+                        (s.platform === "Instagram"
+                          ? `https://www.instagram.com/${handle}/`
+                          : s.platform === "TikTok"
+                            ? `https://www.tiktok.com/@${handle}`
+                            : s.platform === "YouTube"
+                              ? `https://www.youtube.com/@${handle}`
+                              : s.platform === "Facebook"
+                                ? `https://www.facebook.com/${handle}`
+                                : undefined);
                       return (
                       <li
                         key={`${s.platform}-${handle}`}
-                        className="flex items-center justify-between rounded-xl border border-border/80 px-3 py-2 text-[13px]"
+                        className="flex items-center justify-between gap-2 rounded-xl border border-border/80 px-3 py-2 text-[13px]"
                       >
-                        <span className="font-medium">
+                        <span className="min-w-0 font-medium">
                           {s.platform}
                           {handle ? (
                             <span className="font-normal text-muted-foreground"> @{handle}</span>
                           ) : null}
+                          {s.followers > 0 ? (
+                            <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+                              {formatFollowers(s.followers)} · Self-reported
+                            </span>
+                          ) : null}
                         </span>
-                        <span className="text-muted-foreground">
-                          {formatFollowers(s.followers)}
-                          {Number.isFinite(eng) && eng > 0 ? ` · ${eng.toFixed(1)}%` : ""}
-                        </span>
+                        {href ? (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 text-[12px] font-semibold text-signal"
+                          >
+                            View ↗
+                          </a>
+                        ) : null}
                       </li>
                     );})}
                   </ul>

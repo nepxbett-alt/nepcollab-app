@@ -56,6 +56,7 @@ interface Store extends State {
     followers?: number;
     engagementRate?: number;
     profileUrl?: string;
+    statsSource?: string;
   }) => Promise<void>;
   removeSocialAccount: (id: string) => Promise<void>;
   updateProfile: (input: {
@@ -286,9 +287,11 @@ const mapCreator = (
       id: s.id,
       platform: s.platform,
       username: s.handle ?? s.username ?? "",
+      profileUrl: s.profile_url || undefined,
       followers: s.followers ?? 0,
       engagement: Number(s.engagement_rate ?? s.engagement ?? 0),
       verified: Boolean(s.verified),
+      statsSource: s.verified ? "verified" : s.followers ? "self_reported" : undefined,
     })) as any,
     portfolio: portfolioRows.map((item: any) => ({
       id: item.id,
@@ -659,7 +662,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       relatedCreatorIds.length
         ? db
             .from("social_accounts")
-            .select("id, user_id, platform, handle, followers, engagement_rate, verified")
+            .select("id, user_id, platform, handle, profile_url, followers, engagement_rate, verified")
             .in("user_id", relatedCreatorIds)
         : Promise.resolve({ data: [] as any[] }),
       relatedCreatorIds.length

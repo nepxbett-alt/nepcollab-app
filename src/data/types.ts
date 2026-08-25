@@ -49,9 +49,12 @@ export interface SocialAccount {
   id?: string;
   platform: Platform;
   username: string;
+  profileUrl?: string;
   followers: number;
   engagement: number;
   verified: boolean;
+  /** V1: self_reported | public | verified */
+  statsSource?: "self_reported" | "public" | "verified";
 }
 
 export interface PortfolioItem {
