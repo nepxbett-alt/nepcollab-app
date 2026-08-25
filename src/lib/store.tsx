@@ -1584,16 +1584,22 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
               : prevMeta["sync_status"] || "pending",
         };
 
+        const socialPatch: Record<string, unknown> = {
+          handle,
+          profile_url: profileUrl,
+          access_token_encrypted: JSON.stringify(meta),
+        };
+        if (typeof followers === "number" && Number.isFinite(followers)) {
+          socialPatch.followers = followers;
+        }
+        if (typeof engagementRate === "number" && Number.isFinite(engagementRate)) {
+          socialPatch.engagement_rate = engagementRate;
+        }
+
         if (existing?.id) {
           const { error } = await db
             .from("social_accounts")
-            .update({
-              handle,
-              followers,
-              engagement_rate: engagementRate,
-              profile_url: profileUrl,
-              access_token_encrypted: JSON.stringify(meta),
-            })
+            .update(socialPatch)
             .eq("id", existing.id)
             .eq("user_id", uid);
           if (error) throw new Error(error.message);
@@ -1601,12 +1607,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           const { error } = await db.from("social_accounts").insert({
             user_id: uid,
             platform,
-            handle,
-            followers,
-            engagement_rate: engagementRate,
-            profile_url: profileUrl,
             verified: false,
-            access_token_encrypted: JSON.stringify(meta),
+            // Default 0 only when column is NOT NULL and provider gave no rate
+            engagement_rate:
+              typeof engagementRate === "number" && Number.isFinite(engagementRate)
+                ? engagementRate
+                : 0,
+            followers:
+              typeof followers === "number" && Number.isFinite(followers) ? followers : 0,
+            ...socialPatch,
           });
           if (error) throw new Error(error.message);
         }

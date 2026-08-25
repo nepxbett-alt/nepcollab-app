@@ -82,25 +82,43 @@ async function upsertSocialRow(
   existingId: string | undefined,
   fullPayload: Record<string, unknown>,
 ): Promise<{ id: string; error?: string }> {
+  const sanitize = (payload: Record<string, unknown>, isInsert: boolean) => {
+    const out: Record<string, unknown> = { ...payload };
+    // social_accounts.engagement_rate is NOT NULL in production — never send null.
+    // Unknown rates live in access_token_encrypted packed meta instead.
+    if (out["engagement_rate"] == null || out["engagement_rate"] === "") {
+      if (isInsert) out["engagement_rate"] = 0;
+      else delete out["engagement_rate"];
+    }
+    if (out["followers"] == null || out["followers"] === "") {
+      if (isInsert) out["followers"] = 0;
+      else delete out["followers"];
+    }
+    return out;
+  };
+
   const tryWrite = async (payload: Record<string, unknown>) => {
     if (existingId) {
+      const clean = sanitize(payload, false);
       const { error } = await supabase
         .from("social_accounts")
-        .update(payload)
+        .update(clean)
         .eq("id", existingId)
         .eq("user_id", userId);
       return { id: existingId as string, error };
     }
+    const clean = sanitize(payload, true);
     const { data, error } = await supabase
       .from("social_accounts")
-      .insert(payload)
+      .insert(clean)
       .select("id")
       .single();
     if (!error && data?.id) return { id: data.id as string, error: null };
     if (error && (error.code === "23505" || String(error.message).includes("duplicate"))) {
+      const cleanUp = sanitize(payload, false);
       const { data: again, error: upErr } = await supabase
         .from("social_accounts")
-        .update(payload)
+        .update(cleanUp)
         .eq("user_id", userId)
         .eq("platform", (fullPayload as any)["platform"])
         .select("id")
@@ -158,11 +176,15 @@ async function upsertSocialRow(
     platform: fp["platform"],
     handle: fp["handle"],
     profile_url: fp["profile_url"],
-    followers: fp["followers"],
-    engagement_rate: fp["engagement_rate"] ?? null,
     verified: false,
     access_token_encrypted: JSON.stringify(meta),
   };
+  if (typeof fp["followers"] === "number" && Number.isFinite(fp["followers"])) {
+    corePayload["followers"] = fp["followers"];
+  }
+  if (typeof fp["engagement_rate"] === "number" && Number.isFinite(fp["engagement_rate"])) {
+    corePayload["engagement_rate"] = fp["engagement_rate"];
+  }
 
   const second = await tryWrite(corePayload);
   if (second.error) return { id: second.id, error: second.error.message };
