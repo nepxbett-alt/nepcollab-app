@@ -11,10 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatFollowers, getBrand, getCreator } from "@/lib/lookup";
 import {
+  buildSocialFromHandle,
   formatFollowerCount,
   parseFollowerInput,
   parseSocialProfileUrl,
   type ParsedSocialUrl,
+  type SocialPlatform,
 } from "@/lib/social-url";
 import { lookupSocialProfile } from "@/lib/social-lookup";
 import { useStore } from "@/lib/store";
@@ -103,57 +105,134 @@ function Profile() {
   } = useStore();
 
   const [socialOpen, setSocialOpen] = useState(false);
+  const [socialPlatform, setSocialPlatform] = useState<SocialPlatform>("Instagram");
+  const [usernameInput, setUsernameInput] = useState("");
+  const [useUrlMode, setUseUrlMode] = useState(false);
   const [profileUrlInput, setProfileUrlInput] = useState("");
   const [parsed, setParsed] = useState<ParsedSocialUrl | null>(null);
   const [urlError, setUrlError] = useState<string | null>(null);
   const [followers, setFollowers] = useState("");
   const [socialBusy, setSocialBusy] = useState(false);
+  const [lookupFailed, setLookupFailed] = useState(false);
+
+  const resetSocialForm = () => {
+    setSocialPlatform("Instagram");
+    setUsernameInput("");
+    setUseUrlMode(false);
+    setProfileUrlInput("");
+    setParsed(null);
+    setUrlError(null);
+    setFollowers("");
+    setLookupFailed(false);
+  };
+
+  const onUsernameChange = (value: string) => {
+    setUsernameInput(value);
+    setUrlError(null);
+    setLookupFailed(false);
+    setParsed(buildSocialFromHandle(socialPlatform, value));
+  };
+
+  const onPlatformChange = (value: SocialPlatform) => {
+    setSocialPlatform(value);
+    setUrlError(null);
+    setLookupFailed(false);
+    if (!useUrlMode && usernameInput.trim()) {
+      setParsed(buildSocialFromHandle(value, usernameInput));
+    }
+  };
 
   const onUrlChange = (value: string) => {
     setProfileUrlInput(value);
     setUrlError(null);
+    setLookupFailed(false);
     if (!value.trim()) {
       setParsed(null);
       return;
     }
     const result = parseSocialProfileUrl(value);
-    if (result) setParsed(result);
-    else setParsed(null);
+    setParsed(result);
+    if (!result) {
+      setUrlError("Use a valid Instagram, TikTok, YouTube or Facebook profile link.");
+    }
+  };
+
+  const switchToUrlMode = () => {
+    setUseUrlMode(true);
+    setUrlError(null);
+    setLookupFailed(false);
+    setParsed(null);
+  };
+
+  const switchToUsernameMode = () => {
+    setUseUrlMode(false);
+    setUrlError(null);
+    setLookupFailed(false);
+    setProfileUrlInput("");
+    setParsed(usernameInput.trim() ? buildSocialFromHandle(socialPlatform, usernameInput) : null);
   };
 
   const addSocial = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (socialBusy) return;
-    const result = parsed || parseSocialProfileUrl(profileUrlInput);
+    const result = useUrlMode
+      ? parsed || parseSocialProfileUrl(profileUrlInput)
+      : parsed || buildSocialFromHandle(socialPlatform, usernameInput);
     if (!result) {
-      setUrlError("Please enter a valid Instagram, TikTok, YouTube or Facebook profile link.");
+      setUrlError(
+        useUrlMode
+          ? "Please enter a valid profile link."
+          : "Please enter a valid username for this platform.",
+      );
       return;
     }
     setSocialBusy(true);
+    setLookupFailed(false);
     try {
       const fb = parseFollowerInput(followers);
       const res = await lookupSocialProfile({
-        data: {
-          profileUrl: result.profileUrl,
-          ...(fb > 0 ? { fallbackFollowers: fb } : {}),
-        },
+        data: useUrlMode
+          ? {
+              profileUrl: result.profileUrl,
+              ...(fb > 0 ? { fallbackFollowers: fb } : {}),
+            }
+          : {
+              platform: result.platform,
+              username: result.username,
+              ...(fb > 0 ? { fallbackFollowers: fb } : {}),
+            },
       });
       await upsertSocialAccount({
         platform: result.platform,
         handle: res.account?.username || result.username,
         profileUrl: res.account?.profileUrl || result.profileUrl,
-        followers: res.account?.followers || parseFollowerInput(followers) || 0,
+        followers: res.account?.followers || fb || 0,
         engagementRate: 0,
-        statsSource: (res.account?.statsSource as any) || (parseFollowerInput(followers) > 0 ? "self_reported" : undefined),
+        statsSource:
+          (res.account?.statsSource as any) ||
+          (fb > 0 ? "self_reported" : undefined),
       });
-      if (res.success) toast.success(res.message || `${result.platform} connected`);
-      else toast.message(res.message || "Saved without live stats");
-      setProfileUrlInput("");
-      setParsed(null);
-      setFollowers("");
-      setSocialOpen(false);
+      if (res.success) {
+        const count = res.account?.followers;
+        toast.success(
+          count
+            ? `${result.platform} connected · ${formatFollowerCount(count)} ${result.platform === "YouTube" ? "subscribers" : "followers"}`
+            : res.message || `${result.platform} connected`,
+        );
+      } else {
+        toast.message(res.message || "Saved without live stats");
+        setLookupFailed(true);
+        if (!useUrlMode && !fb) {
+          setUrlError("Couldn't find this profile. Try a profile link instead.");
+        }
+      }
+      if (res.success || fb > 0) {
+        resetSocialForm();
+        setSocialOpen(false);
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Could not add account");
+      setLookupFailed(true);
     } finally {
       setSocialBusy(false);
     }
@@ -166,28 +245,33 @@ function Profile() {
     username: string;
   }) => {
     if (socialBusy) return;
-    const url =
-      s.profileUrl ||
-      (s.platform === "Instagram"
-        ? `https://www.instagram.com/${s.username}/`
-        : s.platform === "TikTok"
-          ? `https://www.tiktok.com/@${s.username}`
-          : s.platform === "YouTube"
-            ? `https://www.youtube.com/@${s.username}`
-            : `https://www.facebook.com/${s.username}`);
     setSocialBusy(true);
     try {
       const res = await lookupSocialProfile({
-        data: { profileUrl: url, forceRefresh: true },
+        data: {
+          platform: s.platform,
+          username: s.username,
+          forceRefresh: true,
+        },
       });
       if (!res.success) {
         toast.error(res.message);
         return;
       }
+      const nextUrl =
+        res.account?.profileUrl ||
+        s.profileUrl ||
+        (s.platform === "Instagram"
+          ? `https://www.instagram.com/${s.username}/`
+          : s.platform === "TikTok"
+            ? `https://www.tiktok.com/@${s.username}`
+            : s.platform === "YouTube"
+              ? `https://www.youtube.com/@${s.username}`
+              : `https://www.facebook.com/${s.username}`);
       await upsertSocialAccount({
         platform: s.platform as any,
         handle: res.account?.username || s.username,
-        profileUrl: res.account?.profileUrl || url,
+        profileUrl: nextUrl,
         followers: res.account?.followers || 0,
         engagementRate: 0,
         statsSource: (res.account?.statsSource as any) || "brightdata",
@@ -485,8 +569,8 @@ function Profile() {
           variant="outline"
           className="mt-4 h-11 w-full rounded-full"
           onClick={() => {
+            resetSocialForm();
             setSocialOpen(true);
-            setUrlError(null);
           }}
         >
           <Plus className="size-4" /> Add Social Account
@@ -498,7 +582,10 @@ function Profile() {
               type="button"
               className="absolute inset-0 bg-black/40"
               aria-label="Close"
-              onClick={() => setSocialOpen(false)}
+              onClick={() => {
+                setSocialOpen(false);
+                resetSocialForm();
+              }}
             />
             <form
               onSubmit={(e) => void addSocial(e)}
@@ -506,37 +593,105 @@ function Profile() {
             >
               <p className="text-[15px] font-bold tracking-tight">Add Social Account</p>
               <p className="mt-1 text-[12.5px] text-muted-foreground">
-                Paste an Instagram, TikTok, YouTube or Facebook profile link.
+                Pick a platform and enter your username — we fetch the public stats for you.
               </p>
+
               <div className="mt-4">
-                <Label htmlFor="social-url">Profile URL</Label>
-                <Input
-                  id="social-url"
-                  className="mt-1.5 h-12"
-                  autoFocus
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  inputMode="url"
-                  placeholder="https://instagram.com/yourname"
-                  value={profileUrlInput}
-                  onChange={(e) => onUrlChange(e.target.value)}
-                />
-                {urlError ? (
-                  <p className="mt-1.5 text-[12px] text-destructive">{urlError}</p>
-                ) : null}
+                <Label htmlFor="social-platform">Platform</Label>
+                <select
+                  id="social-platform"
+                  className="mt-1.5 flex h-12 w-full rounded-xl border border-input bg-background px-3 text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={socialPlatform}
+                  onChange={(e) => onPlatformChange(e.target.value as SocialPlatform)}
+                  disabled={useUrlMode}
+                >
+                  <option value="Instagram">Instagram</option>
+                  <option value="TikTok">TikTok</option>
+                  <option value="YouTube">YouTube</option>
+                  <option value="Facebook">Facebook</option>
+                </select>
               </div>
+
+              {!useUrlMode ? (
+                <div className="mt-3">
+                  <Label htmlFor="social-username">Username</Label>
+                  <Input
+                    id="social-username"
+                    className="mt-1.5 h-12"
+                    autoFocus
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    inputMode="text"
+                    placeholder="@username"
+                    value={usernameInput}
+                    onChange={(e) => onUsernameChange(e.target.value)}
+                  />
+                  {urlError ? (
+                    <p className="mt-1.5 text-[12px] text-destructive">{urlError}</p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <Label htmlFor="social-url">Profile URL</Label>
+                  <Input
+                    id="social-url"
+                    className="mt-1.5 h-12"
+                    autoFocus
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    inputMode="url"
+                    placeholder="https://instagram.com/yourname"
+                    value={profileUrlInput}
+                    onChange={(e) => onUrlChange(e.target.value)}
+                  />
+                  {urlError ? (
+                    <p className="mt-1.5 text-[12px] text-destructive">{urlError}</p>
+                  ) : null}
+                </div>
+              )}
 
               {parsed ? (
                 <div className="mt-3 rounded-2xl border border-signal/30 bg-accent/40 px-3 py-2.5">
-                  <p className="text-[12px] font-semibold text-signal">{parsed.platform} detected ✓</p>
+                  <p className="text-[12px] font-semibold text-signal">
+                    {parsed.platform} ✓
+                  </p>
                   <p className="mt-0.5 text-[13px] font-medium">@{parsed.username}</p>
-                  <p className="truncate text-[11px] text-muted-foreground">{parsed.profileUrl}</p>
                 </div>
+              ) : null}
+
+              {!useUrlMode ? (
+                <button
+                  type="button"
+                  className="mt-3 text-left text-[12.5px] font-medium text-signal hover:underline"
+                  onClick={switchToUrlMode}
+                >
+                  Have a profile link instead?
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="mt-3 text-left text-[12.5px] font-medium text-signal hover:underline"
+                  onClick={switchToUsernameMode}
+                >
+                  ← Use username instead
+                </button>
+              )}
+
+              {lookupFailed && !useUrlMode ? (
+                <button
+                  type="button"
+                  className="mt-2 block text-left text-[12.5px] font-semibold text-destructive hover:underline"
+                  onClick={switchToUrlMode}
+                >
+                  Couldn&apos;t find this profile — try profile link instead
+                </button>
               ) : null}
 
               <div className="mt-3">
                 <Label htmlFor="followers-opt">
-                  Followers / Subscribers <span className="font-normal text-muted-foreground">(optional)</span>
+                  Followers / Subscribers{" "}
+                  <span className="font-normal text-muted-foreground">(optional fallback)</span>
                 </Label>
                 <Input
                   id="followers-opt"
@@ -546,7 +701,9 @@ function Profile() {
                   value={followers}
                   onChange={(e) => setFollowers(e.target.value)}
                 />
-                <p className="mt-1 text-[11px] text-muted-foreground">Self-reported — not marked as verified.</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Only used if live lookup is unavailable. Marked as self-reported.
+                </p>
               </div>
 
               <Button
@@ -554,12 +711,15 @@ function Profile() {
                 disabled={socialBusy || !parsed}
                 className="mt-4 h-12 w-full rounded-full bg-signal text-signal-foreground hover:bg-signal/90"
               >
-                {socialBusy ? "Saving…" : "Add Account"}
+                {socialBusy ? "Fetching profile…" : "Fetch Profile"}
               </Button>
               <button
                 type="button"
                 className="mt-2 h-10 w-full text-[13px] font-medium text-muted-foreground"
-                onClick={() => setSocialOpen(false)}
+                onClick={() => {
+                  setSocialOpen(false);
+                  resetSocialForm();
+                }}
               >
                 Cancel
               </button>

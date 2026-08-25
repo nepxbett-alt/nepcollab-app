@@ -1,14 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { parseSocialProfileUrl } from "@/lib/social-url";
+import {
+  buildSocialFromHandle,
+  isSocialPlatform,
+  parseSocialProfileUrl,
+} from "@/lib/social-url";
 import { fetchSocialProfileFromBrightData } from "@/lib/brightdata-social.server";
 
 const REFRESH_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const MAX_LOOKUPS_PER_DAY = 8;
 
 type LookupInput = {
-  profileUrl: string;
+  /** Preferred: platform + username (server builds the profile URL). */
+  platform?: string;
+  username?: string;
+  /** Fallback: full profile URL. */
+  profileUrl?: string;
   fallbackFollowers?: number;
   forceRefresh?: boolean;
 };
@@ -224,11 +232,25 @@ function unpackExistingMeta(row: Record<string, any>) {
 export const lookupSocialProfile = createServerFn({ method: "POST" })
   .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .validator((data: LookupInput) => {
-    if (!data || typeof data.profileUrl !== "string") {
-      throw new Error("profileUrl is required");
+    if (!data || typeof data !== "object") {
+      throw new Error("Invalid input");
+    }
+    const platform =
+      typeof data.platform === "string" ? data.platform.trim() : undefined;
+    const username =
+      typeof data.username === "string" ? data.username.trim() : undefined;
+    const profileUrl =
+      typeof data.profileUrl === "string" ? data.profileUrl.trim() : undefined;
+    if (!username && !profileUrl) {
+      throw new Error("username or profileUrl is required");
+    }
+    if (username && !platform) {
+      throw new Error("platform is required with username");
     }
     return {
-      profileUrl: data.profileUrl.trim(),
+      platform,
+      username,
+      profileUrl,
       fallbackFollowers:
         typeof data.fallbackFollowers === "number" && data.fallbackFollowers > 0
           ? data.fallbackFollowers
@@ -239,11 +261,34 @@ export const lookupSocialProfile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<SocialLookupResult> => {
     const { supabase, userId } = context as { supabase: any; userId: string };
 
-    const parsed = parseSocialProfileUrl(data.profileUrl);
-    if (!parsed) {
+    let parsed = null as ReturnType<typeof parseSocialProfileUrl>;
+    if (data.username && data.platform) {
+      if (!isSocialPlatform(data.platform)) {
+        return {
+          success: false,
+          message: "Unsupported platform. Choose Instagram, TikTok, YouTube or Facebook.",
+        };
+      }
+      parsed = buildSocialFromHandle(data.platform, data.username);
+      if (!parsed) {
+        return {
+          success: false,
+          message: "Invalid username for this platform. Check the handle and try again.",
+        };
+      }
+    } else if (data.profileUrl) {
+      parsed = parseSocialProfileUrl(data.profileUrl);
+      if (!parsed) {
+        return {
+          success: false,
+          message:
+            "Unsupported or invalid profile URL. Use Instagram, TikTok, YouTube or Facebook.",
+        };
+      }
+    } else {
       return {
         success: false,
-        message: "Please enter a valid Instagram, TikTok, YouTube or Facebook profile link.",
+        message: "Enter a username or paste a profile link.",
       };
     }
 
