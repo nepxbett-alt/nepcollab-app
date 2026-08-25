@@ -283,16 +283,37 @@ const mapCreator = (
               },
             ]
           : []
-    ).map((s: any) => ({
-      id: s.id,
-      platform: s.platform,
-      username: s.handle ?? s.username ?? "",
-      profileUrl: s.profile_url || undefined,
-      followers: s.followers ?? 0,
-      engagement: Number(s.engagement_rate ?? s.engagement ?? 0),
-      verified: Boolean(s.verified),
-      statsSource: s.verified ? "verified" : s.followers ? "self_reported" : undefined,
-    })) as any,
+    ).map((s: any) => {
+      let packed: Record<string, any> = {};
+      try {
+        const raw = s.access_token_encrypted;
+        if (typeof raw === "string" && raw.startsWith("{")) {
+          const p = JSON.parse(raw);
+          if (p?.v === 1) packed = p;
+        }
+      } catch {
+        /* ignore */
+      }
+      return {
+        id: s.id,
+        platform: s.platform,
+        username: s.handle ?? s.username ?? "",
+        profileUrl: s.profile_url || undefined,
+        displayName: s.display_name || packed.display_name || undefined,
+        bio: s.bio || packed.bio || undefined,
+        avatarUrl: s.avatar_url || packed.avatar_url || undefined,
+        followers: s.followers ?? 0,
+        engagement: Number(s.engagement_rate ?? s.engagement ?? 0),
+        verified: Boolean(s.verified),
+        statsSource:
+          s.stats_source ||
+          packed.stats_source ||
+          (s.verified ? "verified" : s.followers ? "self_reported" : undefined),
+        lastSyncedAt: s.last_synced_at || packed.last_synced_at || undefined,
+        syncStatus: s.sync_status || packed.sync_status || undefined,
+        subscriberCount: s.subscriber_count ?? packed.subscriber_count ?? undefined,
+      };
+    }) as any,
     portfolio: portfolioRows.map((item: any) => ({
       id: item.id,
       title: item.title ?? "Work",
@@ -662,7 +683,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       relatedCreatorIds.length
         ? db
             .from("social_accounts")
-            .select("id, user_id, platform, handle, profile_url, followers, engagement_rate, verified")
+            .select("id, user_id, platform, handle, profile_url, followers, engagement_rate, verified, access_token_encrypted")
             .in("user_id", relatedCreatorIds)
         : Promise.resolve({ data: [] as any[] }),
       relatedCreatorIds.length
@@ -1525,6 +1546,16 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
               followers,
               engagement_rate: engagementRate,
               profile_url: profileUrl,
+              ...(input.statsSource
+                ? {
+                    access_token_encrypted: JSON.stringify({
+                      v: 1,
+                      stats_source: input.statsSource,
+                      last_synced_at: new Date().toISOString(),
+                      sync_status: input.statsSource === "brightdata" ? "ok" : "pending",
+                    }),
+                  }
+                : {}),
             })
             .eq("id", existing.id)
             .eq("user_id", uid);

@@ -16,6 +16,7 @@ import {
   parseSocialProfileUrl,
   type ParsedSocialUrl,
 } from "@/lib/social-url";
+import { lookupSocialProfile } from "@/server/social-lookup";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { Platform } from "@/data/types";
@@ -38,6 +39,17 @@ export const Route = createFileRoute("/profile")({
   }),
   component: Profile,
 });
+
+function formatUpdatedAt(iso?: string) {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return null;
+  const days = Math.floor((Date.now() - t) / (24 * 60 * 60 * 1000));
+  if (days <= 0) return "Updated today";
+  if (days === 1) return "Updated 1 day ago";
+  if (days < 30) return `Updated ${days} days ago`;
+  return `Updated ${new Date(iso).toLocaleDateString()}`;
+}
 
 function Stat({ value, label }: { value: string | number; label: string }) {
   return (
@@ -119,21 +131,69 @@ function Profile() {
     }
     setSocialBusy(true);
     try {
+      const res = await lookupSocialProfile({
+        data: {
+          profileUrl: result.profileUrl,
+          fallbackFollowers: parseFollowerInput(followers) || undefined,
+        },
+      });
       await upsertSocialAccount({
         platform: result.platform,
-        handle: result.username,
-        profileUrl: result.profileUrl,
-        followers: parseFollowerInput(followers) || 0,
+        handle: res.account?.username || result.username,
+        profileUrl: res.account?.profileUrl || result.profileUrl,
+        followers: res.account?.followers || parseFollowerInput(followers) || 0,
         engagementRate: 0,
-        statsSource: parseFollowerInput(followers) > 0 ? "self_reported" : undefined,
+        statsSource: (res.account?.statsSource as any) || (parseFollowerInput(followers) > 0 ? "self_reported" : undefined),
       });
+      if (res.success) toast.success(res.message || `${result.platform} connected`);
+      else toast.message(res.message || "Saved without live stats");
       setProfileUrlInput("");
       setParsed(null);
       setFollowers("");
       setSocialOpen(false);
-      toast.success(`${result.platform} added`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Could not add account");
+    } finally {
+      setSocialBusy(false);
+    }
+  };
+
+  const refreshSocial = async (s: {
+    id?: string;
+    platform: string;
+    profileUrl?: string;
+    username: string;
+  }) => {
+    if (socialBusy) return;
+    const url =
+      s.profileUrl ||
+      (s.platform === "Instagram"
+        ? `https://www.instagram.com/${s.username}/`
+        : s.platform === "TikTok"
+          ? `https://www.tiktok.com/@${s.username}`
+          : s.platform === "YouTube"
+            ? `https://www.youtube.com/@${s.username}`
+            : `https://www.facebook.com/${s.username}`);
+    setSocialBusy(true);
+    try {
+      const res = await lookupSocialProfile({
+        data: { profileUrl: url, forceRefresh: true },
+      });
+      if (!res.success) {
+        toast.error(res.message);
+        return;
+      }
+      await upsertSocialAccount({
+        platform: s.platform as any,
+        handle: res.account?.username || s.username,
+        profileUrl: res.account?.profileUrl || url,
+        followers: res.account?.followers || 0,
+        engagementRate: 0,
+        statsSource: (res.account?.statsSource as any) || "brightdata",
+      });
+      toast.success(res.message || "Stats updated");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Refresh failed");
     } finally {
       setSocialBusy(false);
     }
@@ -305,6 +365,33 @@ function Profile() {
           title="Social accounts"
           hint="Paste a profile link — we detect the platform"
         />
+        {(creator?.socials.length ?? 0) > 0 ? (
+          <div className="mb-3 rounded-2xl border border-border bg-secondary/40 px-4 py-3">
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Social Reach
+            </p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              {creator!.socials.map((s) => (
+                <span key={`reach-${s.platform}-${s.id}`} className="text-[13px]">
+                  <span className="font-medium">{s.platform}</span>{" "}
+                  <span className="text-muted-foreground">
+                    {s.followers > 0
+                      ? formatFollowers(s.followers)
+                      : "—"}
+                  </span>
+                </span>
+              ))}
+            </div>
+            {creator!.socials.some((s) => s.followers > 0) ? (
+              <p className="mt-2 text-[12.5px] font-medium">
+                Combined followers:{" "}
+                {formatFollowers(
+                  creator!.socials.reduce((n, s) => n + (s.followers || 0), 0),
+                )}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {(creator?.socials.length ?? 0) === 0 ? (
           <EmptyState
             title="No social accounts yet"
@@ -336,10 +423,21 @@ function Profile() {
                       {s.followers > 0 ? (
                         <p className="mt-1 text-[11.5px] text-muted-foreground">
                           {formatFollowers(s.followers)}{" "}
-                          {s.platform === "YouTube" ? "subscribers" : "followers"} · Self-reported
+                          {s.platform === "YouTube" ? "subscribers" : "followers"}
+                          {" · "}
+                          {s.statsSource === "brightdata"
+                            ? "Connected"
+                            : s.statsSource === "self_reported"
+                              ? "Self-reported"
+                              : "Connected"}
+                          {formatUpdatedAt(s.lastSyncedAt)
+                            ? ` · ${formatUpdatedAt(s.lastSyncedAt)}`
+                            : ""}
                         </p>
                       ) : (
-                        <p className="mt-1 text-[11.5px] text-muted-foreground">Added</p>
+                        <p className="mt-1 text-[11.5px] text-muted-foreground">
+                          {s.syncStatus === "error" ? "Stats unavailable · " : ""}Connected
+                        </p>
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
@@ -353,6 +451,16 @@ function Profile() {
                           View ↗
                         </a>
                       ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={socialBusy}
+                        className="text-[12px] font-semibold"
+                        onClick={() => void refreshSocial(s)}
+                      >
+                        Refresh
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
