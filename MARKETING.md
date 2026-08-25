@@ -47,7 +47,6 @@ https://nepcollab.vercel.app
 - [ ] Magic-link email works for your domain (test with your Gmail)
 - [ ] Site URL + redirect allow-list in Supabase Auth
 - [ ] Share 3 campaign links from Discover
-- [ ] Share 1 creator profile from /creators
 - [ ] Invite 5 creators + 3 brand contacts personally
 - [ ] Pin help link: /help
 

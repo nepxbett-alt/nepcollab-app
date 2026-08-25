@@ -334,25 +334,21 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           .eq("visibility", "public")
           .order("created_at", { ascending: false })
           .limit(100);
+        // Privacy: guests never load creator profiles — only brands tied to public campaigns.
         const brandIds = [...new Set((campaignRows ?? []).map((r: any) => r.brand_id).filter(Boolean))];
-        const [{ data: brandRows }, { data: profiles }, { data: creatorProfiles }, { data: creatorRows }] =
-          await Promise.all([
+        const [{ data: brandRows }, { data: profiles }] = await Promise.all([
           brandIds.length
             ? db.from("brand_profiles").select("user_id, business_name, category, website").in("user_id", brandIds)
             : Promise.resolve({ data: [] as any[] }),
           brandIds.length
             ? db.from("profiles").select("id, full_name, avatar_url, bio, location, verified, rating, response_rate").in("id", brandIds)
             : Promise.resolve({ data: [] as any[] }),
-          db.from("creator_profiles").select("user_id, niches, platforms, followers, engagement_rate, languages, featured").limit(120),
-          db.from("profiles").select("id, full_name, username, avatar_url, bio, location, verified, rating, review_count, response_rate, onboarded").eq("role", "creator").eq("onboarded", true).limit(120),
         ]);
         const pm = new Map((profiles ?? []).map((p: any) => [p.id, p]));
         const bm = new Map((brandRows ?? []).map((b: any) => [b.user_id, b]));
-        const cm = new Map((creatorProfiles ?? []).map((c: any) => [c.user_id, c]));
-        const creators = (creatorRows ?? []).map((p: any) => mapCreator(p, cm.get(p.id), []));
         setLookupData(
           brandIds.map((id) => mapBrand(pm.get(id) ?? { id }, bm.get(id))),
-          creators,
+          [], // no public creator catalog
         );
         setState({
           ...initial,
@@ -602,6 +598,28 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       sentAt: i.created_at?.slice(0, 10) ?? today(),
     }));
 
+    // Relationship-scoped IDs only — never load the full creator catalog client-side.
+    const relatedCreatorIds = [
+      ...new Set<string>(
+        [
+          ...(appRows ?? []).map((r: any) => r.creator_id),
+          ...(collabRows ?? []).map((r: any) => r.creator_id),
+          ...(inviteRows ?? []).map((r: any) => r.creator_id),
+          // self if this account is a creator
+          me?.role === "creator" || me?.role === "admin" ? uid : null,
+        ].filter(Boolean) as string[],
+      ),
+    ];
+    const relatedBrandIds = [
+      ...new Set<string>(
+        [
+          ...(campaignRows ?? []).map((r: any) => r.brand_id),
+          ...(collabRows ?? []).map((r: any) => r.brand_id),
+          me?.role === "brand" || me?.role === "admin" ? uid : null,
+        ].filter(Boolean) as string[],
+      ),
+    ];
+
     const [
       { data: brandRows },
       { data: creatorRows },
@@ -609,29 +627,57 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       { data: portfolioRows },
       { data: reviewRows },
     ] = await Promise.all([
-      db.from("brand_profiles").select("user_id, business_name, category, website, social_url, team_size, featured").limit(200),
-      db.from("creator_profiles").select("user_id, niches, platforms, followers, engagement_rate, languages, availability, portfolio_urls, media_kit_url, social_verified, featured, starting_rate, average_views").limit(200),
-      db.from("social_accounts").select("id, user_id, platform, handle, followers, engagement_rate, verified").limit(200),
-      db
-        .from("portfolio_items")
-        .select("id, creator_id, title, description, media_path, thumbnail_path, external_url, platform, category, created_at")
-        .order("sort_order", { ascending: true })
-        .limit(500),
-      db
-        .from("reviews")
-        .select("id, collaboration_id, reviewer_id, reviewee_id, rating, comment, created_at")
-        .order("created_at", { ascending: false })
-        .limit(500),
+      relatedBrandIds.length
+        ? db
+            .from("brand_profiles")
+            .select("user_id, business_name, category, website, social_url, team_size, featured")
+            .in("user_id", relatedBrandIds)
+        : Promise.resolve({ data: [] as any[] }),
+      relatedCreatorIds.length
+        ? db
+            .from("creator_profiles")
+            .select(
+              "user_id, niches, platforms, followers, engagement_rate, languages, availability, portfolio_urls, media_kit_url, social_verified, featured, starting_rate, average_views",
+            )
+            .in("user_id", relatedCreatorIds)
+        : Promise.resolve({ data: [] as any[] }),
+      relatedCreatorIds.length
+        ? db
+            .from("social_accounts")
+            .select("id, user_id, platform, handle, followers, engagement_rate, verified")
+            .in("user_id", relatedCreatorIds)
+        : Promise.resolve({ data: [] as any[] }),
+      relatedCreatorIds.length
+        ? db
+            .from("portfolio_items")
+            .select(
+              "id, creator_id, title, description, media_path, thumbnail_path, external_url, platform, category, created_at",
+            )
+            .in("creator_id", relatedCreatorIds)
+            .order("sort_order", { ascending: true })
+            .limit(200)
+        : Promise.resolve({ data: [] as any[] }),
+      relatedCreatorIds.length
+        ? db
+            .from("reviews")
+            .select("id, collaboration_id, reviewer_id, reviewee_id, rating, comment, created_at")
+            .or(
+              relatedCreatorIds
+                .map((id) => `reviewee_id.eq.${id}`)
+                .concat(relatedCreatorIds.map((id) => `reviewer_id.eq.${id}`))
+                .join(","),
+            )
+            .order("created_at", { ascending: false })
+            .limit(200)
+        : Promise.resolve({ data: [] as any[] }),
     ]);
 
     const ids = [
       ...new Set<string>([
-        ...(campaignRows ?? []).map((r: any) => r.brand_id),
-        ...(appRows ?? []).map((r: any) => r.creator_id),
-        ...(collabRows ?? []).map((r: any) => r.creator_id),
-        ...(brandRows ?? []).map((r: any) => r.user_id),
-        ...(creatorRows ?? []).map((r: any) => r.user_id),
+        ...relatedBrandIds,
+        ...relatedCreatorIds,
         ...(reviewRows ?? []).map((r: any) => r.reviewer_id),
+        ...(reviewRows ?? []).map((r: any) => r.reviewee_id),
         uid,
       ].filter(Boolean)),
     ];

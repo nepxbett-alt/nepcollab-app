@@ -198,10 +198,10 @@ function BrandDashboard() {
 
       <div className="mt-8 flex flex-wrap gap-2">
         <Link
-          to="/creators"
+          to="/brand/applicants"
           className="tap inline-flex h-11 items-center rounded-full border border-border px-4 text-sm font-semibold"
         >
-          Browse creators
+          Review applicants
         </Link>
         <Link
           to="/messages"

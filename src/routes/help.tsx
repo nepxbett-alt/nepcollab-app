@@ -33,8 +33,8 @@ function HelpPage() {
         <section>
           <h2 className="font-semibold">Brands</h2>
           <p className="mt-1 text-muted-foreground">
-            <Link to="/brand/campaigns/new" className="text-signal underline">Publish a campaign</Link>, review applicants, message selected creators. Browse the{" "}
-            <Link to="/creators" className="text-signal underline">creator directory</Link>.
+            <Link to="/brand/campaigns/new" className="text-signal underline">Publish a campaign</Link>, review applicants, and message selected creators.
+            Creators appear only through applications to your opportunities—not a public directory.
           </p>
         </section>
         <section>

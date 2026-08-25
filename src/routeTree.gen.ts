@@ -40,8 +40,6 @@ import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
 import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
 import { Route as CollaborationsIndexRouteImport } from './routes/collaborations.index'
 import { Route as CollaborationsCollabIdRouteImport } from './routes/collaborations.$collabId'
-import { Route as CreatorsIndexRouteImport } from './routes/creators.index'
-import { Route as CreatorsCreatorIdRouteImport } from './routes/creators.$creatorId'
 import { Route as BrandCampaignsIndexRouteImport } from './routes/brand.campaigns.index'
 import { Route as BrandCampaignsNewRouteImport } from './routes/brand.campaigns.new'
 import { Route as CampaignsCampaignIdIndexRouteImport } from './routes/campaigns.$campaignId.index'
@@ -202,16 +200,6 @@ const CollaborationsCollabIdRoute = CollaborationsCollabIdRouteImport.update({
   path: '/collaborations/$collabId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CreatorsIndexRoute = CreatorsIndexRouteImport.update({
-  id: '/creators/',
-  path: '/creators/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CreatorsCreatorIdRoute = CreatorsCreatorIdRouteImport.update({
-  id: '/creators/$creatorId',
-  path: '/creators/$creatorId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const BrandCampaignsIndexRoute = BrandCampaignsIndexRouteImport.update({
   id: '/brand/campaigns/',
   path: '/brand/campaigns/',
@@ -263,12 +251,10 @@ export interface FileRoutesByFullPath {
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
-  '/creators/$creatorId': typeof CreatorsCreatorIdRoute
   '/admin/': typeof AdminIndexRoute
   '/brand/': typeof BrandIndexRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/collaborations/': typeof CollaborationsIndexRoute
-  '/creators/': typeof CreatorsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
   '/campaigns/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
   '/brand/campaigns/': typeof BrandCampaignsIndexRoute
@@ -301,12 +287,10 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
-  '/creators/$creatorId': typeof CreatorsCreatorIdRoute
   '/admin': typeof AdminIndexRoute
   '/brand': typeof BrandIndexRoute
   '/campaigns': typeof CampaignsIndexRoute
   '/collaborations': typeof CollaborationsIndexRoute
-  '/creators': typeof CreatorsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
   '/campaigns/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
   '/brand/campaigns': typeof BrandCampaignsIndexRoute
@@ -341,12 +325,10 @@ export interface FileRoutesById {
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
-  '/creators/$creatorId': typeof CreatorsCreatorIdRoute
   '/admin/': typeof AdminIndexRoute
   '/brand/': typeof BrandIndexRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/collaborations/': typeof CollaborationsIndexRoute
-  '/creators/': typeof CreatorsIndexRoute
   '/brand/campaigns/new': typeof BrandCampaignsNewRoute
   '/campaigns_/$campaignId/apply': typeof CampaignsCampaignIdApplyRoute
   '/brand/campaigns/': typeof BrandCampaignsIndexRoute
@@ -382,12 +364,10 @@ export interface FileRouteTypes {
     | '/brand/applicants'
     | '/campaigns/$campaignId'
     | '/collaborations/$collabId'
-    | '/creators/$creatorId'
     | '/admin/'
     | '/brand/'
     | '/campaigns/'
     | '/collaborations/'
-    | '/creators/'
     | '/brand/campaigns/new'
     | '/campaigns/$campaignId/apply'
     | '/brand/campaigns/'
@@ -420,12 +400,10 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/brand/applicants'
     | '/collaborations/$collabId'
-    | '/creators/$creatorId'
     | '/admin'
     | '/brand'
     | '/campaigns'
     | '/collaborations'
-    | '/creators'
     | '/brand/campaigns/new'
     | '/campaigns/$campaignId/apply'
     | '/brand/campaigns'
@@ -459,12 +437,10 @@ export interface FileRouteTypes {
     | '/brand/applicants'
     | '/campaigns/$campaignId'
     | '/collaborations/$collabId'
-    | '/creators/$creatorId'
     | '/admin/'
     | '/brand/'
     | '/campaigns/'
     | '/collaborations/'
-    | '/creators/'
     | '/brand/campaigns/new'
     | '/campaigns_/$campaignId/apply'
     | '/brand/campaigns/'
@@ -498,12 +474,10 @@ export interface RootRouteChildren {
   BrandApplicantsRoute: typeof BrandApplicantsRoute
   CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRouteWithChildren
   CollaborationsCollabIdRoute: typeof CollaborationsCollabIdRoute
-  CreatorsCreatorIdRoute: typeof CreatorsCreatorIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
   BrandIndexRoute: typeof BrandIndexRoute
   CampaignsIndexRoute: typeof CampaignsIndexRoute
   CollaborationsIndexRoute: typeof CollaborationsIndexRoute
-  CreatorsIndexRoute: typeof CreatorsIndexRoute
   BrandCampaignsNewRoute: typeof BrandCampaignsNewRoute
   CampaignsCampaignIdApplyRoute: typeof CampaignsCampaignIdApplyRoute
   BrandCampaignsIndexRoute: typeof BrandCampaignsIndexRoute
@@ -728,20 +702,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollaborationsCollabIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/creators/': {
-      id: '/creators/'
-      path: '/creators'
-      fullPath: '/creators/'
-      preLoaderRoute: typeof CreatorsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/creators/$creatorId': {
-      id: '/creators/$creatorId'
-      path: '/creators/$creatorId'
-      fullPath: '/creators/$creatorId'
-      preLoaderRoute: typeof CreatorsCreatorIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/brand/campaigns/': {
       id: '/brand/campaigns/'
       path: '/brand/campaigns'
@@ -821,12 +781,10 @@ const rootRouteChildren: RootRouteChildren = {
   BrandApplicantsRoute: BrandApplicantsRoute,
   CampaignsCampaignIdRoute: CampaignsCampaignIdRouteWithChildren,
   CollaborationsCollabIdRoute: CollaborationsCollabIdRoute,
-  CreatorsCreatorIdRoute: CreatorsCreatorIdRoute,
   AdminIndexRoute: AdminIndexRoute,
   BrandIndexRoute: BrandIndexRoute,
   CampaignsIndexRoute: CampaignsIndexRoute,
   CollaborationsIndexRoute: CollaborationsIndexRoute,
-  CreatorsIndexRoute: CreatorsIndexRoute,
   BrandCampaignsNewRoute: BrandCampaignsNewRoute,
   CampaignsCampaignIdApplyRoute: CampaignsCampaignIdApplyRoute,
   BrandCampaignsIndexRoute: BrandCampaignsIndexRoute,
