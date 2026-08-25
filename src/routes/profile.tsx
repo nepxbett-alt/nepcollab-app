@@ -18,7 +18,11 @@ import {
   type ParsedSocialUrl,
   type SocialPlatform,
 } from "@/lib/social-url";
-import { lookupSocialProfile } from "@/lib/social-lookup";
+import {
+  confirmSocialVerification,
+  lookupSocialProfile,
+  startSocialVerification,
+} from "@/lib/social-lookup";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { Platform } from "@/data/types";
@@ -114,6 +118,11 @@ function Profile() {
   const [followers, setFollowers] = useState("");
   const [socialBusy, setSocialBusy] = useState(false);
   const [lookupFailed, setLookupFailed] = useState(false);
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [activeVerify, setActiveVerify] = useState<{
+    platform: string;
+    code: string;
+  } | null>(null);
 
   const resetSocialForm = () => {
     setSocialPlatform("Instagram");
@@ -284,6 +293,59 @@ function Profile() {
     }
   };
 
+  const startVerify = async (platform: string) => {
+    if (verifyBusy) return;
+    setVerifyBusy(true);
+    try {
+      const res = await startSocialVerification({ data: { platform } });
+      if (!res.success) {
+        toast.error(res.message || "Could not start verification");
+        return;
+      }
+      if (res.alreadyVerified) {
+        toast.success("Already verified");
+        return;
+      }
+      if (res.code) {
+        setActiveVerify({ platform, code: res.code });
+        toast.message(`Add ${res.code} to your ${platform} bio`);
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setVerifyBusy(false);
+    }
+  };
+
+  const confirmVerify = async (platform: string) => {
+    if (verifyBusy) return;
+    setVerifyBusy(true);
+    try {
+      const res = await confirmSocialVerification({ data: { platform } });
+      if (!res.success) {
+        toast.error(res.message || "Not verified yet");
+        return;
+      }
+      toast.success(res.message || "Verified");
+      setActiveVerify(null);
+      const existing = creator?.socials.find((s) => s.platform === platform);
+      if (existing) {
+        await upsertSocialAccount({
+          platform: platform as any,
+          handle: existing.username,
+          profileUrl: existing.profileUrl,
+          followers: res.followers || existing.followers || 0,
+          engagementRate: existing.engagement || 0,
+          statsSource: "verified",
+        });
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setVerifyBusy(false);
+    }
+  };
+
   const removeSocial = async (id?: string, label?: string) => {
     if (!id) {
       toast.error("This account cannot be removed yet.");
@@ -448,39 +510,81 @@ function Profile() {
       <div className="mt-8">
         <SectionHeader
           title="Social accounts"
-          hint="Paste a profile link — we detect the platform"
+          hint="Add handles to show live reach. Verify ownership with a short bio code."
         />
+
         {(creator?.socials.length ?? 0) > 0 ? (
-          <div className="mb-3 rounded-2xl border border-border bg-secondary/40 px-4 py-3">
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Social Reach
-            </p>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              {creator!.socials.map((s) => (
-                <span key={`reach-${s.platform}-${s.id}`} className="text-[13px]">
-                  <span className="font-medium">{s.platform}</span>{" "}
-                  <span className="text-muted-foreground">
-                    {s.followers > 0
-                      ? formatFollowers(s.followers)
-                      : "—"}
+          <>
+            {/* Total reach summary */}
+            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-2xl border border-border bg-card px-3 py-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Total reach
+                </p>
+                <p className="mt-1 text-[20px] font-bold tracking-tight">
+                  {formatFollowers(
+                    creator!.socials.reduce((n, s) => n + (s.followers || 0), 0),
+                  ) || "—"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card px-3 py-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Platforms
+                </p>
+                <p className="mt-1 text-[20px] font-bold tracking-tight">
+                  {creator!.socials.length}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card px-3 py-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Verified
+                </p>
+                <p className="mt-1 text-[20px] font-bold tracking-tight">
+                  {creator!.socials.filter((s) => s.verified || s.statsSource === "verified").length}
+                  <span className="text-[13px] font-medium text-muted-foreground">
+                    /{creator!.socials.length}
                   </span>
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card px-3 py-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Live stats
+                </p>
+                <p className="mt-1 text-[20px] font-bold tracking-tight">
+                  {
+                    creator!.socials.filter(
+                      (s) =>
+                        s.statsSource === "brightdata" ||
+                        s.statsSource === "verified" ||
+                        s.statsSource === "public",
+                    ).length
+                  }
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {creator!.socials.map((s) => (
+                <span
+                  key={`chip-${s.platform}-${s.username}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11.5px] font-medium"
+                >
+                  {s.platform}
+                  {s.followers > 0 ? (
+                    <span className="text-muted-foreground">
+                      · {formatFollowers(s.followers)}
+                    </span>
+                  ) : null}
                 </span>
               ))}
             </div>
-            {creator!.socials.some((s) => s.followers > 0) ? (
-              <p className="mt-2 text-[12.5px] font-medium">
-                Combined followers:{" "}
-                {formatFollowers(
-                  creator!.socials.reduce((n, s) => n + (s.followers || 0), 0),
-                )}
-              </p>
-            ) : null}
-          </div>
+          </>
         ) : null}
+
         {(creator?.socials.length ?? 0) === 0 ? (
           <EmptyState
             title="No social accounts yet"
-            body="Add Instagram, TikTok, YouTube or Facebook so brands can open your real profiles."
+            body="Add Instagram, TikTok, YouTube or Facebook so brands can see your real reach."
           />
         ) : (
           <ul className="space-y-2.5">
@@ -496,6 +600,20 @@ function Profile() {
                       : s.platform === "Facebook"
                         ? `https://www.facebook.com/${s.username}`
                         : undefined);
+              const isVerified = s.verified || s.statsSource === "verified";
+              const sourceLabel = isVerified
+                ? "Verified owner"
+                : s.statsSource === "brightdata" || s.statsSource === "public"
+                  ? "Live stats"
+                  : s.statsSource === "self_reported"
+                    ? "Self-reported"
+                    : s.followers > 0
+                      ? "Connected"
+                      : "Stats pending";
+              const showVerifyPanel =
+                activeVerify?.platform === s.platform ||
+                (!!s.verifyCode && !isVerified);
+
               return (
                 <li
                   key={`${s.platform}-${s.username}-${s.id ?? ""}`}
@@ -503,29 +621,55 @@ function Profile() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[14px] font-semibold">{s.platform}</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="text-[14px] font-semibold">{s.platform}</p>
+                        {isVerified ? (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-signal/15 px-1.5 py-0.5 text-[10px] font-semibold text-signal">
+                            <BadgeCheck className="size-3" /> Verified
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="truncate text-[13px] text-muted-foreground">@{s.username}</p>
-                      {s.followers > 0 ? (
-                        <p className="mt-1 text-[11.5px] text-muted-foreground">
-                          {formatFollowers(s.followers)}{" "}
-                          {s.platform === "YouTube" ? "subscribers" : "followers"}
-                          {" · "}
-                          {s.statsSource === "brightdata"
-                            ? "Connected"
-                            : s.statsSource === "self_reported"
-                              ? "Self-reported"
-                              : "Connected"}
-                          {formatUpdatedAt(s.lastSyncedAt)
-                            ? ` · ${formatUpdatedAt(s.lastSyncedAt)}`
-                            : ""}
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-[11.5px] text-muted-foreground">
-                          {s.syncStatus === "error" ? "Stats unavailable · " : ""}Connected
-                        </p>
-                      )}
+                      {s.displayName ? (
+                        <p className="truncate text-[12px] text-muted-foreground">{s.displayName}</p>
+                      ) : null}
+
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px]">
+                        <span className="font-semibold">
+                          {s.followers > 0 ? formatFollowers(s.followers) : "—"}{" "}
+                          <span className="font-normal text-muted-foreground">
+                            {s.platform === "YouTube" ? "subscribers" : "followers"}
+                          </span>
+                        </span>
+                        {typeof s.followingCount === "number" && s.followingCount > 0 ? (
+                          <span className="text-muted-foreground">
+                            {formatFollowers(s.followingCount)} following
+                          </span>
+                        ) : null}
+                        {typeof s.postCount === "number" && s.postCount > 0 ? (
+                          <span className="text-muted-foreground">
+                            {formatFollowers(s.postCount)} posts
+                          </span>
+                        ) : null}
+                        {typeof s.videoCount === "number" && s.videoCount > 0 ? (
+                          <span className="text-muted-foreground">
+                            {formatFollowers(s.videoCount)} videos
+                          </span>
+                        ) : null}
+                        {s.engagement > 0 ? (
+                          <span className="text-muted-foreground">
+                            {s.engagement.toFixed(1)}% eng.
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {sourceLabel}
+                        {formatUpdatedAt(s.lastSyncedAt)
+                          ? ` · ${formatUpdatedAt(s.lastSyncedAt)}`
+                          : ""}
+                      </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="flex shrink-0 flex-col items-end gap-1">
                       {href ? (
                         <a
                           href={href}
@@ -540,12 +684,24 @@ function Profile() {
                         type="button"
                         size="sm"
                         variant="ghost"
-                        disabled={socialBusy}
-                        className="text-[12px] font-semibold"
+                        disabled={socialBusy || verifyBusy}
+                        className="h-8 text-[12px] font-semibold"
                         onClick={() => void refreshSocial(s)}
                       >
                         Refresh
                       </Button>
+                      {!isVerified ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={socialBusy || verifyBusy}
+                          className="h-8 text-[12px] font-semibold text-signal"
+                          onClick={() => void startVerify(s.platform)}
+                        >
+                          Verify
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         size="sm"
@@ -558,6 +714,48 @@ function Profile() {
                       </Button>
                     </div>
                   </div>
+
+                  {showVerifyPanel ? (
+                    <div className="mt-3 rounded-xl border border-signal/30 bg-accent/40 px-3 py-2.5">
+                      <p className="text-[12.5px] font-semibold text-signal">
+                        Prove it&apos;s yours (30 seconds)
+                      </p>
+                      <p className="mt-1 text-[12px] text-muted-foreground">
+                        1. Open {s.platform} and edit your bio
+                        <br />
+                        2. Add this code anywhere in the bio:{" "}
+                        <span className="font-mono font-bold text-foreground">
+                          {activeVerify?.code || s.verifyCode}
+                        </span>
+                        <br />
+                        3. Save, wait ~1 minute, then tap below
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-9 rounded-full bg-signal text-signal-foreground hover:bg-signal/90"
+                          disabled={verifyBusy}
+                          onClick={() => void confirmVerify(s.platform)}
+                        >
+                          {verifyBusy ? "Checking…" : "I've added it — Verify"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-9"
+                          disabled={verifyBusy}
+                          onClick={() => setActiveVerify(null)}
+                        >
+                          Later
+                        </Button>
+                      </div>
+                      <p className="mt-2 text-[10.5px] text-muted-foreground">
+                        You can remove the code after verification. We only read public profile info.
+                      </p>
+                    </div>
+                  ) : null}
                 </li>
               );
             })}

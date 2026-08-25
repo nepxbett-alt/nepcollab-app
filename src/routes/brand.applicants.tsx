@@ -177,7 +177,7 @@ function Applicants() {
                           ) : null}
                           {s.followers > 0 ? (
                             <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
-                              {formatFollowers(s.followers)} · Self-reported
+                              {formatFollowers(s.followers)} · {s.verified || s.statsSource === "verified" ? "Verified" : s.statsSource === "brightdata" || s.statsSource === "public" ? "Live" : "Self-reported"}
                             </span>
                           ) : null}
                         </span>

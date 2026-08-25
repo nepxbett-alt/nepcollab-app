@@ -61,6 +61,12 @@ export interface SocialAccount {
   lastSyncedAt?: string;
   syncStatus?: string;
   subscriberCount?: number;
+  followingCount?: number;
+  postCount?: number;
+  videoCount?: number;
+  /** Ownership verification pending code (creator-only, not shown to brands). */
+  verifyCode?: string;
+  verifyExpiresAt?: string;
 }
 
 export interface PortfolioItem {

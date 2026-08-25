@@ -294,6 +294,11 @@ const mapCreator = (
       } catch {
         /* ignore */
       }
+      const followersNum =
+        Number(s.followers) ||
+        Number(packed["followers"]) ||
+        Number(packed["subscriber_count"]) ||
+        0;
       return {
         id: s.id,
         platform: s.platform,
@@ -302,16 +307,25 @@ const mapCreator = (
         displayName: s.display_name || packed["display_name"] || undefined,
         bio: s.bio || packed["bio"] || undefined,
         avatarUrl: s.avatar_url || packed["avatar_url"] || undefined,
-        followers: s.followers ?? 0,
-        engagement: Number(s.engagement_rate ?? s.engagement ?? 0),
-        verified: Boolean(s.verified),
+        followers: followersNum,
+        engagement: Number(s.engagement_rate ?? packed["engagement_rate"] ?? s.engagement ?? 0),
+        verified: Boolean(s.verified || packed["verified"]),
         statsSource:
           s.stats_source ||
           packed["stats_source"] ||
-          (s.verified ? "verified" : s.followers ? "self_reported" : undefined),
+          (s.verified || packed["verified"]
+            ? "verified"
+            : followersNum
+              ? "self_reported"
+              : undefined),
         lastSyncedAt: s.last_synced_at || packed["last_synced_at"] || undefined,
         syncStatus: s.sync_status || packed["sync_status"] || undefined,
         subscriberCount: s.subscriber_count ?? packed["subscriber_count"] ?? undefined,
+        followingCount: s.following_count ?? packed["following_count"] ?? undefined,
+        postCount: s.post_count ?? packed["post_count"] ?? undefined,
+        videoCount: s.video_count ?? packed["video_count"] ?? undefined,
+        verifyCode: packed["verify_code"] || undefined,
+        verifyExpiresAt: packed["verify_expires_at"] || undefined,
       };
     }) as any,
     portfolio: portfolioRows.map((item: any) => ({
@@ -1534,10 +1548,37 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const profileUrl = input.profileUrl || null;
         const { data: existing } = await db
           .from("social_accounts")
-          .select("id")
+          .select("id, access_token_encrypted, followers")
           .eq("user_id", uid)
           .eq("platform", platform)
           .maybeSingle();
+
+        let prevMeta: Record<string, unknown> = {};
+        try {
+          const raw = existing?.access_token_encrypted;
+          if (typeof raw === "string" && raw.startsWith("{")) {
+            const parsed = JSON.parse(raw);
+            if (parsed?.v === 1) prevMeta = parsed;
+          }
+        } catch {
+          /* ignore */
+        }
+
+        const meta = {
+          ...prevMeta,
+          v: 1 as const,
+          followers,
+          stats_source:
+            input.statsSource ||
+            prevMeta["stats_source"] ||
+            (followers > 0 ? "self_reported" : null),
+          last_synced_at: new Date().toISOString(),
+          sync_status:
+            input.statsSource === "brightdata" || input.statsSource === "verified"
+              ? "ok"
+              : prevMeta["sync_status"] || "pending",
+        };
+
         if (existing?.id) {
           const { error } = await db
             .from("social_accounts")
@@ -1546,16 +1587,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
               followers,
               engagement_rate: engagementRate,
               profile_url: profileUrl,
-              ...(input.statsSource
-                ? {
-                    access_token_encrypted: JSON.stringify({
-                      v: 1,
-                      stats_source: input.statsSource,
-                      last_synced_at: new Date().toISOString(),
-                      sync_status: input.statsSource === "brightdata" ? "ok" : "pending",
-                    }),
-                  }
-                : {}),
+              access_token_encrypted: JSON.stringify(meta),
             })
             .eq("id", existing.id)
             .eq("user_id", uid);
@@ -1569,11 +1601,26 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             engagement_rate: engagementRate,
             profile_url: profileUrl,
             verified: false,
+            access_token_encrypted: JSON.stringify(meta),
           });
           if (error) throw new Error(error.message);
         }
-        if (followers > 0) {
-          await db.from("creator_profiles").update({ followers }).eq("user_id", uid);
+
+        // Roll up total reach across all linked accounts
+        try {
+          const { data: allSocials } = await db
+            .from("social_accounts")
+            .select("followers")
+            .eq("user_id", uid);
+          const total = (allSocials ?? []).reduce(
+            (n: number, r: any) => n + (Number(r.followers) || 0),
+            0,
+          );
+          if (total > 0) {
+            await db.from("creator_profiles").update({ followers: total }).eq("user_id", uid);
+          }
+        } catch {
+          /* ignore */
         }
         await load(uid);
       },

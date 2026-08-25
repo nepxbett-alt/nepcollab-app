@@ -48,16 +48,21 @@ type PackedMeta = {
   display_name?: string | null;
   bio?: string | null;
   avatar_url?: string | null;
+  followers?: number | null;
   following_count?: number | null;
   subscriber_count?: number | null;
   post_count?: number | null;
   video_count?: number | null;
   view_count?: number | null;
   like_count?: number | null;
+  engagement_rate?: number | null;
   stats_source?: string | null;
   last_synced_at?: string | null;
   sync_status?: string | null;
   sync_error?: string | null;
+  verified?: boolean | null;
+  verify_code?: string | null;
+  verify_expires_at?: string | null;
 };
 
 function isMissingColumnError(error: { message?: string; code?: string } | null): boolean {
@@ -117,16 +122,21 @@ async function upsertSocialRow(
     display_name: (fp["display_name"] as string) ?? null,
     bio: (fp["bio"] as string) ?? null,
     avatar_url: (fp["avatar_url"] as string) ?? null,
+    followers: (fp["followers"] as number) ?? null,
     following_count: (fp["following_count"] as number) ?? null,
     subscriber_count: (fp["subscriber_count"] as number) ?? null,
     post_count: (fp["post_count"] as number) ?? null,
     video_count: (fp["video_count"] as number) ?? null,
     view_count: (fp["view_count"] as number) ?? null,
     like_count: (fp["like_count"] as number) ?? null,
+    engagement_rate: (fp["engagement_rate"] as number) ?? null,
     stats_source: (fp["stats_source"] as string) ?? null,
     last_synced_at: (fp["last_synced_at"] as string) ?? null,
     sync_status: (fp["sync_status"] as string) ?? null,
     sync_error: (fp["sync_error"] as string) ?? null,
+    verified: (fp["verified"] as boolean) ?? null,
+    verify_code: (fp["verify_code"] as string) ?? null,
+    verify_expires_at: (fp["verify_expires_at"] as string) ?? null,
   };
 
   const corePayload: Record<string, unknown> = {
@@ -418,12 +428,20 @@ export const lookupSocialProfile = createServerFn({ method: "POST" })
     if (bd.ok) {
       const d = bd.data;
       const audience = d.platform === "YouTube" ? d.subscriberCount : d.followerCount;
-      if (typeof audience === "number" && audience > 0) {
-        try {
-          await supabase.from("creator_profiles").update({ followers: audience }).eq("user_id", userId);
-        } catch {
-          /* ignore */
+      try {
+        const { data: allSocials } = await supabase
+          .from("social_accounts")
+          .select("followers")
+          .eq("user_id", userId);
+        const total = (allSocials ?? []).reduce(
+          (n: number, r: any) => n + (Number(r.followers) || 0),
+          0,
+        );
+        if (total > 0) {
+          await supabase.from("creator_profiles").update({ followers: total }).eq("user_id", userId);
         }
+      } catch {
+        /* ignore */
       }
       return {
         success: true,
@@ -458,5 +476,203 @@ export const lookupSocialProfile = createServerFn({ method: "POST" })
         lastSyncedAt: lastSynced,
         syncStatus: "error",
       },
+    };
+  });
+
+
+function randomVerifyCode(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < 4; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return `NC-${out}`;
+}
+
+function readPacked(row: Record<string, any>): PackedMeta {
+  try {
+    const raw = row["access_token_encrypted"];
+    if (typeof raw === "string" && raw.startsWith("{")) {
+      const p = JSON.parse(raw);
+      if (p?.v === 1) return p as PackedMeta;
+    }
+  } catch {
+    /* ignore */
+  }
+  return { v: 1 };
+}
+
+/** Start ownership verification — creator adds a short code to their public bio. */
+export const startSocialVerification = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .validator((data: { platform: string }) => {
+    if (!data?.platform || typeof data.platform !== "string") {
+      throw new Error("platform is required");
+    }
+    return { platform: data.platform.trim() };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { data: row, error } = await supabase
+      .from("social_accounts")
+      .select("id, platform, handle, profile_url, followers, verified, access_token_encrypted")
+      .eq("user_id", userId)
+      .eq("platform", data.platform)
+      .maybeSingle();
+    if (error || !row) {
+      return { success: false, message: "Connect this social account first." };
+    }
+    if (row.verified) {
+      return { success: true, message: "Already verified.", code: null, alreadyVerified: true };
+    }
+    const code = randomVerifyCode();
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const meta = {
+      ...readPacked(row),
+      v: 1 as const,
+      verify_code: code,
+      verify_expires_at: expires,
+      followers: row.followers ?? null,
+    };
+    const { error: upErr } = await supabase
+      .from("social_accounts")
+      .update({ access_token_encrypted: JSON.stringify(meta) })
+      .eq("id", row.id)
+      .eq("user_id", userId);
+    if (upErr) return { success: false, message: upErr.message };
+    return {
+      success: true,
+      message: "Add this code to your bio, then tap Verify.",
+      code,
+      handle: row.handle,
+      platform: row.platform,
+      expiresAt: expires,
+      alreadyVerified: false,
+    };
+  });
+
+/**
+ * Confirm ownership: re-fetch public profile via Bright Data and check bio contains the code.
+ * Easiest V1 method — no OAuth, no passwords.
+ */
+export const confirmSocialVerification = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .validator((data: { platform: string }) => {
+    if (!data?.platform || typeof data.platform !== "string") {
+      throw new Error("platform is required");
+    }
+    return { platform: data.platform.trim() };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { data: row, error } = await supabase
+      .from("social_accounts")
+      .select("id, platform, handle, profile_url, followers, verified, access_token_encrypted")
+      .eq("user_id", userId)
+      .eq("platform", data.platform)
+      .maybeSingle();
+    if (error || !row) {
+      return { success: false, message: "Account not found." };
+    }
+    if (row.verified) {
+      return { success: true, message: "Already verified." };
+    }
+    const meta = readPacked(row);
+    const code = meta.verify_code;
+    const expires = meta.verify_expires_at;
+    if (!code) {
+      return { success: false, message: "Start verification first to get your code." };
+    }
+    if (expires && new Date(expires).getTime() < Date.now()) {
+      return { success: false, message: "Code expired. Start verification again." };
+    }
+    if (!isSocialPlatform(row.platform)) {
+      return { success: false, message: "Unsupported platform." };
+    }
+    const profileUrl =
+      row.profile_url ||
+      buildSocialFromHandle(row.platform, row.handle)?.profileUrl ||
+      "";
+    if (!profileUrl) {
+      return { success: false, message: "Missing profile URL." };
+    }
+
+    const bd = await fetchSocialProfileFromBrightData(row.platform, profileUrl, row.handle);
+    if (!bd.ok) {
+      return {
+        success: false,
+        message: `Could not read public profile (${bd.error}). Try again in a minute.`,
+      };
+    }
+    const bio = (bd.data.bio || "").toLowerCase();
+    const codeLc = code.toLowerCase();
+    if (!bio.includes(codeLc)) {
+      return {
+        success: false,
+        message: `We couldn't find ${code} in your ${row.platform} bio yet. Add it, wait a minute, then try again.`,
+      };
+    }
+
+    const audience =
+      bd.data.platform === "YouTube" ? bd.data.subscriberCount : bd.data.followerCount;
+    const now = new Date().toISOString();
+    const nextMeta: PackedMeta = {
+      ...meta,
+      v: 1,
+      verified: true,
+      verify_code: null,
+      verify_expires_at: null,
+      display_name: bd.data.displayName,
+      bio: bd.data.bio,
+      avatar_url: bd.data.avatarUrl,
+      followers: audience,
+      following_count: bd.data.followingCount,
+      subscriber_count: bd.data.subscriberCount,
+      post_count: bd.data.postCount,
+      video_count: bd.data.videoCount,
+      view_count: bd.data.viewCount,
+      like_count: bd.data.likeCount,
+      engagement_rate: bd.data.engagementRate,
+      stats_source: "verified",
+      last_synced_at: now,
+      sync_status: "ok",
+      sync_error: null,
+    };
+
+    const payload = {
+      handle: bd.data.username || row.handle,
+      profile_url: bd.data.profileUrl || profileUrl,
+      followers: audience ?? row.followers,
+      engagement_rate: bd.data.engagementRate ?? null,
+      verified: true,
+      access_token_encrypted: JSON.stringify(nextMeta),
+    };
+    const { error: upErr } = await supabase
+      .from("social_accounts")
+      .update(payload)
+      .eq("id", row.id)
+      .eq("user_id", userId);
+    if (upErr) return { success: false, message: upErr.message };
+
+    try {
+      const { data: allSocials } = await supabase
+        .from("social_accounts")
+        .select("followers")
+        .eq("user_id", userId);
+      const total = (allSocials ?? []).reduce(
+        (n: number, r: any) => n + (Number(r.followers) || 0),
+        0,
+      );
+      if (total > 0) {
+        await supabase.from("creator_profiles").update({ followers: total }).eq("user_id", userId);
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return {
+      success: true,
+      message: `${row.platform} verified · ownership confirmed.`,
+      followers: audience ?? null,
     };
   });
