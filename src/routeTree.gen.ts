@@ -20,6 +20,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as VouchersRouteImport } from './routes/vouchers'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminApplicationsRouteImport } from './routes/admin.applications'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
@@ -33,6 +34,7 @@ import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminVerificationRouteImport } from './routes/admin.verification'
+import { Route as AdminVouchersRouteImport } from './routes/admin.vouchers'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as BrandIndexRouteImport } from './routes/brand.index'
 import { Route as BrandApplicantsRouteImport } from './routes/brand.applicants'
@@ -100,6 +102,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VouchersRoute = VouchersRouteImport.update({
+  id: '/vouchers',
+  path: '/vouchers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
@@ -163,6 +170,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
 const AdminVerificationRoute = AdminVerificationRouteImport.update({
   id: '/admin/verification',
   path: '/admin/verification',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminVouchersRoute = AdminVouchersRouteImport.update({
+  id: '/admin/vouchers',
+  path: '/admin/vouchers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -235,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/terms': typeof TermsRoute
+  '/vouchers': typeof VouchersRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/brands': typeof AdminBrandsRoute
@@ -247,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verification': typeof AdminVerificationRoute
+  '/admin/vouchers': typeof AdminVouchersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
@@ -272,6 +286,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/terms': typeof TermsRoute
+  '/vouchers': typeof VouchersRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/brands': typeof AdminBrandsRoute
@@ -284,6 +299,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verification': typeof AdminVerificationRoute
+  '/admin/vouchers': typeof AdminVouchersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/collaborations/$collabId': typeof CollaborationsCollabIdRoute
@@ -309,6 +325,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/terms': typeof TermsRoute
+  '/vouchers': typeof VouchersRoute
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/brands': typeof AdminBrandsRoute
@@ -321,6 +338,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verification': typeof AdminVerificationRoute
+  '/admin/vouchers': typeof AdminVouchersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/brand/applicants': typeof BrandApplicantsRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteWithChildren
@@ -348,6 +366,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/terms'
+    | '/vouchers'
     | '/admin/applications'
     | '/admin/audit'
     | '/admin/brands'
@@ -360,6 +379,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/users'
     | '/admin/verification'
+    | '/admin/vouchers'
     | '/auth/callback'
     | '/brand/applicants'
     | '/campaigns/$campaignId'
@@ -385,6 +405,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/terms'
+    | '/vouchers'
     | '/admin/applications'
     | '/admin/audit'
     | '/admin/brands'
@@ -397,6 +418,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/users'
     | '/admin/verification'
+    | '/admin/vouchers'
     | '/auth/callback'
     | '/brand/applicants'
     | '/collaborations/$collabId'
@@ -421,6 +443,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/terms'
+    | '/vouchers'
     | '/admin/applications'
     | '/admin/audit'
     | '/admin/brands'
@@ -433,6 +456,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/users'
     | '/admin/verification'
+    | '/admin/vouchers'
     | '/auth/callback'
     | '/brand/applicants'
     | '/campaigns/$campaignId'
@@ -459,6 +483,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   TermsRoute: typeof TermsRoute
+  VouchersRoute: typeof VouchersRoute
   AdminApplicationsRoute: typeof AdminApplicationsRoute
   AdminAuditRoute: typeof AdminAuditRoute
   AdminBrandsRoute: typeof AdminBrandsRoute
@@ -471,6 +496,7 @@ export interface RootRouteChildren {
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminVerificationRoute: typeof AdminVerificationRoute
+  AdminVouchersRoute: typeof AdminVouchersRoute
   BrandApplicantsRoute: typeof BrandApplicantsRoute
   CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRouteWithChildren
   CollaborationsCollabIdRoute: typeof CollaborationsCollabIdRoute
@@ -562,6 +588,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vouchers': {
+      id: '/vouchers'
+      path: '/vouchers'
+      fullPath: '/vouchers'
+      preLoaderRoute: typeof VouchersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/admin'
@@ -651,6 +684,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/verification'
       fullPath: '/admin/verification'
       preLoaderRoute: typeof AdminVerificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/vouchers': {
+      id: '/admin/vouchers'
+      path: '/admin/vouchers'
+      fullPath: '/admin/vouchers'
+      preLoaderRoute: typeof AdminVouchersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -766,6 +806,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   TermsRoute: TermsRoute,
+  VouchersRoute: VouchersRoute,
   AdminApplicationsRoute: AdminApplicationsRoute,
   AdminAuditRoute: AdminAuditRoute,
   AdminBrandsRoute: AdminBrandsRoute,
@@ -778,6 +819,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminVerificationRoute: AdminVerificationRoute,
+  AdminVouchersRoute: AdminVouchersRoute,
   BrandApplicantsRoute: BrandApplicantsRoute,
   CampaignsCampaignIdRoute: CampaignsCampaignIdRouteWithChildren,
   CollaborationsCollabIdRoute: CollaborationsCollabIdRoute,

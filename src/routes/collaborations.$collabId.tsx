@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Container } from "@/components/AppShell";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate, getBrand, getCreator } from "@/lib/lookup";
 import { useStore } from "@/lib/store";
+import { brandCreateVoucher } from "@/lib/vouchers";
 
 export const Route = createFileRoute("/collaborations/$collabId")({
   head: () => ({
@@ -34,6 +35,8 @@ function Workspace() {
   const [open, setOpen] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [link, setLink] = useState("");
+  const [voucherBusy, setVoucherBusy] = useState(false);
+  const [rewardLabel, setRewardLabel] = useState("Collaboration reward");
 
   const collab = collaborations.find((c) => c.id === collabId);
   if (!collab) {
@@ -169,6 +172,66 @@ function Workspace() {
             </li>
           ))}
         </ul>
+
+        {role === "brand" ? (
+          <div className="mt-8 rounded-2xl border border-border bg-card p-4">
+            <h2 className="text-lg font-bold">Completion voucher</h2>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              After deliverables are approved, generate a branded NepCollab voucher. Admin releases it
+              to the creator — they can download, share to story, and redeem.
+            </p>
+            <div className="mt-3">
+              <label className="text-[12px] font-medium" htmlFor="reward-label">
+                Reward label
+              </label>
+              <Input
+                id="reward-label"
+                className="mt-1.5 h-11"
+                value={rewardLabel}
+                onChange={(e) => setRewardLabel(e.target.value)}
+                placeholder="e.g. NPR 5,000 store credit"
+              />
+            </div>
+            <Button
+              type="button"
+              className="mt-3 h-11 w-full rounded-full bg-signal text-signal-foreground hover:bg-signal/90"
+              disabled={voucherBusy}
+              onClick={async () => {
+                setVoucherBusy(true);
+                try {
+                  const res = await brandCreateVoucher({
+                    data: {
+                      collaborationId: collab.id,
+                      rewardLabel: rewardLabel.trim() || "Collaboration reward",
+                    },
+                  });
+                  if (!res.success) toast.error(res.message);
+                  else toast.success(res.message);
+                } catch (err: any) {
+                  toast.error(err?.message || "Could not create voucher");
+                } finally {
+                  setVoucherBusy(false);
+                }
+              }}
+            >
+              {voucherBusy ? "Creating…" : "Generate NepCollab voucher"}
+            </Button>
+            <Link
+              to="/vouchers"
+              className="mt-2 block text-center text-[13px] font-medium text-signal underline"
+            >
+              View vouchers
+            </Link>
+          </div>
+        ) : null}
+
+        {role === "creator" ? (
+          <div className="mt-6">
+            <Link to="/vouchers" className="text-[13px] font-medium text-signal underline">
+              My vouchers & gift cards →
+            </Link>
+          </div>
+        ) : null}
       </div>
 
       <aside className="space-y-4">

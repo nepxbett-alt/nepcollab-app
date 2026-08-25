@@ -170,6 +170,7 @@ function AdminOverview() {
             <li><Link className="text-primary underline" to="/admin/disputes">Disputes</Link></li>
             <li><Link className="text-primary underline" to="/admin/content">Featured content</Link></li>
             <li><Link className="text-primary underline" to="/admin/settings">Platform settings</Link></li>
+            <li><Link className="text-primary underline" to="/admin/vouchers">Vouchers & gift cards</Link></li>
             <li><Link className="text-primary underline" to="/admin/audit">Audit log</Link></li>
           </ul>
         </section>
