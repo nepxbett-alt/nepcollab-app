@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "installCommand": "npm install",
+  "installCommand": "npm ci --no-audit --no-fund",
   "buildCommand": "npm run build",
   "regions": ["sin1"],
   "headers": [
