@@ -20,9 +20,21 @@ export function CampaignCard({
   const brand = getBrand(campaign.brandId);
   const left = daysLeft(campaign.deadline);
   const shownMatch = displayMatch(match);
-  const reward =
+  const benefitLabel =
+    (campaign as any).benefit_title ||
     campaign.giftValue?.trim() ||
-    (campaign.perks?.length ? campaign.perks.slice(0, 2).join(" · ") : "Collaboration perks");
+    (campaign.perks?.length ? campaign.perks.slice(0, 2).join(" · ") : "Non-cash benefit");
+  const deliverableHint =
+    campaign.deliverables?.length
+      ? campaign.deliverables
+          .slice(0, 2)
+          .map((d: any) => (typeof d === "string" ? d : d.title || d.contentType))
+          .filter(Boolean)
+          .join(" + ")
+      : null;
+  const reward = deliverableHint
+    ? `${benefitLabel} · You provide: ${deliverableHint}`
+    : benefitLabel;
 
   return (
     <article

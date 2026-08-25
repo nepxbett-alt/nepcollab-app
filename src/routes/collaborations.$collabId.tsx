@@ -10,6 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDate, getBrand, getCreator } from "@/lib/lookup";
 import { useStore } from "@/lib/store";
 import { brandCreateVoucher } from "@/lib/vouchers";
+import {
+  brandCommitBenefit,
+  confirmCollaborationAgreement,
+  creatorRedeemBenefit,
+  ensureCollaborationAgreement,
+  openCollabDispute,
+} from "@/lib/collab-protection";
 
 export const Route = createFileRoute("/collaborations/$collabId")({
   head: () => ({
@@ -37,6 +44,10 @@ function Workspace() {
   const [link, setLink] = useState("");
   const [voucherBusy, setVoucherBusy] = useState(false);
   const [rewardLabel, setRewardLabel] = useState("Collaboration reward");
+  const [protectionBusy, setProtectionBusy] = useState(false);
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+
 
   const collab = collaborations.find((c) => c.id === collabId);
   if (!collab) {
@@ -65,6 +76,161 @@ function Workspace() {
           </div>
           <StatusBadge status={collab.status} />
         </div>
+
+        {/* Non-cash protection timeline */}
+        <div className="mt-6 rounded-2xl border border-border bg-card p-4 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h2 className="text-[15px] font-bold">Collaboration protection</h2>
+              <p className="mt-0.5 text-[12px] text-muted-foreground">
+                Non-cash only — benefit first, deliverable next. No wallets or payouts.
+              </p>
+            </div>
+          </div>
+
+          <ol className="space-y-2 text-[13px]">
+            <li className="flex gap-2">
+              <span className="text-signal">1.</span>
+              <span>Both sides confirm agreement terms</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-signal">2.</span>
+              <span>Brand commits the benefit (product / meal / stay / etc.)</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-signal">3.</span>
+              <span>Creator redeems / receives benefit</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-signal">4.</span>
+              <span>Creator submits deliverable → brand reviews (7 days)</span>
+            </li>
+          </ol>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={protectionBusy}
+              onClick={async () => {
+                setProtectionBusy(true);
+                try {
+                  await ensureCollaborationAgreement({ data: { collaborationId: collab.id } });
+                  const res = await confirmCollaborationAgreement({
+                    data: { collaborationId: collab.id },
+                  });
+                  if (!res.success) toast.error(res.message);
+                  else toast.success(res.message);
+                } catch (e: any) {
+                  toast.error(e?.message || "Could not confirm");
+                } finally {
+                  setProtectionBusy(false);
+                }
+              }}
+            >
+              Confirm agreement
+            </Button>
+
+            {role === "brand" ? (
+              <Button
+                type="button"
+                size="sm"
+                className="bg-signal text-signal-foreground hover:bg-signal/90"
+                disabled={protectionBusy}
+                onClick={async () => {
+                  setProtectionBusy(true);
+                  try {
+                    const res = await brandCommitBenefit({
+                      data: { collaborationId: collab.id, makeAvailable: true },
+                    });
+                    if (!res.success) toast.error(res.message);
+                    else toast.success(res.message + (res.redemptionCode ? ` Code: ${res.redemptionCode}` : ""));
+                  } catch (e: any) {
+                    toast.error(e?.message || "Could not commit benefit");
+                  } finally {
+                    setProtectionBusy(false);
+                  }
+                }}
+              >
+                Commit benefit
+              </Button>
+            ) : null}
+
+            {role === "creator" ? (
+              <Button
+                type="button"
+                size="sm"
+                className="bg-signal text-signal-foreground hover:bg-signal/90"
+                disabled={protectionBusy}
+                onClick={async () => {
+                  setProtectionBusy(true);
+                  try {
+                    const res = await creatorRedeemBenefit({
+                      data: { collaborationId: collab.id },
+                    });
+                    if (!res.success) toast.error(res.message);
+                    else toast.success(res.message);
+                  } catch (e: any) {
+                    toast.error(e?.message || "Could not redeem");
+                  } finally {
+                    setProtectionBusy(false);
+                  }
+                }}
+              >
+                I received the benefit
+              </Button>
+            ) : null}
+
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={protectionBusy}
+              onClick={() => setDisputeOpen((v) => !v)}
+            >
+              Open dispute
+            </Button>
+          </div>
+
+          {disputeOpen ? (
+            <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
+              <Input
+                placeholder="Reason (required)"
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+              />
+              <Button
+                size="sm"
+                disabled={protectionBusy || !disputeReason.trim()}
+                onClick={async () => {
+                  setProtectionBusy(true);
+                  try {
+                    const res = await openCollabDispute({
+                      data: {
+                        collaborationId: collab.id,
+                        reason: disputeReason.trim(),
+                      },
+                    });
+                    if (!res.success) toast.error(res.message);
+                    else {
+                      toast.success(res.message);
+                      setDisputeOpen(false);
+                      setDisputeReason("");
+                    }
+                  } catch (e: any) {
+                    toast.error(e?.message);
+                  } finally {
+                    setProtectionBusy(false);
+                  }
+                }}
+              >
+                Submit dispute
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
 
         <h2 className="mb-3 mt-8 text-xl font-bold">Deliverables</h2>
         <ul className="space-y-3">

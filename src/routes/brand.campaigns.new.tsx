@@ -78,6 +78,11 @@ function NewCampaign() {
     niches: [] as string[],
     minFollowers: "2000",
     perks: [] as string[],
+    benefitType: "meal",
+    benefitTitle: "",
+    benefitValueDisplay: "",
+    redemptionMethod: "manual",
+
     giftValue: "",
     location: "Kathmandu",
     remote: false,
@@ -124,6 +129,10 @@ function NewCampaign() {
       toast.error("Title and description are required.");
       return;
     }
+    if (!form.benefitTitle.trim() && form.perks.length === 0) {
+      toast.error("Specify the non-cash benefit you are offering.");
+      return;
+    }
     if (form.deadline && form.startDate && form.deadline > form.startDate) {
       toast.error("Application deadline must be on or before campaign start.");
       return;
@@ -133,7 +142,7 @@ function NewCampaign() {
       return;
     }
     // id is assigned by Postgres (gen_random_uuid); do not fabricate client-side IDs.
-    const campaign: Campaign = {
+    const campaign = {
       id: "",
       title: form.title.trim(),
       brandId: currentBrandId,
@@ -141,7 +150,13 @@ function NewCampaign() {
       category: form.category || "General",
       types: form.types.length ? form.types : ["Instagram Reel"],
       platforms: form.platforms.length ? form.platforms : ["Instagram"],
-      perks: form.perks.length ? form.perks : ["Free product"],
+      perks: form.perks.length
+        ? form.perks
+        : [form.benefitTitle.trim() || "Non-cash benefit"],
+      benefit_type: form.benefitType,
+      benefit_title: form.benefitTitle.trim() || form.perks[0] || "Non-cash benefit",
+      benefit_value_display: form.benefitValueDisplay.trim() || null,
+      redemption_method: form.redemptionMethod,
       giftValue: form.giftValue,
       location: form.location,
       remote: form.remote,
@@ -173,7 +188,7 @@ function NewCampaign() {
       views: 0,
     };
     try {
-      await addCampaign(campaign);
+      await addCampaign(campaign as any);
       toast.success("Campaign published");
       navigate({ to: "/brand/campaigns" });
     } catch (err: any) {
@@ -302,7 +317,69 @@ function NewCampaign() {
 
         {step === 5 ? (
           <div>
-            <Label htmlFor="deliverables">Deliverables (one per line)</Label>
+            <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-3">
+              <p className="text-sm font-semibold">What are you offering? (non-cash only)</p>
+              <p className="text-[12px] text-muted-foreground">
+                NepCollab does not process cash payouts. Offer a product, meal, stay, experience, or other benefit.
+              </p>
+              <div>
+                <Label htmlFor="benefit-type">Benefit type</Label>
+                <select
+                  id="benefit-type"
+                  className="mt-1.5 flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                  value={form.benefitType}
+                  onChange={(e) => set("benefitType", e.target.value)}
+                >
+                  <option value="meal">Meal</option>
+                  <option value="product">Product</option>
+                  <option value="stay">Stay / hotel</option>
+                  <option value="experience">Experience</option>
+                  <option value="service">Service</option>
+                  <option value="event_access">Event access</option>
+                  <option value="ticket">Ticket</option>
+                  <option value="sample">Sample</option>
+                  <option value="discount">Discount</option>
+                  <option value="other">Other non-cash</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="benefit-title">Benefit title</Label>
+                <Input
+                  id="benefit-title"
+                  className="mt-1.5 h-11"
+                  placeholder="e.g. Free dinner for two"
+                  value={form.benefitTitle}
+                  onChange={(e) => set("benefitTitle", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="benefit-value">Estimated value (display only)</Label>
+                <Input
+                  id="benefit-value"
+                  className="mt-1.5 h-11"
+                  placeholder="e.g. NPR 3,000 — not a cash balance"
+                  value={form.benefitValueDisplay}
+                  onChange={(e) => set("benefitValueDisplay", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="redeem-method">How creator redeems</Label>
+                <select
+                  id="redeem-method"
+                  className="mt-1.5 flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                  value={form.redemptionMethod}
+                  onChange={(e) => set("redemptionMethod", e.target.value)}
+                >
+                  <option value="manual">Confirm in app</option>
+                  <option value="code">Redemption code</option>
+                  <option value="qr">Show QR / code at venue</option>
+                  <option value="delivery">Ship / hand over product</option>
+                  <option value="appointment">Appointment / booking</option>
+                </select>
+              </div>
+            </div>
+
+                        <Label htmlFor="deliverables">Deliverables (one per line)</Label>
             <Textarea id="deliverables" className="mt-2" rows={6} maxLength={800} value={form.deliverables} onChange={(e) => set("deliverables", e.target.value)} />
           </div>
         ) : null}

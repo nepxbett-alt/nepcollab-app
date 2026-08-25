@@ -1267,6 +1267,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
                 ? campaign.cover
                 : null,
             brief: campaign.description.trim() || null,
+            // Non-cash benefit (informational — never a wallet balance)
+            benefit_type: (campaign as any).benefit_type || "other",
+            benefit_title:
+              (campaign as any).benefit_title ||
+              (Array.isArray(campaign.perks) && campaign.perks[0]) ||
+              "Non-cash benefit",
+            benefit_value_display: (campaign as any).benefit_value_display || null,
+            redemption_method: (campaign as any).redemption_method || "manual",
           })
           .select("id")
           .single();
