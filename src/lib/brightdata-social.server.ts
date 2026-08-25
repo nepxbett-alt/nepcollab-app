@@ -179,46 +179,126 @@ function parsePayload(
   };
 }
 
+async function sleep(ms: number) {
+  await new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * Bright Data free/MCP accounts often reject synchronous /scrape but accept
+ * async /trigger → poll progress → download snapshot. Prefer that path.
+ */
 export async function fetchSocialProfileFromBrightData(
   platform: SocialPlatform,
   profileUrl: string,
   fallbackUsername: string,
 ): Promise<{ ok: true; data: NormalizedSocialProfile } | { ok: false; error: string; category: string }> {
-  const token = process.env['BRIGHTDATA_API_TOKEN'] || process.env['BRIGHT_DATA_API_TOKEN'];
+  const token = process.env["BRIGHTDATA_API_TOKEN"] || process.env["BRIGHT_DATA_API_TOKEN"];
   if (!token) {
     return { ok: false, error: "Bright Data is not configured on the server.", category: "config" };
   }
-  const datasetId = DATASET_IDS[platform];
-  const endpoint = `https://api.brightdata.com/datasets/v3/scrape?dataset_id=${encodeURIComponent(
-    datasetId,
-  )}&format=json&include_errors=true`;
 
+  const datasetId = DATASET_IDS[platform];
   const headers = {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
 
   try {
-    let response = await fetch(endpoint, {
+    // 1) Trigger async collection
+    const triggerUrl = `https://api.brightdata.com/datasets/v3/trigger?dataset_id=${encodeURIComponent(
+      datasetId,
+    )}&include_errors=true`;
+    let triggerRes = await fetch(triggerUrl, {
       method: "POST",
       headers,
-      body: JSON.stringify({ input: [{ url: profileUrl }] }),
-      signal: AbortSignal.timeout(90_000),
+      body: JSON.stringify([{ url: profileUrl }]),
+      signal: AbortSignal.timeout(30_000),
     });
-    let text = await response.text();
-    if (!response.ok && (response.status === 400 || response.status === 422)) {
-      response = await fetch(endpoint, {
+    let triggerText = await triggerRes.text();
+    if (!triggerRes.ok) {
+      // Alternate body shape
+      triggerRes = await fetch(triggerUrl, {
         method: "POST",
         headers,
-        body: JSON.stringify([{ url: profileUrl }]),
-        signal: AbortSignal.timeout(90_000),
+        body: JSON.stringify({ input: [{ url: profileUrl }] }),
+        signal: AbortSignal.timeout(30_000),
       });
-      text = await response.text();
+      triggerText = await triggerRes.text();
     }
-    if (!response.ok) {
-      return { ok: false, error: `Bright Data HTTP ${response.status}`, category: "provider" };
+    if (!triggerRes.ok) {
+      return {
+        ok: false,
+        error: `Bright Data trigger HTTP ${triggerRes.status}: ${triggerText.slice(0, 200)}`,
+        category: "provider",
+      };
     }
-    return parsePayload(platform, profileUrl, fallbackUsername, text);
+
+    let snapshotId: string | null = null;
+    try {
+      const tj = JSON.parse(triggerText) as { snapshot_id?: string };
+      snapshotId = tj.snapshot_id || null;
+    } catch {
+      return { ok: false, error: "Invalid trigger response", category: "parse" };
+    }
+    if (!snapshotId) {
+      return { ok: false, error: "No snapshot_id from Bright Data", category: "provider" };
+    }
+
+    // 2) Poll progress (max ~90s)
+    let ready = false;
+    for (let i = 0; i < 18; i++) {
+      await sleep(i === 0 ? 3000 : 5000);
+      const progRes = await fetch(
+        `https://api.brightdata.com/datasets/v3/progress/${encodeURIComponent(snapshotId)}`,
+        { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000) },
+      );
+      const progText = await progRes.text();
+      let status = "";
+      try {
+        const pj = JSON.parse(progText) as { status?: string };
+        status = String(pj.status || "");
+      } catch {
+        status = "";
+      }
+      if (status === "ready" || status === "done" || status === "completed") {
+        ready = true;
+        break;
+      }
+      if (status === "failed" || status === "error") {
+        return { ok: false, error: `Bright Data job failed: ${progText.slice(0, 200)}`, category: "provider" };
+      }
+      // Snapshot data may already be partially available — try download after ~25s
+      if (i >= 4) {
+        const early = await fetch(
+          `https://api.brightdata.com/datasets/v3/snapshot/${encodeURIComponent(snapshotId)}?format=json`,
+          { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(25_000) },
+        );
+        if (early.ok) {
+          const earlyText = await early.text();
+          if (earlyText.trim().startsWith("[") || earlyText.trim().startsWith("{")) {
+            const parsed = parsePayload(platform, profileUrl, fallbackUsername, earlyText);
+            if (parsed.ok) return parsed;
+          }
+        }
+      }
+    }
+
+    // 3) Download snapshot
+    const dataRes = await fetch(
+      `https://api.brightdata.com/datasets/v3/snapshot/${encodeURIComponent(snapshotId)}?format=json`,
+      { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
+    );
+    const dataText = await dataRes.text();
+    if (!dataRes.ok) {
+      return {
+        ok: false,
+        error: ready
+          ? `Bright Data snapshot HTTP ${dataRes.status}`
+          : "Bright Data timed out waiting for profile data",
+        category: "provider",
+      };
+    }
+    return parsePayload(platform, profileUrl, fallbackUsername, dataText);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Network error";
     return { ok: false, error: msg, category: "network" };
