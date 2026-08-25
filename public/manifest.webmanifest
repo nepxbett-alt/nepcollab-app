@@ -1,15 +1,31 @@
 {
-  "name": "NepCollab — Creator Collaboration Marketplace",
+  "name": "NepCollab",
   "short_name": "NepCollab",
-  "description": "Brands post campaigns. Creators discover opportunities and apply.",
+  "description": "Brands post opportunities. Creators apply. Brands select. Both collaborate.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#12295c",
   "icons": [
-    { "src": "/app-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/app-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

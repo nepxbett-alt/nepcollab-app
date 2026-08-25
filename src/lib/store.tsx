@@ -267,12 +267,27 @@ const mapCreator = (
     location: p.location ?? "Nepal",
     languages: arr<string>(c?.languages),
     niches: arr<string>(c?.niches),
-    socials: socials.map((s: any) => ({
+    socials: (
+      socials.length
+        ? socials
+        : c?.followers
+          ? [
+              {
+                id: `agg-${p.id}`,
+                platform: (arr<string>(c?.platforms)[0] as string) || "Instagram",
+                handle: p.username ?? "",
+                followers: Number(c.followers) || 0,
+                engagement_rate: Number(c.engagement_rate) || 0,
+                verified: Boolean(c.social_verified),
+              },
+            ]
+          : []
+    ).map((s: any) => ({
       id: s.id,
       platform: s.platform,
       username: s.handle ?? s.username ?? "",
       followers: s.followers ?? 0,
-      engagement: Number(s.engagement_rate ?? 0),
+      engagement: Number(s.engagement_rate ?? s.engagement ?? 0),
       verified: Boolean(s.verified),
     })) as any,
     portfolio: portfolioRows.map((item: any) => ({
