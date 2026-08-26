@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Briefcase, Sparkles, Users } from "lucide-react";
-import { Container, SectionHeader } from "@/components/AppShell";
+import { ArrowRight, Briefcase, Handshake, Sparkles } from "lucide-react";
 import { CampaignCard } from "@/components/CampaignCard";
+import { Container, SectionHeader } from "@/components/AppShell";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/")({
@@ -11,12 +11,12 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Nepal's collaboration platform. Brands post opportunities. Creators apply. Brands select. Both collaborate.",
+          "Nepal's creator × brand collaboration platform. Brands post opportunities. Creators apply. Brands select. Both collaborate.",
       },
       { property: "og:title", content: "NepCollab — Create. Connect. Grow." },
       {
         property: "og:description",
-        content: "Brands post opportunities. Creators apply. Brands select. Both collaborate.",
+        content: "Discover collaborations. Work with brands. Build your creator journey.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://nepcollab.vercel.app" },
@@ -32,131 +32,186 @@ function isOpenCampaign(status: string) {
     s === "APPLICATIONS_OPEN" ||
     s === "PUBLISHED" ||
     s === "ACTIVE" ||
-    s.toLowerCase() === "active"
+    s.toLowerCase() === "active" ||
+    s.toLowerCase() === "published" ||
+    s.toLowerCase() === "applications_open"
   );
 }
 
 function Home() {
-  const { campaigns, saved, toggleSaved, loading } = useStore();
-  const openCampaigns = campaigns.filter((c) => isOpenCampaign(c.status));
-  const featured = [...openCampaigns]
-    .sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)))
-    .slice(0, 3);
-  const openCount = openCampaigns.length;
+  const { campaigns, saved, toggleSaved, loading, signedIn } = useStore();
+  const open = campaigns.filter((c) => isOpenCampaign(c.status));
+  const featured = open.filter((c) => c.featured).slice(0, 6);
+  const showcase = featured.length ? featured : open.slice(0, 6);
+  const openCount = open.length;
 
   return (
-    <div>
-      <section className="relative overflow-hidden bg-ink text-ink-foreground">
-        <div className="pointer-events-none absolute -right-24 -top-28 size-80 rounded-full bg-signal/25 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -left-20 size-72 rounded-full bg-ink-foreground/10 blur-3xl" />
-        <Container className="relative py-12 md:py-16">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-signal">
-            Nepal · Brand × creator collaborations
-          </p>
-          <h1 className="mt-3 text-[34px] font-bold leading-[1.05] tracking-[-0.03em] sm:text-5xl">
-            CREATE.
-            <br />
-            CONNECT.
-            <br />
-            <span className="text-signal">GROW.</span>
-          </h1>
-          <p className="mt-4 max-w-md text-[14.5px] leading-relaxed text-ink-foreground/75">
-            Brands post opportunities. Creators apply. Brands select. Both collaborate—without middlemen holding your money.
-          </p>
-
-          <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
-            <Link
-              to="/campaigns"
-              className="tap inline-flex h-12 items-center justify-center gap-1.5 rounded-full bg-signal px-6 text-[15px] font-semibold text-signal-foreground hover:bg-signal/90"
-            >
-              Discover opportunities <ArrowRight className="size-4" />
-            </Link>
-            <Link
-              to="/auth"
-              className="tap inline-flex h-12 items-center justify-center rounded-full border border-ink-foreground/25 bg-ink-foreground/5 px-6 text-[15px] font-semibold text-ink-foreground hover:bg-ink-foreground/10"
-            >
-              Join free
-            </Link>
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-6 text-[13px] text-ink-foreground/70">
-            <span>
-              <strong className="text-ink-foreground">
-                {loading && openCount === 0 ? "—" : openCount}
-              </strong>{" "}
-              open opportunities
-            </span>
-            <span>Structured applications</span>
-            <span>No platform fees on payouts</span>
-          </div>
-        </Container>
-      </section>
-
-      <section className="border-b border-border bg-background">
-        <Container className="py-10">
-          <div className="grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                icon: Sparkles,
-                title: "1. Brands post",
-                body: "Publish a clear brief: niche, deliverables, timeline, and what success looks like.",
-              },
-              {
-                icon: Briefcase,
-                title: "2. Creators apply",
-                body: "Discover open opportunities and apply with a focused pitch—not endless cold DMs.",
-              },
-              {
-                icon: Users,
-                title: "3. Collaborate",
-                body: "Select talent, message in-thread, and track delivery. Payments stay between you two.",
-              },
-            ].map((step) => (
-              <div key={step.title} className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-                <step.icon className="size-5 text-signal" aria-hidden />
-                <h2 className="mt-3 text-[15px] font-bold tracking-tight">{step.title}</h2>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{step.body}</p>
-              </div>
-            ))}
-          </div>
-        </Container>
-      </section>
-
-      <section className="border-b border-border bg-background">
-        <Container className="py-10">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-              <h2 className="text-lg font-bold tracking-tight">For creators</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Find brand opportunities across Nepal, apply with a clear pitch, and manage delivery from one home.
+    <div className="panel-mist min-h-full">
+      <section className="relative overflow-hidden border-b border-border/80">
+        <Container className="relative py-12 sm:py-16 lg:py-20">
+          <div className="grid items-end gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="max-w-xl">
+              <p className="type-kicker animate-rise text-signal">Nepal · Creator collaborations</p>
+              <h1 className="type-display animate-rise-delay-1 mt-4 text-[clamp(2.35rem,7vw,3.75rem)] text-foreground">
+                CREATE.
+                <br />
+                CONNECT.
+                <br />
+                <span className="text-signal">GROW.</span>
+              </h1>
+              <div className="animate-rise-delay-2 valley-ridge mt-5 max-w-[11rem]" aria-hidden />
+              <p className="animate-rise-delay-2 mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+                Brands post real opportunities. Creators apply with a clear pitch. Both collaborate
+                in one place—without a public creator marketplace or middlemen on payouts.
               </p>
-              <Link to="/campaigns" className="mt-4 inline-flex text-sm font-semibold text-signal hover:underline">
-                Browse opportunities →
+              <div className="animate-rise-delay-3 mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                <Link
+                  to={signedIn ? "/campaigns" : "/auth"}
+                  {...(signedIn
+                    ? {}
+                    : { search: { as: "creator" as const, next: undefined } })}
+                  className="tap inline-flex h-12 items-center justify-center gap-2 rounded-full bg-ink px-6 text-[14px] font-semibold text-ink-foreground shadow-sm hover:opacity-95"
+                >
+                  {signedIn ? "Browse campaigns" : "Join as creator"}
+                  <ArrowRight className="size-4 opacity-80" />
+                </Link>
+                <Link
+                  to={signedIn ? "/brand/campaigns" : "/auth"}
+                  {...(signedIn
+                    ? {}
+                    : { search: { as: "brand" as const, next: undefined } })}
+                  className="tap inline-flex h-12 items-center justify-center rounded-full border border-border bg-card/80 px-6 text-[14px] font-semibold backdrop-blur hover:bg-secondary"
+                >
+                  {signedIn ? "Brand workspace" : "I am a brand"}
+                </Link>
+              </div>
+            </div>
+
+            <div className="animate-rise-delay-2 panel-ink relative overflow-hidden rounded-[1.75rem] p-6 shadow-lg sm:p-7">
+              <div
+                className="pointer-events-none absolute -right-8 -top-8 size-40 rounded-full bg-signal/20 blur-2xl"
+                aria-hidden
+              />
+              <p className="type-kicker text-white/55">Live on the platform</p>
+              <p className="mt-3 font-display text-[3.25rem] font-bold leading-none tracking-tight tabular-nums">
+                {loading && openCount === 0 ? "—" : openCount}
+              </p>
+              <p className="mt-2 text-[14px] text-white/75">
+                open campaign{openCount === 1 ? "" : "s"} ready for applications
+              </p>
+              <div className="mt-6 space-y-3 border-t border-white/10 pt-5 text-[13px] text-white/80">
+                <p className="flex items-start gap-2.5">
+                  <Sparkles className="mt-0.5 size-4 shrink-0 text-signal" />
+                  Discover briefs by niche, city, and platform
+                </p>
+                <p className="flex items-start gap-2.5">
+                  <Briefcase className="mt-0.5 size-4 shrink-0 text-signal" />
+                  Apply in minutes with a focused pitch
+                </p>
+                <p className="flex items-start gap-2.5">
+                  <Handshake className="mt-0.5 size-4 shrink-0 text-signal" />
+                  Collaborate privately after you are selected
+                </p>
+              </div>
+              <Link
+                to="/campaigns"
+                className="tap mt-6 inline-flex items-center gap-1.5 text-[13px] font-semibold text-white hover:text-signal"
+              >
+                View all opportunities
+                <ArrowRight className="size-3.5" />
               </Link>
             </div>
-            <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-              <h2 className="text-lg font-bold tracking-tight">For brands</h2>
+          </div>
+        </Container>
+      </section>
+
+      <section className="border-b border-border/80 py-12 sm:py-14">
+        <Container>
+          <SectionHeader
+            title="How NepCollab works"
+            hint="Three steps from brief to collaboration"
+          />
+          <ol className="mt-6 grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                n: "01",
+                title: "Post or discover",
+                body: "Brands publish a clear brief. Creators browse open campaigns—not a public talent directory.",
+              },
+              {
+                n: "02",
+                title: "Apply or review",
+                body: "Creators pitch once. Brands shortlist applicants for that campaign only.",
+              },
+              {
+                n: "03",
+                title: "Collaborate",
+                body: "Message, deliver, and track status together until the work is done.",
+              },
+            ].map((step) => (
+              <li
+                key={step.n}
+                className="surface-card rounded-3xl border border-border bg-card p-5 shadow-sm"
+              >
+                <span className="font-display text-[13px] font-semibold tabular-nums text-signal">
+                  {step.n}
+                </span>
+                <h2 className="mt-2 text-[16px] font-bold tracking-tight">{step.title}</h2>
+                <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </Container>
+      </section>
+
+      <section className="py-12 sm:py-14">
+        <Container>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+              <p className="type-kicker text-muted-foreground">Creators</p>
+              <h2 className="mt-2 text-lg font-bold tracking-tight">Find campaigns that fit</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Publish a brief, review applicants for your campaigns, and message selected talent—relationship-based, not a public creator directory.
+                Apply to brand opportunities across Nepal, manage applications, and keep
+                collaborations in one home.
+              </p>
+              <Link
+                to="/campaigns"
+                className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-signal hover:underline"
+              >
+                Browse opportunities
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+            <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+              <p className="type-kicker text-muted-foreground">Brands</p>
+              <h2 className="mt-2 text-lg font-bold tracking-tight">Publish once, review cleanly</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Post a brief, review applicants for your campaigns, and message selected
+                talent—relationship-based, not a public creator feed.
               </p>
               <Link
                 to="/auth"
-                search={{ as: "brand" }}
-                className="mt-4 inline-flex text-sm font-semibold text-signal hover:underline"
+                search={{ as: "brand", next: undefined }}
+                className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-signal hover:underline"
               >
-                Sign in as brand →
+                Sign in as brand
+                <ArrowRight className="size-3.5" />
               </Link>
             </div>
           </div>
         </Container>
       </section>
 
-      {featured.length > 0 ? (
-        <section className="py-10">
+      {showcase.length > 0 ? (
+        <section className="border-t border-border/80 py-12 sm:py-14">
           <Container>
-            <SectionHeader title="Featured opportunities" actionLabel="View all" actionTo="/campaigns" />
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {featured.map((c) => (
+            <SectionHeader
+              title="Open opportunities"
+              actionLabel="View all"
+              actionTo="/campaigns"
+            />
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {showcase.map((c) => (
                 <CampaignCard
                   key={c.id}
                   campaign={c}
@@ -169,28 +224,32 @@ function Home() {
         </section>
       ) : null}
 
-      <section className="border-t border-border py-12">
+      <section className="border-t border-border py-14">
         <Container className="text-center">
-          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Ready when you are</h2>
+          <div className="valley-ridge mx-auto mb-6 max-w-[6rem]" aria-hidden />
+          <h2 className="font-display text-xl font-bold tracking-tight sm:text-2xl">
+            Ready when you are
+          </h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
             Free to join. Sign in with Google or email—no password required.
           </p>
           <Link
             to="/auth"
-            className="tap mt-5 inline-flex h-11 items-center rounded-full bg-ink px-6 text-[14px] font-semibold text-ink-foreground hover:opacity-90"
+            search={{ as: undefined, next: undefined }}
+            className="tap mt-6 inline-flex h-12 items-center rounded-full bg-ink px-7 text-[14px] font-semibold text-ink-foreground hover:opacity-95"
           >
             Join NepCollab
           </Link>
-          <p className="mt-4 text-[11px] text-muted-foreground">
-            <Link to="/help" className="underline">
+          <p className="mt-5 text-[11px] text-muted-foreground">
+            <Link to="/help" className="underline-offset-2 hover:underline">
               Help
             </Link>
             {" · "}
-            <Link to="/terms" className="underline">
+            <Link to="/terms" className="underline-offset-2 hover:underline">
               Terms
             </Link>
             {" · "}
-            <Link to="/privacy" className="underline">
+            <Link to="/privacy" className="underline-offset-2 hover:underline">
               Privacy
             </Link>
           </p>

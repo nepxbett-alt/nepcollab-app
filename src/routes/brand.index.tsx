@@ -90,10 +90,11 @@ function BrandDashboard() {
   return (
     <Container>
       <div className="mb-5">
-        <p className="text-[13px] font-medium text-signal">Brand workspace</p>
-        <h1 className="mt-0.5 text-2xl font-bold tracking-tight">
-          {brand?.name ? `Hi, ${brand.name}` : "Brand home"}
+        <p className="type-kicker text-muted-foreground">Brand workspace</p>
+        <h1 className="mt-1.5 font-display text-[1.4rem] font-bold tracking-tight sm:text-[1.55rem]">
+          {brand?.name ? brand.name : "Brand home"}
         </h1>
+        <div className="valley-ridge mt-3 max-w-[4.5rem]" aria-hidden />
         <p className="mt-1 text-sm text-muted-foreground">
           Campaigns, applicants, and deliverables in one place.
         </p>

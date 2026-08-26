@@ -229,12 +229,16 @@ function AuthPage() {
   }
 
   return (
-    <Container className="max-w-md py-10">
+    <div className="panel-mist min-h-full">
+    <Container className="max-w-md py-10 sm:py-14">
       <Logo size={40} withWordmark={false} />
-      <p className="mt-4 text-[13px] font-medium text-signal">Create. Connect. Grow.</p>
-      <h1 className="mt-1 text-2xl font-bold tracking-tight">Sign in or create your account</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Choose how you use NepCollab, then continue with Google or email.
+      <p className="type-kicker mt-5 text-signal">Create · Connect · Grow</p>
+      <h1 className="mt-2 font-display text-[1.75rem] font-bold tracking-tight sm:text-[2rem]">
+        Sign in to NepCollab
+      </h1>
+      <div className="valley-ridge mt-4 max-w-[5.5rem]" aria-hidden />
+      <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+        Choose creator or brand, then continue with Google or email—no password required.
       </p>
 
       <div
@@ -351,15 +355,16 @@ function AuthPage() {
 
       <p className="relative z-0 mt-8 border-t border-border pt-4 text-center text-[12px] text-muted-foreground">
         Prefer a direct link?{" "}
-        <a href="/auth?as=brand" className="font-medium text-signal underline">
+        <a href="/auth?as=brand" className="font-medium text-signal underline-offset-2 hover:underline">
           Sign in as brand
         </a>
         {" · "}
-        <a href="/auth?as=creator" className="font-medium text-signal underline">
+        <a href="/auth?as=creator" className="font-medium text-signal underline-offset-2 hover:underline">
           Sign in as creator
         </a>
       </p>
     </Container>
+    </div>
   );
 }
 

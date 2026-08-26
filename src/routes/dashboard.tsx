@@ -43,11 +43,15 @@ function greeting() {
 
 function Greeting({ name, sub }: { name?: string | undefined; sub: string }) {
   return (
-    <div className="pb-5">
-      <p className="text-[13px] text-muted-foreground">
-        {greeting()} {name ? name.split(" ")[0] : ""} 👋
+    <div className="pb-6">
+      <p className="type-kicker text-muted-foreground">
+        {greeting()}
+        {name ? ` · ${name.split(" ")[0]}` : ""}
       </p>
-      <h1 className="mt-0.5 text-[22px] font-bold tracking-tight">{sub}</h1>
+      <h1 className="mt-1.5 font-display text-[1.4rem] font-bold tracking-tight sm:text-[1.55rem]">
+        {sub}
+      </h1>
+      <div className="valley-ridge mt-3 max-w-[4.5rem]" aria-hidden />
     </div>
   );
 }
@@ -62,9 +66,9 @@ function StatTile({
   icon: React.ComponentType<{ className?: string }>;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-3.5">
+    <div className="surface-card rounded-2xl border border-border bg-card p-3.5">
       <Icon className="size-4 text-signal" />
-      <p className="mt-2 text-xl font-bold leading-none tracking-tight">
+      <p className="mt-2 font-display text-xl font-bold leading-none tracking-tight">
         {value}
       </p>
       <p className="mt-1 text-[11.5px] text-muted-foreground">{label}</p>

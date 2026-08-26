@@ -100,7 +100,7 @@ export function CampaignCard({
         </div>
 
         <div className="space-y-2.5 p-4">
-          <h3 className="line-clamp-2 text-[15.5px] font-semibold leading-snug tracking-tight">
+          <h3 className="line-clamp-2 font-display text-[15.5px] font-semibold leading-snug tracking-tight">
             {campaign.title}
           </h3>
 

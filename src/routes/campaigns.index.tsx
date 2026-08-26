@@ -143,7 +143,13 @@ function Discover() {
 
   return (
     <Container className="pt-4">
-      <h1 className="text-[22px] font-bold tracking-tight">Discover</h1>
+      <div>
+        <p className="type-kicker text-muted-foreground">Campaigns</p>
+        <h1 className="mt-1 font-display text-[1.4rem] font-bold tracking-tight sm:text-[1.55rem]">
+          Discover
+        </h1>
+        <div className="valley-ridge mt-2.5 max-w-[4rem]" aria-hidden />
+      </div>
 
       <div className="sticky top-13 z-30 -mx-4 mt-3 space-y-3 bg-background/92 px-4 pb-3 pt-2 backdrop-blur-xl">
         <div className="flex gap-2">
