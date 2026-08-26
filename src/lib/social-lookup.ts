@@ -12,11 +12,12 @@ const REFRESH_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const MAX_LOOKUPS_PER_DAY = 8;
 
 type LookupInput = {
-  /** Preferred: platform + username (server builds the profile URL). */
+  /** Preferred production input: full public profile URL. */
+  profileUrl?: string;
+  /** Internal/legacy: platform + username (server builds URL). Not used for IG/FB UI. */
   platform?: string;
   username?: string;
-  /** Fallback: full profile URL. */
-  profileUrl?: string;
+  /** Deprecated — never used to invent metrics in production flow. */
   fallbackFollowers?: number;
   forceRefresh?: boolean;
 };
@@ -30,7 +31,11 @@ export type SocialLookupResult = {
     username: string;
     profileUrl: string | null;
     displayName: string | null;
+    avatarUrl?: string | null;
     followers: number | null;
+    following?: number | null;
+    postsCount?: number | null;
+    engagementRate?: number | null;
     subscriberCount: number | null;
     statsSource: string | null;
     lastSyncedAt: string | null;
@@ -308,11 +313,28 @@ export const lookupSocialProfile = createServerFn({ method: "POST" })
     const { supabase, userId } = context as { supabase: any; userId: string };
 
     let parsed = null as ReturnType<typeof parseSocialProfileUrl>;
-    if (data.username && data.platform) {
+    // Production path: URL is the source of truth
+    if (data.profileUrl) {
+      parsed = parseSocialProfileUrl(data.profileUrl);
+      if (!parsed) {
+        return {
+          success: false,
+          message:
+            "Please enter a valid public profile URL (Instagram, TikTok, YouTube, or Facebook). Posts and login links are not accepted.",
+        };
+      }
+    } else if (data.username && data.platform) {
+      // Internal/refresh compatibility only — not the creator UI path for IG/FB
       if (!isSocialPlatform(data.platform)) {
         return {
           success: false,
           message: "Unsupported platform. Choose Instagram, TikTok, YouTube or Facebook.",
+        };
+      }
+      if (data.platform === "Instagram" || data.platform === "Facebook") {
+        return {
+          success: false,
+          message: `Paste your full ${data.platform} profile URL to connect this account.`,
         };
       }
       parsed = buildSocialFromHandle(data.platform, data.username);
@@ -322,19 +344,10 @@ export const lookupSocialProfile = createServerFn({ method: "POST" })
           message: "Invalid username for this platform. Check the handle and try again.",
         };
       }
-    } else if (data.profileUrl) {
-      parsed = parseSocialProfileUrl(data.profileUrl);
-      if (!parsed) {
-        return {
-          success: false,
-          message:
-            "Unsupported or invalid profile URL. Use Instagram, TikTok, YouTube or Facebook.",
-        };
-      }
     } else {
       return {
         success: false,
-        message: "Enter a username or paste a profile link.",
+        message: "Paste a public profile URL to continue.",
       };
     }
 
@@ -497,7 +510,11 @@ export const lookupSocialProfile = createServerFn({ method: "POST" })
           username: d.username,
           profileUrl: d.profileUrl,
           displayName: d.displayName,
+          avatarUrl: d.avatarUrl,
           followers: audience,
+          following: d.followingCount,
+          postsCount: d.postCount,
+          engagementRate: d.engagementRate,
           subscriberCount: d.subscriberCount,
           statsSource: "brightdata",
           lastSyncedAt: now,

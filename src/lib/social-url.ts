@@ -34,15 +34,22 @@ export function parseSocialProfileUrl(input: string): ParsedSocialUrl | null {
   try {
     const u = new URL(href);
     host = u.hostname.replace(/^www\./i, "").toLowerCase();
-    path = u.pathname.replace(/\/+$/, "");
+    path = u.pathname.replace(/\/+$/, "") || "";
   } catch {
     return null;
   }
 
-  // Instagram
+  // Instagram — profile only (reject posts, reels, stories, explore, login)
   if (host === "instagram.com" || host === "instagr.am" || host.endsWith(".instagram.com")) {
     const m = path.match(/^\/([A-Za-z0-9._]+)/);
-    if (!m?.[1] || /^(p|reel|reels|stories|explore|tv)\b/i.test(m[1])) return null;
+    if (
+      !m?.[1] ||
+      /^(p|reel|reels|stories|explore|tv|accounts|login|direct|about|legal|developer|directory)\b/i.test(
+        m[1],
+      )
+    ) {
+      return null;
+    }
     const username = m[1];
     return {
       platform: "Instagram",
@@ -56,7 +63,7 @@ export function parseSocialProfileUrl(input: string): ParsedSocialUrl | null {
     const m = path.match(/^\/@([A-Za-z0-9._]+)/) || path.match(/^\/([A-Za-z0-9._]+)/);
     if (!m?.[1]) return null;
     const username = m[1].replace(/^@/, "");
-    if (/^(foryou|following|video|music|tag)\b/i.test(username)) return null;
+    if (/^(foryou|following|video|music|tag|live|discover|login)\b/i.test(username)) return null;
     return {
       platform: "TikTok",
       username,
@@ -91,13 +98,45 @@ export function parseSocialProfileUrl(input: string): ParsedSocialUrl | null {
     return { platform: "YouTube", username, profileUrl };
   }
 
-  // Facebook
-  if (host === "facebook.com" || host === "fb.com" || host === "m.facebook.com" || host.endsWith(".facebook.com")) {
-    if (/^\/(groups|events|watch|marketplace|reel|photo)\b/i.test(path)) return null;
-    const m = path.match(/^\/(profile\.php)/) ? null : path.match(/^\/([A-Za-z0-9.]+)/);
+  // Facebook — profile/page only (reject posts, photos, videos, marketplace, login)
+  if (
+    host === "facebook.com" ||
+    host === "fb.com" ||
+    host === "m.facebook.com" ||
+    host.endsWith(".facebook.com")
+  ) {
+    if (
+      /\/(posts|photos|videos|watch|reel|story|stories|groups|events|marketplace|login|sharer|dialog)\b/i.test(
+        path,
+      ) ||
+      /\/photo\.php|\/video\.php|\/permalink\.php/i.test(path)
+    ) {
+      return null;
+    }
+    if (/^\/profile\.php$/i.test(path)) {
+      try {
+        const u = new URL(href);
+        const id = u.searchParams.get("id");
+        if (!id || !/^\d+$/.test(id)) return null;
+        return {
+          platform: "Facebook",
+          username: id,
+          profileUrl: `https://www.facebook.com/profile.php?id=${id}`,
+        };
+      } catch {
+        return null;
+      }
+    }
+    const m = path.match(/^\/([A-Za-z0-9.]+)/);
     if (!m?.[1]) return null;
     const username = m[1];
-    if (/^(pages|people|public)\b/i.test(username)) return null;
+    if (
+      /^(pages|people|public|groups|events|watch|marketplace|reel|photo|video|login|recover|help|privacy|policies|settings)\b/i.test(
+        username,
+      )
+    ) {
+      return null;
+    }
     return {
       platform: "Facebook",
       username,
@@ -116,8 +155,8 @@ export function isSocialPlatform(v: string): v is SocialPlatform {
 }
 
 /**
- * Primary V1 input: platform + username/handle (no URL required).
- * Builds the canonical public profile URL server-side for Bright Data.
+ * Internal helper: build canonical profile URL from a platform + handle.
+ * Creators should paste a full profile URL in the UI; this is used after extraction.
  */
 export function buildSocialFromHandle(
   platform: SocialPlatform,
