@@ -19,13 +19,28 @@ export const Route = createFileRoute("/notifications")({
 });
 
 function Notifications() {
-  const { notifications, role, markNotificationsRead } = useStore();
+  const { notifications, role, markNotificationsRead, signedIn, loading } = useStore();
   const mine = notifications.filter((n) => n.audience === (role ?? "creator"));
 
   useEffect(() => {
+    if (!signedIn) return;
     const timer = setTimeout(markNotificationsRead, 1200);
     return () => clearTimeout(timer);
-  }, [markNotificationsRead]);
+  }, [markNotificationsRead, signedIn]);
+
+  if (!loading && !signedIn) {
+    return (
+      <Container className="max-w-2xl">
+        <PageHeader title="Notifications" />
+        <EmptyState
+          title="Sign in to view notifications"
+          body="Application updates, invitations, and collaboration messages appear here after you sign in."
+          actionLabel="Sign in"
+          actionTo="/auth"
+        />
+      </Container>
+    );
+  }
 
   return (
     <Container className="max-w-2xl">

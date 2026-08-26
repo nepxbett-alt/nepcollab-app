@@ -386,18 +386,23 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           .limit(100);
         // Privacy: guests never load creator profiles — only brands tied to public campaigns.
         const brandIds = [...new Set((campaignRows ?? []).map((r: any) => r.brand_id).filter(Boolean))];
-        const [{ data: brandRows }, { data: profiles }] = await Promise.all([
-          brandIds.length
-            ? db.from("brand_profiles").select("user_id, business_name, category, website").in("user_id", brandIds)
-            : Promise.resolve({ data: [] as any[] }),
-          brandIds.length
-            ? db.from("profiles").select("id, full_name, avatar_url, bio, location, verified, rating, response_rate").in("id", brandIds)
-            : Promise.resolve({ data: [] as any[] }),
-        ]);
-        const pm = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-        const bm = new Map((brandRows ?? []).map((b: any) => [b.user_id, b]));
+        // Guests must not query profiles / full brand_profiles (RLS). Use public view only.
+        let brandRows: any[] = [];
+        if (brandIds.length) {
+          const { data } = await db
+            .from("public_campaign_brand")
+            .select("user_id, business_name, category, website")
+            .in("user_id", brandIds);
+          brandRows = data ?? [];
+        }
+        const bm = new Map(brandRows.map((b: any) => [b.user_id, b]));
         setLookupData(
-          brandIds.map((id) => mapBrand(pm.get(id) ?? { id }, bm.get(id))),
+          brandIds.map((id) =>
+            mapBrand(
+              { id, full_name: bm.get(id)?.business_name ?? "Brand" },
+              bm.get(id),
+            ),
+          ),
           [], // no public creator catalog
         );
         setState({
@@ -952,11 +957,17 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       },
       requestMagicLink: async (email) => {
         const normalized = email.trim().toLowerCase();
-        if (!normalized.includes("@") || normalized.length < 5) {
+        const emailOk =
+          /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalized) &&
+          !normalized.includes("..") &&
+          normalized.length <= 254;
+        if (!emailOk) {
           throw new Error("Please enter a valid email address.");
         }
         try {
-          localStorage.setItem("nepcollab.auth.email", normalized);
+          // Session-only — cleared after successful auth; avoid long-lived localStorage email
+          sessionStorage.setItem("nepcollab.auth.email", normalized);
+          localStorage.removeItem("nepcollab.auth.email");
         } catch {
           /* ignore */
         }

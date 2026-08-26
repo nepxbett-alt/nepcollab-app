@@ -75,7 +75,7 @@ function AuthPage() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("nepcollab.auth.email");
+      const saved = sessionStorage.getItem("nepcollab.auth.email");
       if (saved) setEmail(saved);
     } catch {
       /* ignore */
@@ -108,8 +108,13 @@ function AuthPage() {
     }
     writeIntent(intent);
     const normalized = email.trim().toLowerCase();
-    if (!normalized || !normalized.includes("@")) {
-      toast.error("Enter a valid email address.");
+    // Practical validation — not only "@"
+    const emailOk =
+      /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalized) &&
+      !normalized.includes("..") &&
+      normalized.length <= 254;
+    if (!emailOk) {
+      toast.error("Enter a valid email address (for example you@gmail.com).");
       return;
     }
     setBusy(true);
@@ -232,12 +237,25 @@ function AuthPage() {
         Choose how you use NepCollab, then continue with Google or email.
       </p>
 
-      <div className="mt-6 grid grid-cols-2 gap-2">
+      <div
+        className="mt-6 grid grid-cols-2 gap-2"
+        role="radiogroup"
+        aria-label="How will you use NepCollab?"
+      >
         <button
           type="button"
+          role="radio"
+          aria-checked={intent === "creator"}
           onClick={() => chooseIntent("creator")}
+          onKeyDown={(e) => {
+            if (e.key === " " || e.key === "Enter") {
+              e.preventDefault();
+              chooseIntent("creator");
+            }
+          }}
           className={cn(
             "flex min-h-[4.5rem] flex-col items-start rounded-2xl border p-3 text-left transition",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             intent === "creator" ? "border-signal bg-accent/50" : "border-border bg-card hover:border-foreground/20",
           )}
         >
@@ -247,9 +265,18 @@ function AuthPage() {
         </button>
         <button
           type="button"
+          role="radio"
+          aria-checked={intent === "brand"}
           onClick={() => chooseIntent("brand")}
+          onKeyDown={(e) => {
+            if (e.key === " " || e.key === "Enter") {
+              e.preventDefault();
+              chooseIntent("brand");
+            }
+          }}
           className={cn(
             "flex min-h-[4.5rem] flex-col items-start rounded-2xl border p-3 text-left transition",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             intent === "brand" ? "border-signal bg-accent/50" : "border-border bg-card hover:border-foreground/20",
           )}
         >
@@ -283,7 +310,11 @@ function AuthPage() {
         <div className="h-px flex-1 bg-border" />
       </div>
 
-      <form onSubmit={(e) => void sendLink(e)} className="space-y-4">
+      <form
+        onSubmit={(e) => void sendLink(e)}
+        className="relative z-10 space-y-4"
+        aria-label="Email sign in"
+      >
         <div>
           <Label htmlFor="email">Email address</Label>
           <Input
@@ -303,7 +334,7 @@ function AuthPage() {
           disabled={busy || googleBusy || !intent}
           type="submit"
           size="lg"
-          className="h-12 w-full rounded-full bg-signal text-signal-foreground hover:bg-signal/90"
+          className="relative z-10 h-12 w-full rounded-full bg-signal text-signal-foreground hover:bg-signal/90"
         >
           {busy ? "Sending link…" : "Continue with email"}
         </Button>
@@ -311,14 +342,22 @@ function AuthPage() {
 
       {!intent ? (
         <p className="mt-3 text-center text-[12px] text-muted-foreground">Select Creator or Brand to continue.</p>
-      ) : null}
+      ) : (
+        <p className="mt-3 text-center text-[12px] text-muted-foreground">
+          Signing in as{" "}
+          <strong className="text-foreground">{intent === "brand" ? "Brand" : "Creator"}</strong>
+        </p>
+      )}
 
-      <p className="mt-6 text-center text-[12px] text-muted-foreground">
-        Brand? You can also open{" "}
+      <p className="relative z-0 mt-8 border-t border-border pt-4 text-center text-[12px] text-muted-foreground">
+        Prefer a direct link?{" "}
         <a href="/auth?as=brand" className="font-medium text-signal underline">
-          sign in as brand
+          Sign in as brand
         </a>
-        .
+        {" · "}
+        <a href="/auth?as=creator" className="font-medium text-signal underline">
+          Sign in as creator
+        </a>
       </p>
     </Container>
   );
