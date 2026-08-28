@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "installCommand": "npm ci --no-audit --no-fund --prefer-offline",
+  "installCommand": "npm ci --no-audit --no-fund --loglevel=error",
   "buildCommand": "npm run build",
   "regions": [
     "sin1"
