@@ -80,5 +80,6 @@
   },
   "engines": {
     "node": "24.x"
-  }
+  },
+  "packageManager": "bun@1.2.5"
 }

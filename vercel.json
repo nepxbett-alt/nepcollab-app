@@ -1,6 +1,7 @@
 {
   "framework": null,
-  "buildCommand": "npm run build",
+  "installCommand": "bun install --frozen-lockfile",
+  "buildCommand": "bun run build",
   "regions": [
     "sin1"
   ],
