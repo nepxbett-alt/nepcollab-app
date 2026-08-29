@@ -98,10 +98,14 @@ function OnboardingPage() {
 
   return (
     <Container className="max-w-lg py-8 sm:py-10">
-      <p className="text-[13px] font-medium text-signal">Welcome to NepCollab</p>
-      <h1 className="mt-1 text-2xl font-bold tracking-tight">Complete your profile</h1>
+      <p className="text-[13px] font-medium text-signal">Create · Connect · Grow</p>
+      <h1 className="mt-1 text-2xl font-bold tracking-tight">
+        {step === 1 ? "How will you use NepCollab?" : "Complete your profile"}
+      </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Step {step} of 3 — so brands and creators can find and trust you.
+        {step === 1
+          ? "One account. Choose creator or brand — you can finish setup in under a minute."
+          : "Step " + step + " of 3 — keep it simple so the other side can trust you."}
       </p>
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={3}>
         <div className="h-full rounded-full bg-signal transition-all" style={{ width: `${progress}%` }} />
@@ -110,35 +114,35 @@ function OnboardingPage() {
       <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-5">
         {step === 1 && (
           <div className="space-y-3">
-            <Label>I am joining as</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <Label className="sr-only">I am joining as</Label>
+            <div className="grid gap-3">
               <button
                 type="button"
                 onClick={() => setPickedRole("creator")}
-                className={`min-h-14 rounded-2xl border p-3 text-left text-sm font-semibold ${
-                  pickedRole === "creator" ? "border-signal bg-accent/50" : "border-border"
+                className={`min-h-[4.5rem] rounded-2xl border p-4 text-left transition ${
+                  pickedRole === "creator" ? "border-signal bg-accent/50 ring-1 ring-signal/30" : "border-border hover:border-foreground/20"
                 }`}
               >
-                Creator
-                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                  Apply to brand campaigns
+                <span className="text-[15px] font-semibold">I&apos;m a creator</span>
+                <span className="mt-1 block text-[13px] font-normal text-muted-foreground">
+                  Discover campaigns, apply with a pitch, deliver work
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => setPickedRole("brand")}
-                className={`min-h-14 rounded-2xl border p-3 text-left text-sm font-semibold ${
-                  pickedRole === "brand" ? "border-signal bg-accent/50" : "border-border"
+                className={`min-h-[4.5rem] rounded-2xl border p-4 text-left transition ${
+                  pickedRole === "brand" ? "border-signal bg-accent/50 ring-1 ring-signal/30" : "border-border hover:border-foreground/20"
                 }`}
               >
-                Brand
-                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                  Post campaigns & find talent
+                <span className="text-[15px] font-semibold">I&apos;m a brand</span>
+                <span className="mt-1 block text-[13px] font-normal text-muted-foreground">
+                  Publish opportunities, review applicants, collaborate
                 </span>
               </button>
             </div>
             <Button type="button" className="h-12 w-full rounded-full" onClick={() => setStep(2)}>
-              Continue
+              Continue as {pickedRole === "brand" ? "brand" : "creator"}
             </Button>
           </div>
         )}

@@ -102,11 +102,8 @@ function AuthPage() {
   const sendLink = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (busy || googleBusy) return;
-    if (!intent) {
-      toast.error("Choose Creator or Brand first.");
-      return;
-    }
-    writeIntent(intent);
+    // Role is chosen after sign-in on onboarding — optional pre-select only
+    if (intent) writeIntent(intent);
     const normalized = email.trim().toLowerCase();
     // Practical validation — not only "@"
     const emailOk =
@@ -134,11 +131,7 @@ function AuthPage() {
 
   const continueWithGoogle = async () => {
     if (busy || googleBusy) return;
-    if (!intent) {
-      toast.error("Choose Creator or Brand first.");
-      return;
-    }
-    writeIntent(intent);
+    if (intent) writeIntent(intent);
     setGoogleBusy(true);
     try {
       await signInWithGoogle();
@@ -168,9 +161,12 @@ function AuthPage() {
           <br />
           <span className="font-medium text-foreground">{lastEmail}</span>
         </p>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Signing in as <strong className="text-foreground">{intent === "brand" ? "Brand" : "Creator"}</strong>
-        </p>
+        {intent ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Preferred path:{" "}
+            <strong className="text-foreground">{intent === "brand" ? "Brand" : "Creator"}</strong>
+          </p>
+        ) : null}
 
         <form
           className="mt-6 space-y-3 text-left"
@@ -295,7 +291,7 @@ function AuthPage() {
         size="lg"
         variant="outline"
         className="mt-6 h-12 w-full rounded-full border-border bg-card text-[15px] font-semibold"
-        disabled={busy || googleBusy || !intent}
+        disabled={busy || googleBusy}
         onClick={() => void continueWithGoogle()}
       >
         {googleBusy ? (
@@ -331,11 +327,10 @@ function AuthPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder={intent === "brand" ? "marketing@yourbrand.com" : "you@example.com"}
             className="mt-2 h-12"
-            disabled={!intent}
           />
         </div>
         <Button
-          disabled={busy || googleBusy || !intent}
+          disabled={busy || googleBusy}
           type="submit"
           size="lg"
           className="relative z-10 h-12 w-full rounded-full bg-signal text-signal-foreground hover:bg-signal/90"
@@ -344,14 +339,17 @@ function AuthPage() {
         </Button>
       </form>
 
-      {!intent ? (
-        <p className="mt-3 text-center text-[12px] text-muted-foreground">Select Creator or Brand to continue.</p>
-      ) : (
-        <p className="mt-3 text-center text-[12px] text-muted-foreground">
-          Signing in as{" "}
-          <strong className="text-foreground">{intent === "brand" ? "Brand" : "Creator"}</strong>
-        </p>
-      )}
+      <p className="mt-3 text-center text-[12px] text-muted-foreground">
+        {intent ? (
+          <>
+            Preferred path:{" "}
+            <strong className="text-foreground">{intent === "brand" ? "Brand" : "Creator"}</strong>
+            . You can confirm after sign-in.
+          </>
+        ) : (
+          <>Optional: pick Creator or Brand above, or choose after you sign in.</>
+        )}
+      </p>
 
       <p className="relative z-0 mt-8 border-t border-border pt-4 text-center text-[12px] text-muted-foreground">
         Prefer a direct link?{" "}
