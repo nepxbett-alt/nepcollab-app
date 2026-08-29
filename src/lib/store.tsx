@@ -441,8 +441,18 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       if (!existing?.full_name && googleName) patch.full_name = googleName;
       if (!existing?.avatar_url && googleAvatar) patch.avatar_url = googleAvatar;
       // role only if missing — never escalate to admin from client metadata
-      if (!existing?.role && (meta.role === "creator" || meta.role === "brand")) {
-        patch.role = meta.role;
+      if (!existing?.role) {
+        let intentRole: string | null = null;
+        try {
+          intentRole = localStorage.getItem("nepcollab.auth.intent");
+        } catch {
+          /* ignore */
+        }
+        if (meta.role === "creator" || meta.role === "brand") {
+          patch.role = meta.role;
+        } else if (intentRole === "creator" || intentRole === "brand") {
+          patch.role = intentRole;
+        }
       }
       if (Object.keys(patch).length) {
         if (existing?.id) {
@@ -982,11 +992,19 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
               );
         const emailRedirectTo = `${origin}/auth/callback`;
 
+        let intentRole: "creator" | "brand" | undefined;
+        try {
+          const intent = localStorage.getItem("nepcollab.auth.intent");
+          if (intent === "brand" || intent === "creator") intentRole = intent;
+        } catch {
+          /* ignore */
+        }
         const { error } = await supabase.auth.signInWithOtp({
           email: normalized,
           options: {
             shouldCreateUser: true,
             emailRedirectTo,
+            data: intentRole ? { role: intentRole } : undefined,
           },
         });
 
@@ -1121,15 +1139,24 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
         const metaRole = sessionData.session?.user?.user_metadata?.role as Role | undefined;
         const inputRole = (input as any)?.role as Role | undefined;
+        let intentRole: Role | undefined;
+        try {
+          const intent = localStorage.getItem("nepcollab.auth.intent");
+          if (intent === "brand" || intent === "creator") intentRole = intent;
+        } catch {
+          /* ignore */
+        }
         // Prefer explicit onboarding choice; never invent admin from client
         const role = (
           inputRole === "creator" || inputRole === "brand"
             ? inputRole
             : state.role === "creator" || state.role === "brand"
               ? state.role
-              : metaRole === "creator" || metaRole === "brand"
-                ? metaRole
-                : "creator"
+              : intentRole === "creator" || intentRole === "brand"
+                ? intentRole
+                : metaRole === "creator" || metaRole === "brand"
+                  ? metaRole
+                  : "creator"
         ) as Role;
 
         const rawUsername = (input?.username || "").trim().replace(/^@+/, "");
@@ -1180,6 +1207,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           if (e) throw new Error(e.message || "Could not save creator profile.");
         }
 
+        try {
+          localStorage.removeItem("nepcollab.auth.intent");
+        } catch {
+          /* ignore */
+        }
         setState((s) => ({
           ...s,
           role,

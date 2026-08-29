@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Outlet, Link, createRootRouteWithContext, useRouter, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRouteWithContext, useRouter, useNavigate, HeadContent, Scripts } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -119,8 +119,22 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function readAuthIntent(): "creator" | "brand" | null {
+  try {
+    const v = localStorage.getItem("nepcollab.auth.intent");
+    if (v === "brand" || v === "creator") return v;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 function OnboardingGate() {
   const { signedIn, onboarded, role, completeOnboarding } = useStore();
+  const navigate = useNavigate();
+  const intent = readAuthIntent();
+  const effectiveRole: "creator" | "brand" =
+    role === "brand" || role === "creator" ? role : intent === "brand" ? "brand" : "creator";
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
@@ -135,19 +149,30 @@ function OnboardingGate() {
     e.stopPropagation();
     if (busy) return;
     if (!name.trim()) {
-      toast.error("Please enter your name.");
+      toast.error(effectiveRole === "brand" ? "Please enter your brand name." : "Please enter your name.");
       return;
     }
     setBusy(true);
     try {
       await completeOnboarding({
+        role: effectiveRole,
         name: name.trim(),
         username: username.trim(),
         bio: bio.trim(),
         location: location.trim(),
         website: website.trim(),
       });
-      toast.success("Profile ready. Welcome to NepCollab!");
+      try {
+        localStorage.removeItem("nepcollab.auth.intent");
+      } catch {
+        /* ignore */
+      }
+      toast.success(
+        effectiveRole === "brand"
+          ? "Brand profile ready — publish your first campaign"
+          : "Profile ready. Welcome to NepCollab!",
+      );
+      navigate({ to: effectiveRole === "brand" ? "/brand" : "/dashboard" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not finish setup. Try again.";
       toast.error(msg);
@@ -163,16 +188,20 @@ function OnboardingGate() {
         onSubmit={submit}
         className="relative z-[201] w-full max-w-lg rounded-3xl border bg-card p-6 shadow-xl"
       >
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Step 1 of 1</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {effectiveRole === "brand" ? "Brand setup" : "Creator setup"}
+        </p>
         <h2 className="mt-2 text-2xl font-bold">
-          {role === "brand" ? "Set up your brand" : "Build your creator profile"}
+          {effectiveRole === "brand" ? "Set up your brand" : "Build your creator profile"}
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Add the basics so NepCollab can personalize discovery and collaboration.
+          {effectiveRole === "brand"
+            ? "Tell creators who you are so they can apply to the right campaigns."
+            : "A strong profile helps brands find and select you."}
         </p>
         <div className="mt-6 grid gap-4">
           <div>
-            <Label htmlFor="on-name">{role === "brand" ? "Brand name" : "Name"}</Label>
+            <Label htmlFor="on-name">{effectiveRole === "brand" ? "Brand name" : "Name"}</Label>
             <Input
               id="on-name"
               name="name"
@@ -180,7 +209,7 @@ function OnboardingGate() {
               autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={role === "brand" ? "Acme Nepal" : "Your full name"}
+              placeholder={effectiveRole === "brand" ? "Acme Nepal" : "Your full name"}
             />
           </div>
           <div>
@@ -202,10 +231,10 @@ function OnboardingGate() {
               name="location"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Pokhara, Nepal"
+              placeholder="Kathmandu, Nepal"
             />
           </div>
-          {role === "brand" && (
+          {effectiveRole === "brand" && (
             <div>
               <Label htmlFor="on-website">Website</Label>
               <Input
@@ -226,7 +255,7 @@ function OnboardingGate() {
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               placeholder={
-                role === "brand"
+                effectiveRole === "brand"
                   ? "Tell creators what your brand does"
                   : "Tell brands what you create"
               }
@@ -238,7 +267,7 @@ function OnboardingGate() {
           disabled={busy || !name.trim()}
           className="mt-6 h-11 w-full rounded-full text-base"
         >
-          {busy ? "Saving…" : "Finish setup"}
+          {busy ? "Saving…" : effectiveRole === "brand" ? "Enter brand workspace" : "Finish setup"}
         </Button>
       </form>
     </div>

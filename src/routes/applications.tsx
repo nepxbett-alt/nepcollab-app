@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -96,7 +96,12 @@ function Applications() {
     currentCreatorId,
     withdrawApplication,
     signedIn,
+    role,
   } = useStore();
+
+  if (signedIn && role === "brand") {
+    return <Navigate to="/brand/applicants" />;
+  }
 
   if (!signedIn) {
     return (
