@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { BrandGuard } from "@/components/BrandGuard";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Container, PageHeader } from "@/components/AppShell";
@@ -18,7 +19,11 @@ export const Route = createFileRoute("/brand/applicants")({
       { property: "og:description", content: "Shortlist, compare and select creators for your campaign." },
     ],
   }),
-  component: Applicants,
+  component: () => (
+    <BrandGuard>
+      <Applicants />
+    </BrandGuard>
+  ),
 });
 
 function Applicants() {

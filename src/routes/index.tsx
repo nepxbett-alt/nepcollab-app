@@ -27,12 +27,12 @@ export const Route = createFileRoute("/")({
 });
 
 function isOpenCampaign(status: string) {
-  const s = String(status || "");
+  const s = String(status || "").toLowerCase();
   return (
-    s === "APPLICATIONS_OPEN" ||
-    s === "PUBLISHED" ||
-    s === "ACTIVE" ||
-    s.toLowerCase() === "active"
+    s === "applications_open" ||
+    s === "published" ||
+    s === "active" ||
+    s === "open"
   );
 }
 

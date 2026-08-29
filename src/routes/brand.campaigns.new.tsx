@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { BrandGuard } from "@/components/BrandGuard";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Container, PageHeader } from "@/components/AppShell";
@@ -28,7 +29,11 @@ export const Route = createFileRoute("/brand/campaigns/new")({
       { property: "og:description", content: "Describe the work, the perks and who you're looking for." },
     ],
   }),
-  component: NewCampaign,
+  component: () => (
+    <BrandGuard>
+      <NewCampaign />
+    </BrandGuard>
+  ),
 });
 
 const STEPS = [

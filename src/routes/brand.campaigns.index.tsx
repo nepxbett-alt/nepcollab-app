@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { BrandGuard } from "@/components/BrandGuard";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -17,7 +18,11 @@ export const Route = createFileRoute("/brand/campaigns/")({
       { property: "og:title", content: "Your campaigns — NepCollab" },
     ],
   }),
-  component: BrandCampaigns,
+  component: () => (
+    <BrandGuard>
+      <BrandCampaigns />
+    </BrandGuard>
+  ),
 });
 
 function BrandCampaigns() {
