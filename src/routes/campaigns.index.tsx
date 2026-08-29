@@ -90,12 +90,12 @@ function Discover() {
   const results = useMemo(() => {
     const list = campaigns.filter((c) => {
       // Public discover: only open campaigns
-      const st = String(c.status || "");
+      const st = String(c.status || "").toUpperCase().replace(/\s+/g, "_");
       const open =
         st === "APPLICATIONS_OPEN" ||
         st === "ACTIVE" ||
         st === "PUBLISHED" ||
-        st.toLowerCase() === "active";
+        st === "OPEN";
       if (!open) return false;
       if (c.deadline && new Date(c.deadline) < new Date(new Date().toDateString())) return false;
       const brand = getBrand(c.brandId);

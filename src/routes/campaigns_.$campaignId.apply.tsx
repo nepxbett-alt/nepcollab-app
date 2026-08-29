@@ -139,14 +139,40 @@ function ApplyPage() {
     );
   }
 
+  if (!signedIn) {
+    return (
+      <Container>
+        <EmptyState
+          title="Sign in to apply"
+          body="Create a free creator account to apply. Your profile is attached automatically."
+          actionLabel="Sign in as creator"
+          actionTo="/auth"
+        />
+      </Container>
+    );
+  }
+
   if (role === "brand") {
     return (
       <Container>
         <EmptyState
           title="Brands can't apply"
-          body="Switch to a creator account to apply to campaigns."
-          actionLabel="Browse campaigns"
-          actionTo="/campaigns"
+          body="This flow is for creators. Open your brand workspace to review applicants instead."
+          actionLabel="Brand workspace"
+          actionTo="/brand"
+        />
+      </Container>
+    );
+  }
+
+  if (role === "admin") {
+    return (
+      <Container>
+        <EmptyState
+          title="Admin accounts don't apply"
+          body="Use a creator account to apply to campaigns."
+          actionLabel="Admin home"
+          actionTo="/admin"
         />
       </Container>
     );

@@ -1352,8 +1352,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
         if (campErr) throw new Error(campErr.message);
         if (!camp) throw new Error("Campaign not found.");
-        const st = String(camp.status || "").toLowerCase();
-        if (!["active", "published"].includes(st)) {
+        const st = String(camp.status || "").toLowerCase().replace(/\s+/g, "_");
+        // DB uses active/published; UI maps those to APPLICATIONS_OPEN
+        if (!["active", "published", "applications_open", "open"].includes(st)) {
           throw new Error("This campaign is not accepting applications.");
         }
         if (camp.deadline && new Date(camp.deadline) < new Date()) {
@@ -1374,6 +1375,26 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             throw new Error("You already applied to this campaign.");
           }
           throw new Error(msg || "Could not submit application");
+        }
+        // Best-effort brand notification (ignore failure — application already saved)
+        try {
+          const { data: campRow } = await db
+            .from("campaigns")
+            .select("brand_id, title")
+            .eq("id", campaignId)
+            .maybeSingle();
+          if (campRow?.brand_id) {
+            await db.from("notifications").insert({
+              user_id: campRow.brand_id,
+              type: "application",
+              title: "New application",
+              body: `A creator applied to “${campRow.title || "your campaign"}”.`,
+              link: "/brand/applicants",
+              read: false,
+            });
+          }
+        } catch {
+          /* non-fatal */
         }
         await load(uid);
       },
