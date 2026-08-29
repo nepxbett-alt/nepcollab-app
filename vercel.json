@@ -1,35 +1,18 @@
 {
   "framework": null,
-  "installCommand": "npm install --no-audit --no-fund",
+  "installCommand": "npm ci --no-audit --no-fund --maxsockets=3",
   "buildCommand": "npm run build",
   "outputDirectory": null,
-  "regions": [
-    "sin1"
-  ],
+  "regions": ["sin1"],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=()"
-        },
-        {
-          "key": "X-DNS-Prefetch-Control",
-          "value": "on"
-        }
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
+        { "key": "X-DNS-Prefetch-Control", "value": "on" }
       ]
     }
   ]
