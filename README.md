@@ -1,39 +1,48 @@
 # NepCollab
 
-Nepal creator × brand collaboration platform.
+Nepal brand × creator collaboration platform.
 
-**Live:** https://nepcollab.vercel.app
+**Create. Connect. Grow.**
+
+Brands post opportunities. Creators apply. Brands select. Both collaborate.
 
 ## Stack
 
 - TanStack Start + Vite + React
 - Supabase (Auth, Postgres, RLS)
-- Vercel
+- Vercel (Nitro `vercel` preset)
 
-## Develop
-
-```bash
-bun install
-bun run dev
-```
-
-## Build
+## Local
 
 ```bash
-bun run build
+cp .env.example .env
+npm ci
+npm run dev
 ```
 
-## Environment
+## Production deploy
 
-Set in Vercel (never commit secrets):
+Remote `npm install` on Vercel builders can hang. Preferred path:
 
-- `VITE_SUPABASE_URL` / `SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_PUBLISHABLE_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY` (server only)
-- `BRIGHTDATA_API_TOKEN` (server only)
+```bash
+export VERCEL_TOKEN=...
+./scripts/deploy-prod.sh
+```
 
-## Roles
+Or:
 
-- **Creator** — discover campaigns, apply, deliver, social profiles
-- **Brand** — post campaigns, review applicants, collaborate
-- **Admin** — `/admin` operations console
+```bash
+npm ci && npm run build
+vercel deploy --prebuilt --prod
+```
+
+Git pushes still build with:
+
+- Node `22.x`
+- `npm ci --no-audit --no-fund --maxsockets=3`
+
+## Product rules (V1)
+
+- Campaign-first collaboration (not Fiverr/Upwork)
+- No wallet / escrow / platform payouts
+- Creators are not a public directory

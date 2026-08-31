@@ -1,4 +1,5 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm ci --no-audit --no-fund --maxsockets=3",
   "buildCommand": "npm run build",
