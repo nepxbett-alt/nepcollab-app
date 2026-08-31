@@ -1191,28 +1191,53 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         }
 
         if (role === "brand") {
-          const { error: e } = await db.from("brand_profiles").upsert(
-            {
-              user_id: uid,
-              business_name: (input?.name || "").trim() || "My Brand",
-              website: (input?.website || "").trim() || null,
-              category: "Brand",
-            },
-            { onConflict: "user_id" },
-          );
+          const brandRow: Record<string, unknown> = {
+            user_id: uid,
+            business_name: (input?.name || "").trim() || "My Brand",
+            website: (input?.website || "").trim() || null,
+            category: "Brand",
+          };
+          let { error: e } = await db.from("brand_profiles").upsert(brandRow, { onConflict: "user_id" });
+          // Live DB may still use profile_id on older environments
+          if (e && /profile_id|user_id|column/i.test(e.message || "")) {
+            const retry = await db.from("brand_profiles").upsert(
+              {
+                profile_id: uid,
+                business_name: brandRow.business_name,
+                website: brandRow.website,
+                category: "Brand",
+              },
+              { onConflict: "profile_id" },
+            );
+            e = retry.error;
+          }
           if (e) throw new Error(e.message || "Could not save brand profile.");
         } else {
           const niches = Array.isArray((input as any)?.niches) ? (input as any).niches : [];
           const languages = Array.isArray((input as any)?.languages) ? (input as any).languages : [];
-          const { error: e } = await db.from("creator_profiles").upsert(
-            {
-              user_id: uid,
-              languages,
-              niches,
-              platforms: [],
-            },
-            { onConflict: "user_id" },
-          );
+          const creatorRow: Record<string, unknown> = {
+            user_id: uid,
+            languages,
+            niches,
+            platforms: [],
+            engagement_rate: 0,
+            followers: 0,
+          };
+          let { error: e } = await db.from("creator_profiles").upsert(creatorRow, { onConflict: "user_id" });
+          if (e && /profile_id|user_id|column|engagement_rate|null value/i.test(e.message || "")) {
+            const retry = await db.from("creator_profiles").upsert(
+              {
+                profile_id: uid,
+                languages,
+                niches,
+                platforms: [],
+                engagement_rate: 0,
+                audience_size: 0,
+              },
+              { onConflict: "profile_id" },
+            );
+            e = retry.error;
+          }
           if (e) throw new Error(e.message || "Could not save creator profile.");
         }
 
