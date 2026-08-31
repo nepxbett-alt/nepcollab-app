@@ -180,7 +180,7 @@ function Home() {
                   >
                     <CampaignCard
                       campaign={c}
-                      saved={signedIn ? saved.has(c.id) : undefined}
+                      saved={signedIn ? saved.includes(c.id) : undefined}
                       onToggleSave={signedIn ? toggleSaved : undefined}
                     />
                   </div>
