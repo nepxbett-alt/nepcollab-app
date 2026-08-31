@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { daysLeft, formatDate, formatFollowers, getBrand } from "@/lib/lookup";
 import { useStore } from "@/lib/store";
+import { formatNpr, payoutSummaryLabel } from "@/lib/payout";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/campaigns/$campaignId/")({
@@ -159,26 +160,50 @@ function CampaignDetail() {
 
           <section className="rounded-2xl border border-signal/40 bg-accent/50 p-5">
             <h2 className="flex items-center gap-2 text-lg font-bold">
-              <Gift className="size-5" /> What you get
+              <Gift className="size-5" /> Payment
             </h2>
-            <ul className="mt-3 space-y-2">
-              {(campaign.perks?.length
-                ? campaign.perks
-                : ["Details arranged directly with the brand"]
-              ).map((p) => (
-                <li key={p} className="flex items-center gap-2 text-sm font-medium">
-                  <CheckCircle2 className="size-4 text-success" /> {p}
-                </li>
-              ))}
-            </ul>
+            {campaign.paymentModel === "performance" ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-wide text-signal">
+                  Performance payout
+                </p>
+                {(campaign.milestones || []).length > 0 ? (
+                  <ul className="space-y-1.5 text-sm">
+                    {(campaign.milestones || []).map((m) => (
+                      <li key={m.views} className="flex justify-between gap-3 font-medium">
+                        <span>{Number(m.views).toLocaleString("en-NP")} views</span>
+                        <span>{formatNpr(m.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm font-medium">
+                    {formatNpr(campaign.ratePer1000Views)} per 1,000 verified views
+                    {campaign.maximumPayout != null ? (
+                      <> · max {formatNpr(campaign.maximumPayout)}</>
+                    ) : null}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm font-semibold">
+                Fixed payout:{" "}
+                {formatNpr(
+                  campaign.fixedAmount ??
+                    (campaign.giftValue && /\d/.test(campaign.giftValue)
+                      ? Number(String(campaign.giftValue).replace(/[^0-9.]/g, ""))
+                      : null),
+                )}
+              </p>
+            )}
             {campaign.giftValue ? (
-              <p className="mt-3 rounded-2xl bg-card p-3 text-sm font-medium">
+              <p className="mt-3 rounded-2xl bg-card p-3 text-sm text-muted-foreground">
                 {campaign.giftValue}
               </p>
             ) : null}
             <p className="mt-3 text-xs text-muted-foreground">
-              NepCollab does not process payments (no escrow). Agree fee or barter directly—bank transfer, eSewa, Khalti, or product—and confirm in Messages. Any compensation is arranged
-              directly with the brand.
+              NepCollab calculates and records the payout obligation. Money is paid by the brand
+              (eSewa, bank, etc.) after verification — not held in a platform wallet.
             </p>
           </section>
 

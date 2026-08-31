@@ -215,6 +215,15 @@ function mapCampaign(r: any): Campaign {
     creatorsNeeded: r.spots ?? 1,
     status: campaignStatus(r.status),
     featured: Boolean(r.featured),
+    paymentModel: (r.payment_model === "performance" ? "performance" : "fixed") as any,
+    fixedAmount: r.fixed_amount != null ? Number(r.fixed_amount) : null,
+    ratePer1000Views: r.rate_per_1000_views != null ? Number(r.rate_per_1000_views) : null,
+    maximumPayout: r.maximum_payout != null ? Number(r.maximum_payout) : null,
+    performanceMetric: r.performance_metric === "engagement" ? "engagement" : "views",
+    milestones: Array.isArray(r.milestones) ? r.milestones : [],
+    requiredHashtags: Array.isArray(r.required_hashtags) ? r.required_hashtags : [],
+    requiredMentions: Array.isArray(r.required_mentions) ? r.required_mentions : [],
+    contentInstructions: r.content_instructions ?? "",
     cover: r.image_url ?? "/app-icon.png",
     requirements: {
       minFollowers: r.min_followers ?? req.minFollowers ?? 0,
@@ -1308,6 +1317,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
                 : null,
             brief: campaign.description.trim() || null,
             // Non-cash benefit (informational — never a wallet balance)
+            payment_model: (campaign as any).paymentModel || "fixed",
+            fixed_amount: (campaign as any).fixedAmount ?? null,
+            rate_per_1000_views: (campaign as any).ratePer1000Views ?? null,
+            maximum_payout: (campaign as any).maximumPayout ?? null,
+            performance_metric: (campaign as any).performanceMetric || "views",
+            milestones: (campaign as any).milestones || [],
+            required_hashtags: (campaign as any).requiredHashtags || [],
+            required_mentions: (campaign as any).requiredMentions || [],
+            content_instructions: (campaign as any).contentInstructions || null,
             benefit_type: (campaign as any).benefit_type || "other",
             benefit_title:
               (campaign as any).benefit_title ||

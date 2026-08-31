@@ -138,6 +138,13 @@ export interface Deliverable {
   };
 }
 
+export type PaymentModel = "fixed" | "performance";
+
+export interface PayoutMilestone {
+  views: number;
+  amount: number;
+}
+
 export interface Campaign {
   featured?: boolean;
   id: string;
@@ -168,6 +175,16 @@ export interface Campaign {
   deliverables: Deliverable[];
   createdAt: string;
   views: number;
+  /** MVP payout model — obligations only, no wallet */
+  paymentModel?: PaymentModel;
+  fixedAmount?: number | null;
+  ratePer1000Views?: number | null;
+  maximumPayout?: number | null;
+  performanceMetric?: "views" | "engagement";
+  milestones?: PayoutMilestone[];
+  requiredHashtags?: string[];
+  requiredMentions?: string[];
+  contentInstructions?: string;
 }
 
 export interface Application {

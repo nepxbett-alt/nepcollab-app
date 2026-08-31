@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { BadgeCheck, Bookmark, Gift, MapPin } from "lucide-react";
 import type { Campaign } from "@/data/types";
 import { daysLeft, displayMatch, getBrand } from "@/lib/lookup";
+import { payoutSummaryLabel } from "@/lib/payout";
 import { cn } from "@/lib/utils";
 
 export function CampaignCard({
@@ -20,7 +21,19 @@ export function CampaignCard({
   const brand = getBrand(campaign.brandId);
   const left = daysLeft(campaign.deadline);
   const shownMatch = displayMatch(match);
+  const payoutLabel =
+    campaign.paymentModel
+      ? payoutSummaryLabel({
+          paymentModel: campaign.paymentModel,
+          fixedAmount: campaign.fixedAmount,
+          ratePer1000Views: campaign.ratePer1000Views,
+          maximumPayout: campaign.maximumPayout,
+          milestones: campaign.milestones,
+          useMilestones: (campaign.milestones || []).length > 0,
+        })
+      : null;
   const benefitLabel =
+    payoutLabel ||
     (campaign as any).benefit_title ||
     campaign.giftValue?.trim() ||
     (campaign.perks?.length ? campaign.perks.slice(0, 2).join(" · ") : "Non-cash benefit");

@@ -272,20 +272,95 @@ function NewCampaign() {
         {step === 3 ? (
           <>
             <div>
-              <p className="mb-2 text-sm font-medium">Perks offered</p>
+              <p className="mb-2 text-sm font-medium">Payout model</p>
               <div className="flex flex-wrap gap-2">
-                {PERK_OPTIONS.map((p) => (
-                  <Toggle key={p} label={p} active={form.perks.includes(p)} onClick={() => toggle("perks", p)} />
-                ))}
+                <Toggle
+                  label="Fixed amount"
+                  active={form.paymentModel === "fixed"}
+                  onClick={() => set("paymentModel", "fixed")}
+                />
+                <Toggle
+                  label="Performance (views)"
+                  active={form.paymentModel === "performance"}
+                  onClick={() => set("paymentModel", "performance")}
+                />
               </div>
             </div>
+            {form.paymentModel === "fixed" ? (
+              <div>
+                <Label htmlFor="fixed-amt">Fixed payout (Rs.)</Label>
+                <Input
+                  id="fixed-amt"
+                  className="mt-2 h-11"
+                  inputMode="numeric"
+                  value={form.fixedAmount}
+                  onChange={(e) => set("fixedAmount", e.target.value)}
+                  placeholder="5000"
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Creator earns this after content is approved. NepCollab records the obligation — payment is arranged with the creator.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.useMilestones}
+                    onChange={(e) => set("useMilestones", e.target.checked)}
+                  />
+                  Use milestone ladder instead of rate
+                </label>
+                {!form.useMilestones ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="rate">Rs. per 1,000 views</Label>
+                      <Input
+                        id="rate"
+                        className="mt-2 h-11"
+                        inputMode="numeric"
+                        value={form.ratePer1000}
+                        onChange={(e) => set("ratePer1000", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="max-pay">Maximum payout (Rs.)</Label>
+                      <Input
+                        id="max-pay"
+                        className="mt-2 h-11"
+                        inputMode="numeric"
+                        value={form.maximumPayout}
+                        onChange={(e) => set("maximumPayout", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <Label htmlFor="milestones">Milestones (views:amount per line)</Label>
+                    <Textarea
+                      id="milestones"
+                      className="mt-2 min-h-[120px] font-mono text-sm"
+                      value={form.milestonesText}
+                      onChange={(e) => set("milestonesText", e.target.value)}
+                    />
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Example: 10000:500 means Rs. 500 once verified views reach 10,000.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
             <div>
-              <Label htmlFor="gift">Gift / reward details</Label>
-              <Input id="gift" className="mt-2" maxLength={200} value={form.giftValue} onChange={(e) => set("giftValue", e.target.value)} placeholder="Free dinner for two + Rs. 2,000 voucher" />
+              <Label htmlFor="gift">Optional note for creators</Label>
+              <Input
+                id="gift"
+                className="mt-2"
+                maxLength={200}
+                value={form.giftValue}
+                onChange={(e) => set("giftValue", e.target.value)}
+                placeholder="Payment via eSewa after verification"
+              />
             </div>
-            <p className="text-xs text-muted-foreground">
-              NepCollab never processes payments — these terms are arranged directly with the creator.
-            </p>
           </>
         ) : null}
 
