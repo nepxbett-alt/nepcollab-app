@@ -22,7 +22,9 @@ npm run dev
 
 ## Production deploy
 
-Remote `npm install` on Vercel builders can hang. Preferred path:
+Git pushes do **not** trigger Vercel builds (remote npm was unreliable).
+
+Deploy with prebuilt artifacts only:
 
 ```bash
 export VERCEL_TOKEN=...
@@ -35,11 +37,6 @@ Or:
 npm ci && npm run build
 vercel deploy --prebuilt --prod
 ```
-
-Git pushes still build with:
-
-- Node `22.x`
-- `npm ci --no-audit --no-fund --maxsockets=3`
 
 ## Product rules (V1)
 
