@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BadgeCheck, Bookmark, Clock, Plus, Star, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Container, SectionHeader } from "@/components/AppShell";
 import { CampaignCard } from "@/components/CampaignCard";
@@ -116,6 +116,14 @@ function Profile() {
     platform: string;
     code: string;
   } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editNiches, setEditNiches] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [basicsHydrated, setBasicsHydrated] = useState(false);
+
   const [lastFetchPreview, setLastFetchPreview] = useState<{
     platform: string;
     username: string;
@@ -343,6 +351,66 @@ function Profile() {
     );
   }
 
+
+  const creatorForEdit = getCreator(currentCreatorId);
+
+  // Keep edit form in sync with loaded creator profile
+  useEffect(() => {
+    if (!creatorForEdit) return;
+    setEditName(creatorForEdit.name || "");
+    setEditUsername(creatorForEdit.username || "");
+    setEditBio(creatorForEdit.bio || "");
+    setEditLocation(creatorForEdit.location || "");
+    setEditNiches((creatorForEdit.niches || []).join(", "));
+    setBasicsHydrated(true);
+  }, [
+    creatorForEdit?.id,
+    creatorForEdit?.name,
+    creatorForEdit?.username,
+    creatorForEdit?.bio,
+    creatorForEdit?.location,
+    // niches array identity
+    (creatorForEdit?.niches || []).join(","),
+  ]);
+
+  // Deep-link from "Complete profile"
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#complete") return;
+    const timer = window.setTimeout(() => {
+      document.getElementById("complete")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [creatorForEdit?.id, role]);
+
+
+  const saveBasics = async () => {
+    if (profileSaving) return;
+    if (!editName.trim()) {
+      toast.error("Please enter your name.");
+      return;
+    }
+    setProfileSaving(true);
+    try {
+      await updateProfile({
+        name: editName.trim(),
+        username: editUsername.trim() || undefined,
+        bio: editBio.trim(),
+        location: editLocation.trim(),
+        niches: editNiches
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+      });
+      toast.success("Profile saved");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Could not save profile";
+      toast.error(msg);
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   if (role === "brand") {
     const brand = getBrand(currentBrandId);
     return (
@@ -501,6 +569,76 @@ function Profile() {
           />
         </div>
       ) : null}
+
+      <div id="complete" className="mt-8 scroll-mt-24">
+        <SectionHeader
+          title="Your details"
+          hint="Name, bio and niches brands see when you apply."
+        />
+        <div className="mt-3 space-y-3 rounded-3xl border border-border bg-card p-4">
+          <div>
+            <Label htmlFor="pf-name">Display name</Label>
+            <Input
+              id="pf-name"
+              className="mt-1.5 h-11"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Your name"
+              autoComplete="name"
+            />
+          </div>
+          <div>
+            <Label htmlFor="pf-username">Username</Label>
+            <Input
+              id="pf-username"
+              className="mt-1.5 h-11"
+              value={editUsername}
+              onChange={(e) => setEditUsername(e.target.value)}
+              placeholder="yourname"
+              autoComplete="username"
+            />
+          </div>
+          <div>
+            <Label htmlFor="pf-location">Location</Label>
+            <Input
+              id="pf-location"
+              className="mt-1.5 h-11"
+              value={editLocation}
+              onChange={(e) => setEditLocation(e.target.value)}
+              placeholder="Kathmandu, Nepal"
+            />
+          </div>
+          <div>
+            <Label htmlFor="pf-bio">Bio</Label>
+            <textarea
+              id="pf-bio"
+              className="mt-1.5 min-h-[88px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={editBio}
+              onChange={(e) => setEditBio(e.target.value)}
+              placeholder="Tell brands what you create"
+              maxLength={500}
+            />
+          </div>
+          <div>
+            <Label htmlFor="pf-niches">Niches (comma separated)</Label>
+            <Input
+              id="pf-niches"
+              className="mt-1.5 h-11"
+              value={editNiches}
+              onChange={(e) => setEditNiches(e.target.value)}
+              placeholder="Lifestyle, Food, Travel"
+            />
+          </div>
+          <Button
+            type="button"
+            className="h-11 w-full rounded-full"
+            disabled={profileSaving || !basicsHydrated}
+            onClick={() => void saveBasics()}
+          >
+            {profileSaving ? "Saving…" : "Save profile"}
+          </Button>
+        </div>
+      </div>
 
       <div className="mt-8">
         <SectionHeader

@@ -1771,9 +1771,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         }
         if (input.bio !== undefined) profilePatch.bio = input.bio.trim() || null;
         if (input.location !== undefined) profilePatch.location = input.location.trim() || null;
+        if (input.avatarUrl !== undefined) profilePatch.avatar_url = input.avatarUrl || null;
         if (Object.keys(profilePatch).length) {
           const { error } = await db.from("profiles").update(profilePatch).eq("id", uid);
-          if (error) throw new Error(error.message);
+          if (error) throw new Error(error.message || "Could not update profile.");
         }
         const creatorPatch: Record<string, unknown> = {};
         if (input.niches !== undefined) creatorPatch.niches = input.niches;
