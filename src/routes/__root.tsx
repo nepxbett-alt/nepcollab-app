@@ -133,13 +133,10 @@ function OnboardingGate() {
   const { signedIn, onboarded, role, completeOnboarding } = useStore();
   const navigate = useNavigate();
   const intent = readAuthIntent();
-  const effectiveRole: "creator" | "brand" =
-    role === "brand" || role === "creator" ? role : intent === "brand" ? "brand" : "creator";
+  const [picked, setPicked] = useState<"creator" | "brand" | null>(() =>
+    role === "brand" || role === "creator" ? role : intent === "brand" ? "brand" : intent === "creator" ? "creator" : null,
+  );
   const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
-  const [bio, setBio] = useState("");
-  const [location, setLocation] = useState("");
-  const [website, setWebsite] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!signedIn || onboarded) return null;
@@ -148,126 +145,83 @@ function OnboardingGate() {
     e.preventDefault();
     e.stopPropagation();
     if (busy) return;
+    if (!picked) {
+      toast.error("Choose creator or brand.");
+      return;
+    }
     if (!name.trim()) {
-      toast.error(effectiveRole === "brand" ? "Please enter your brand name." : "Please enter your name.");
+      toast.error(picked === "brand" ? "Enter your brand name." : "Enter your name.");
       return;
     }
     setBusy(true);
     try {
-      await completeOnboarding({
-        role: effectiveRole,
-        name: name.trim(),
-        username: username.trim(),
-        bio: bio.trim(),
-        location: location.trim(),
-        website: website.trim(),
-      });
+      await completeOnboarding({ role: picked, name: name.trim() } as any);
       try {
-        localStorage.removeItem("nepcollab.auth.intent");
+        localStorage.setItem("nepcollab.auth.intent", picked);
       } catch {
         /* ignore */
       }
-      toast.success(
-        effectiveRole === "brand"
-          ? "Brand profile ready — publish your first campaign"
-          : "Profile ready. Welcome to NepCollab!",
-      );
-      navigate({ to: effectiveRole === "brand" ? "/brand" : "/dashboard" });
-    } catch (err) {
+      toast.success(picked === "brand" ? "Welcome — create a campaign" : "Welcome — find campaigns");
+      navigate({ to: picked === "brand" ? "/brand" : "/dashboard" });
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Could not finish setup. Try again.";
       toast.error(msg);
-      console.error("[onboarding]", err);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/95 p-4">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-background/95 p-4 backdrop-blur-sm sm:items-center">
       <form
-        onSubmit={submit}
-        className="relative z-[201] w-full max-w-lg rounded-3xl border bg-card p-6 shadow-xl"
+        onSubmit={(e) => void submit(e)}
+        className="w-full max-w-md rounded-3xl border border-border bg-card p-5 shadow-xl sm:p-6"
       >
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {effectiveRole === "brand" ? "Brand setup" : "Creator setup"}
-        </p>
-        <h2 className="mt-2 text-2xl font-bold">
-          {effectiveRole === "brand" ? "Set up your brand" : "Build your creator profile"}
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {effectiveRole === "brand"
-            ? "Tell creators who you are so they can apply to the right campaigns."
-            : "A strong profile helps brands find and select you."}
-        </p>
-        <div className="mt-6 grid gap-4">
-          <div>
-            <Label htmlFor="on-name">{effectiveRole === "brand" ? "Brand name" : "Name"}</Label>
-            <Input
-              id="on-name"
-              name="name"
-              required
-              autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={effectiveRole === "brand" ? "Acme Nepal" : "Your full name"}
-            />
-          </div>
-          <div>
-            <Label htmlFor="on-username">Username</Label>
-            <Input
-              id="on-username"
-              name="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="yourname"
-              autoComplete="username"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">Letters, numbers, underscore only. Optional.</p>
-          </div>
-          <div>
-            <Label htmlFor="on-location">Location</Label>
-            <Input
-              id="on-location"
-              name="location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Kathmandu, Nepal"
-            />
-          </div>
-          {effectiveRole === "brand" && (
-            <div>
-              <Label htmlFor="on-website">Website</Label>
-              <Input
-                id="on-website"
-                name="website"
-                type="url"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://"
-              />
-            </div>
-          )}
-          <div>
-            <Label htmlFor="on-bio">Bio</Label>
-            <Input
-              id="on-bio"
-              name="bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder={
-                effectiveRole === "brand"
-                  ? "Tell creators what your brand does"
-                  : "Tell brands what you create"
-              }
-            />
-          </div>
+        <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-signal">Quick setup</p>
+        <h2 className="mt-1.5 text-xl font-bold tracking-tight">Creator or brand?</h2>
+        <p className="mt-1 text-sm text-muted-foreground">One choice and a name — under 30 seconds.</p>
+
+        <div className="mt-4 grid gap-2">
+          <button
+            type="button"
+            onClick={() => setPicked("creator")}
+            className={
+              "rounded-2xl border px-4 py-3 text-left text-sm font-semibold " +
+              (picked === "creator" ? "border-ink bg-ink text-ink-foreground" : "border-border")
+            }
+          >
+            I&apos;m a creator
+          </button>
+          <button
+            type="button"
+            onClick={() => setPicked("brand")}
+            className={
+              "rounded-2xl border px-4 py-3 text-left text-sm font-semibold " +
+              (picked === "brand" ? "border-ink bg-ink text-ink-foreground" : "border-border")
+            }
+          >
+            I&apos;m a brand
+          </button>
         </div>
+
+        <div className="mt-4">
+          <Label htmlFor="gate-name">{picked === "brand" ? "Brand name" : "Your name"}</Label>
+          <Input
+            id="gate-name"
+            className="mt-1.5 h-11"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={picked === "brand" ? "Brand name" : "Your name"}
+            required
+          />
+        </div>
+
         <Button
           type="submit"
-          disabled={busy || !name.trim()}
-          className="mt-6 h-11 w-full rounded-full text-base"
+          disabled={busy || !picked || !name.trim()}
+          className="mt-5 h-11 w-full rounded-full"
         >
-          {busy ? "Saving…" : effectiveRole === "brand" ? "Enter brand workspace" : "Finish setup"}
+          {busy ? "Saving…" : "Continue"}
         </Button>
       </form>
     </div>

@@ -1,32 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { BrandGuard } from "@/components/BrandGuard";
 import { useState } from "react";
 import { toast } from "sonner";
+import { BrandGuard } from "@/components/BrandGuard";
 import { Container, PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  CAMPAIGN_TYPES,
-  LOCATIONS,
-  NICHES,
-  PERK_OPTIONS,
-  PLATFORMS,
-  type Campaign,
-  type Platform,
-} from "@/data/types";
+import type { Campaign, Platform } from "@/data/types";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { toUserError } from "@/lib/user-error";
 
 export const Route = createFileRoute("/brand/campaigns/new")({
   head: () => ({
     meta: [
-      { title: "Create a campaign — NepCollab" },
-      { name: "description", content: "Publish a collaboration opportunity in a guided eight-step wizard." },
-      { property: "og:title", content: "Create a campaign — NepCollab" },
-      { property: "og:description", content: "Describe the work, the perks and who you're looking for." },
+      { title: "Create campaign — NepCollab" },
+      { name: "description", content: "Publish a campaign in under a minute." },
     ],
   }),
   component: () => (
@@ -35,16 +25,6 @@ export const Route = createFileRoute("/brand/campaigns/new")({
     </BrandGuard>
   ),
 });
-
-const STEPS = [
-  "Basics",
-  "What you need",
-  "Who you want",
-  "Perks & gifts",
-  "Location & timeline",
-  "Deliverables",
-  "Review",
-];
 
 function Toggle({
   label,
@@ -71,426 +51,232 @@ function Toggle({
 
 function NewCampaign() {
   const navigate = useNavigate();
-  const { addCampaign, currentBrandId, signedIn } = useStore();
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState({
-    title: "",
-    imageUrl: "",
-    description: "",
-    category: "",
-    types: [] as string[],
-    platforms: [] as Platform[],
-    niches: [] as string[],
-    minFollowers: "2000",
-    perks: [] as string[],
-    benefitType: "meal",
-    benefitTitle: "",
-    benefitValueDisplay: "",
-    redemptionMethod: "manual",
+  const { addCampaign, currentBrandId } = useStore();
+  const [busy, setBusy] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [platform, setPlatform] = useState<Platform>("Instagram");
+  const [contentType, setContentType] = useState("Instagram Reel");
+  const [paymentModel, setPaymentModel] = useState<"fixed" | "performance">("fixed");
+  const [fixedAmount, setFixedAmount] = useState("5000");
+  const [ratePer1000, setRatePer1000] = useState("100");
+  const [maximumPayout, setMaximumPayout] = useState("20000");
+  const [deadline, setDeadline] = useState("");
+  const [location, setLocation] = useState("Kathmandu");
+  const [remote, setRemote] = useState(true);
 
-    giftValue: "",
-    location: "Kathmandu",
-    remote: false,
-    startDate: "",
-    endDate: "",
-    deadline: "",
-    creatorsNeeded: "3",
-    deliverables: "1 Instagram Reel\n2 Instagram Stories",
-  });
-
-  if (!signedIn) {
-    return (
-      <Container>
-        <PageHeader title="Create a campaign" />
-        <p className="text-sm text-muted-foreground">
-          Sign in with a brand account to publish campaigns. Anyone can browse open campaigns without signing in.
-        </p>
-        <Button className="mt-4 rounded-full" onClick={() => navigate({ to: "/auth" })}>
-          Sign in
-        </Button>
-      </Container>
-    );
-  }
-
-  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
-    setForm((f) => ({ ...f, [key]: value }));
-
-  const toggle = (key: "types" | "platforms" | "niches" | "perks", value: string) =>
-    setForm((f) => {
-      const list = f[key] as string[];
-      return {
-        ...f,
-        [key]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value],
-      };
-    });
-
-  const publish = async () => {
-    if (!form.title.trim() || !form.description.trim()) {
-      toast.error("Add a title and description first.");
-      setStep(0);
+  const publish = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    if (!title.trim()) {
+      toast.error("Add a campaign title.");
       return;
     }
-    if (!form.title.trim() || !form.description.trim()) {
-      toast.error("Title and description are required.");
+    if (!description.trim() || description.trim().length < 20) {
+      toast.error("Add a short brief (at least a couple of sentences).");
       return;
     }
-    if (!form.benefitTitle.trim() && form.perks.length === 0) {
-      toast.error("Specify the non-cash benefit you are offering.");
-      return;
+    if (paymentModel === "fixed") {
+      const amt = Number(fixedAmount);
+      if (!Number.isFinite(amt) || amt <= 0) {
+        toast.error("Enter a fixed payout greater than zero.");
+        return;
+      }
+    } else {
+      const rate = Number(ratePer1000);
+      if (!Number.isFinite(rate) || rate <= 0) {
+        toast.error("Enter Rs. per 1,000 views greater than zero.");
+        return;
+      }
     }
-    if (form.deadline && form.startDate && form.deadline > form.startDate) {
-      toast.error("Application deadline must be on or before campaign start.");
-      return;
-    }
-    if (form.startDate && form.endDate && form.startDate > form.endDate) {
-      toast.error("Campaign start must be on or before end.");
-      return;
-    }
-    // id is assigned by Postgres (gen_random_uuid); do not fabricate client-side IDs.
-    const campaign = {
-      id: "",
-      title: form.title.trim(),
-      brandId: currentBrandId,
-      description: form.description.trim(),
-      category: form.category || "General",
-      types: form.types.length ? form.types : ["Instagram Reel"],
-      platforms: form.platforms.length ? form.platforms : ["Instagram"],
-      perks: form.perks.length
-        ? form.perks
-        : [form.benefitTitle.trim() || "Non-cash benefit"],
-      benefit_type: form.benefitType,
-      benefit_title: form.benefitTitle.trim() || form.perks[0] || "Non-cash benefit",
-      benefit_value_display: form.benefitValueDisplay.trim() || null,
-      redemption_method: form.redemptionMethod,
-      giftValue: form.giftValue,
-      location: form.location,
-      remote: form.remote,
-      startDate: form.startDate || "",
-      endDate: form.endDate || "",
-      deadline: form.deadline || "",
-      creatorsNeeded: Number(form.creatorsNeeded) || 1,
-      status: "APPLICATIONS_OPEN",
-      cover: form.imageUrl.trim() || "/app-icon.png",
-      requirements: {
-        minFollowers: Number(form.minFollowers) || 0,
-        niches: form.niches.length ? form.niches : ["Lifestyle"],
-        languages: ["Nepali"],
-        experience: "No minimum",
-      },
-      deliverables: form.deliverables
-        .split("\n")
-        .filter(Boolean)
-        .map((line, i) => ({
-          id: `pending-${i}`,
-          title: line.trim(),
-          platform: (form.platforms[0] ?? "Instagram") as Platform,
-          contentType: line.trim(),
-          dueDate: form.endDate || "2026-09-30",
-          instructions: "Follow the campaign brief and tag the brand.",
-          status: "PENDING" as const,
-        })),
-      createdAt: new Date().toISOString().slice(0, 10),
-      views: 0,
-    };
+
+    setBusy(true);
     try {
-      await addCampaign(campaign as any);
+      const campaign = {
+        id: crypto.randomUUID(),
+        title: title.trim(),
+        brandId: currentBrandId || "",
+        description: description.trim(),
+        category: "General",
+        types: [contentType],
+        platforms: [platform],
+        perks: [],
+        paymentModel,
+        fixedAmount: paymentModel === "fixed" ? Number(fixedAmount) || 0 : null,
+        ratePer1000Views: paymentModel === "performance" ? Number(ratePer1000) || 0 : null,
+        maximumPayout: paymentModel === "performance" ? Number(maximumPayout) || null : null,
+        milestones: [],
+        location: location.trim() || "Kathmandu",
+        remote,
+        startDate: "",
+        endDate: "",
+        deadline: deadline || "",
+        creatorsNeeded: 3,
+        status: "APPLICATIONS_OPEN",
+        cover: "/app-icon.png",
+        requirements: {
+          minFollowers: 0,
+          niches: [],
+          languages: [],
+          experience: "",
+        },
+        deliverables: [
+          {
+            id: crypto.randomUUID(),
+            title: contentType,
+            platform,
+            contentType,
+            dueDate: deadline || "",
+            instructions: description.trim().slice(0, 200),
+            status: "PENDING",
+          },
+        ],
+        createdAt: new Date().toISOString(),
+        views: 0,
+        giftValue:
+          paymentModel === "fixed"
+            ? `Rs. ${Number(fixedAmount).toLocaleString("en-NP")} fixed`
+            : `Rs. ${Number(ratePer1000).toLocaleString("en-NP")} / 1K views`,
+      } as Campaign;
+
+      await addCampaign(campaign);
       toast.success("Campaign published");
       navigate({ to: "/brand/campaigns" });
-    } catch (err: any) {
-      toast.error(err?.message || "Could not publish campaign");
+    } catch (err: unknown) {
+      toast.error(toUserError(err, "Could not publish campaign."));
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <Container className="max-w-2xl">
-      <PageHeader title="Create campaign" subtitle={`Step ${step + 1} of ${STEPS.length} · ${STEPS[step]}`} />
-      <Progress value={((step + 1) / STEPS.length) * 100} className="mb-8" />
-
-      <div className="space-y-5 rounded-2xl border border-border bg-card p-6">
-        {step === 0 ? (
-          <>
-            <div>
-              <Label htmlFor="title">Campaign title</Label>
-              <Input id="title" className="mt-2" maxLength={120} value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Food Creator Collaboration — Pokhara" />
-              <Label htmlFor="imageUrl" className="mt-4 block">Cover image URL (optional)</Label>
-              <Input id="imageUrl" className="mt-2" value={form.imageUrl} onChange={(e) => set("imageUrl", e.target.value)} placeholder="https://…" />
-              <p className="mt-1 text-[11px] text-muted-foreground">Use a public image link so your campaign stands out in Discover.</p>
-            </div>
-            <div>
-              <Label htmlFor="desc">Description</Label>
-              <Textarea id="desc" className="mt-2" rows={5} maxLength={1500} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="We're launching our new menu and looking for local food creators." />
-            </div>
-            <div>
-              <Label htmlFor="cat">Category</Label>
-              <Input id="cat" className="mt-2" maxLength={60} value={form.category} onChange={(e) => set("category", e.target.value)} placeholder="Food & Beverage" />
-            </div>
-          </>
-        ) : null}
-
-        {step === 1 ? (
-          <>
-            <div>
-              <p className="mb-2 text-sm font-medium">Content types</p>
-              <div className="flex flex-wrap gap-2">
-                {CAMPAIGN_TYPES.map((t) => (
-                  <Toggle key={t} label={t} active={form.types.includes(t)} onClick={() => toggle("types", t)} />
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-medium">Platforms</p>
-              <div className="flex flex-wrap gap-2">
-                {PLATFORMS.map((p) => (
-                  <Toggle key={p} label={p} active={form.platforms.includes(p)} onClick={() => toggle("platforms", p)} />
-                ))}
-              </div>
-            </div>
-          </>
-        ) : null}
-
-        {step === 2 ? (
-          <>
-            <div>
-              <p className="mb-2 text-sm font-medium">Niches</p>
-              <div className="flex flex-wrap gap-2">
-                {NICHES.map((n) => (
-                  <Toggle key={n} label={n} active={form.niches.includes(n)} onClick={() => toggle("niches", n)} />
-                ))}
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="followers">Minimum followers (0 for no minimum)</Label>
-              <Input id="followers" className="mt-2" type="number" min={0} value={form.minFollowers} onChange={(e) => set("minFollowers", e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="needed">Creators needed</Label>
-              <Input id="needed" className="mt-2" type="number" min={1} value={form.creatorsNeeded} onChange={(e) => set("creatorsNeeded", e.target.value)} />
-            </div>
-          </>
-        ) : null}
-
-        {step === 3 ? (
-          <>
-            <div>
-              <p className="mb-2 text-sm font-medium">Payout model</p>
-              <div className="flex flex-wrap gap-2">
-                <Toggle
-                  label="Fixed amount"
-                  active={form.paymentModel === "fixed"}
-                  onClick={() => set("paymentModel", "fixed")}
-                />
-                <Toggle
-                  label="Performance (views)"
-                  active={form.paymentModel === "performance"}
-                  onClick={() => set("paymentModel", "performance")}
-                />
-              </div>
-            </div>
-            {form.paymentModel === "fixed" ? (
-              <div>
-                <Label htmlFor="fixed-amt">Fixed payout (Rs.)</Label>
-                <Input
-                  id="fixed-amt"
-                  className="mt-2 h-11"
-                  inputMode="numeric"
-                  value={form.fixedAmount}
-                  onChange={(e) => set("fixedAmount", e.target.value)}
-                  placeholder="5000"
-                />
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  Creator earns this after content is approved. NepCollab records the obligation — payment is arranged with the creator.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.useMilestones}
-                    onChange={(e) => set("useMilestones", e.target.checked)}
-                  />
-                  Use milestone ladder instead of rate
-                </label>
-                {!form.useMilestones ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <Label htmlFor="rate">Rs. per 1,000 views</Label>
-                      <Input
-                        id="rate"
-                        className="mt-2 h-11"
-                        inputMode="numeric"
-                        value={form.ratePer1000}
-                        onChange={(e) => set("ratePer1000", e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="max-pay">Maximum payout (Rs.)</Label>
-                      <Input
-                        id="max-pay"
-                        className="mt-2 h-11"
-                        inputMode="numeric"
-                        value={form.maximumPayout}
-                        onChange={(e) => set("maximumPayout", e.target.value)}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <Label htmlFor="milestones">Milestones (views:amount per line)</Label>
-                    <Textarea
-                      id="milestones"
-                      className="mt-2 min-h-[120px] font-mono text-sm"
-                      value={form.milestonesText}
-                      onChange={(e) => set("milestonesText", e.target.value)}
-                    />
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      Example: 10000:500 means Rs. 500 once verified views reach 10,000.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-            <div>
-              <Label htmlFor="gift">Optional note for creators</Label>
+    <Container className="max-w-lg py-6">
+      <PageHeader title="Create campaign" subtitle="One short form. Publish when ready." />
+      <form onSubmit={(e) => void publish(e)} className="mt-6 space-y-5">
+        <div>
+          <Label htmlFor="c-title">Title</Label>
+          <Input
+            id="c-title"
+            className="mt-1.5 h-11"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Summer reel collab"
+            maxLength={120}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="c-desc">What creators should do</Label>
+          <Textarea
+            id="c-desc"
+            className="mt-1.5 min-h-[100px]"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Create a short reel showing the product in daily life. Keep it natural — not a hard sell."
+            maxLength={1500}
+            required
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-medium">Platform</p>
+          <div className="flex flex-wrap gap-2">
+            {(["Instagram", "TikTok", "YouTube", "Facebook"] as Platform[]).map((p) => (
+              <Toggle key={p} label={p} active={platform === p} onClick={() => setPlatform(p)} />
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="c-type">Content type</Label>
+          <Input
+            id="c-type"
+            className="mt-1.5 h-11"
+            value={contentType}
+            onChange={(e) => setContentType(e.target.value)}
+            placeholder="Instagram Reel"
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-medium">Payout</p>
+          <div className="flex flex-wrap gap-2">
+            <Toggle
+              label="Fixed amount"
+              active={paymentModel === "fixed"}
+              onClick={() => setPaymentModel("fixed")}
+            />
+            <Toggle
+              label="Per views"
+              active={paymentModel === "performance"}
+              onClick={() => setPaymentModel("performance")}
+            />
+          </div>
+          {paymentModel === "fixed" ? (
+            <div className="mt-3">
+              <Label htmlFor="c-fixed">Amount (Rs.)</Label>
               <Input
-                id="gift"
-                className="mt-2"
-                maxLength={200}
-                value={form.giftValue}
-                onChange={(e) => set("giftValue", e.target.value)}
-                placeholder="Payment via eSewa after verification"
+                id="c-fixed"
+                className="mt-1.5 h-11"
+                inputMode="numeric"
+                value={fixedAmount}
+                onChange={(e) => setFixedAmount(e.target.value)}
               />
             </div>
-          </>
-        ) : null}
-
-        {step === 4 ? (
-          <>
-            <div>
-              <p className="mb-2 text-sm font-medium">Location</p>
-              <div className="flex flex-wrap gap-2">
-                {LOCATIONS.map((l) => (
-                  <Toggle key={l} label={l} active={form.location === l} onClick={() => set("location", l)} />
-                ))}
+          ) : (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="c-rate">Rs. per 1,000 views</Label>
+                <Input
+                  id="c-rate"
+                  className="mt-1.5 h-11"
+                  inputMode="numeric"
+                  value={ratePer1000}
+                  onChange={(e) => setRatePer1000(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="c-max">Max payout (Rs.)</Label>
+                <Input
+                  id="c-max"
+                  className="mt-1.5 h-11"
+                  inputMode="numeric"
+                  value={maximumPayout}
+                  onChange={(e) => setMaximumPayout(e.target.value)}
+                />
               </div>
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.remote} onChange={(e) => set("remote", e.target.checked)} />
-              This campaign can be done remotely
-            </label>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label htmlFor="start">Start</Label>
-                <Input id="start" className="mt-2" type="date" value={form.startDate} onChange={(e) => set("startDate", e.target.value)} />
-              </div>
-              <div>
-                <Label htmlFor="end">End</Label>
-                <Input id="end" className="mt-2" type="date" value={form.endDate} onChange={(e) => set("endDate", e.target.value)} />
-              </div>
-              <div>
-                <Label htmlFor="deadline">Apply by</Label>
-                <Input id="deadline" className="mt-2" type="date" value={form.deadline} onChange={(e) => set("deadline", e.target.value)} />
-              </div>
-            </div>
-          </>
-        ) : null}
-
-        {step === 5 ? (
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">
+            NepCollab records the payout. You pay the creator after verification (eSewa, bank, etc.).
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-3">
-              <p className="text-sm font-semibold">What are you offering? (non-cash only)</p>
-              <p className="text-[12px] text-muted-foreground">
-                NepCollab does not process cash payouts. Offer a product, meal, stay, experience, or other benefit.
-              </p>
-              <div>
-                <Label htmlFor="benefit-type">Benefit type</Label>
-                <select
-                  id="benefit-type"
-                  className="mt-1.5 flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
-                  value={form.benefitType}
-                  onChange={(e) => set("benefitType", e.target.value)}
-                >
-                  <option value="meal">Meal</option>
-                  <option value="product">Product</option>
-                  <option value="stay">Stay / hotel</option>
-                  <option value="experience">Experience</option>
-                  <option value="service">Service</option>
-                  <option value="event_access">Event access</option>
-                  <option value="ticket">Ticket</option>
-                  <option value="sample">Sample</option>
-                  <option value="discount">Discount</option>
-                  <option value="other">Other non-cash</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="benefit-title">Benefit title</Label>
-                <Input
-                  id="benefit-title"
-                  className="mt-1.5 h-11"
-                  placeholder="e.g. Free dinner for two"
-                  value={form.benefitTitle}
-                  onChange={(e) => set("benefitTitle", e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="benefit-value">Estimated value (display only)</Label>
-                <Input
-                  id="benefit-value"
-                  className="mt-1.5 h-11"
-                  placeholder="e.g. NPR 3,000 — not a cash balance"
-                  value={form.benefitValueDisplay}
-                  onChange={(e) => set("benefitValueDisplay", e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="redeem-method">How creator redeems</Label>
-                <select
-                  id="redeem-method"
-                  className="mt-1.5 flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
-                  value={form.redemptionMethod}
-                  onChange={(e) => set("redemptionMethod", e.target.value)}
-                >
-                  <option value="manual">Confirm in app</option>
-                  <option value="code">Redemption code</option>
-                  <option value="qr">Show QR / code at venue</option>
-                  <option value="delivery">Ship / hand over product</option>
-                  <option value="appointment">Appointment / booking</option>
-                </select>
-              </div>
-            </div>
-
-                        <Label htmlFor="deliverables">Deliverables (one per line)</Label>
-            <Textarea id="deliverables" className="mt-2" rows={6} maxLength={800} value={form.deliverables} onChange={(e) => set("deliverables", e.target.value)} />
+            <Label htmlFor="c-loc">Location</Label>
+            <Input
+              id="c-loc"
+              className="mt-1.5 h-11"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
           </div>
-        ) : null}
-
-        {step === 6 ? (
-          <div className="space-y-2 text-sm">
-            <h3 className="text-lg font-bold">{form.title || "Untitled campaign"}</h3>
-            <p className="text-muted-foreground">{form.description || "No description yet."}</p>
-            <p><span className="text-muted-foreground">Types:</span> {form.types.join(", ") || "—"}</p>
-            <p><span className="text-muted-foreground">Perks:</span> {form.perks.join(", ") || "—"}</p>
-            <p><span className="text-muted-foreground">Location:</span> {form.remote ? "Remote" : form.location}</p>
-            <p><span className="text-muted-foreground">Creators:</span> {form.creatorsNeeded}</p>
-            <p><span className="text-muted-foreground">Apply by:</span> {form.deadline || "—"}</p>
+          <div>
+            <Label htmlFor="c-deadline">Apply by (optional)</Label>
+            <Input
+              id="c-deadline"
+              className="mt-1.5 h-11"
+              type="date"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+            />
           </div>
-        ) : null}
-      </div>
-
-      <div className="mt-6 flex justify-between gap-3">
-        <Button variant="outline" className="rounded-full" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
-          Back
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={remote} onChange={(e) => setRemote(e.target.checked)} />
+          Remote OK
+        </label>
+        <Button type="submit" disabled={busy} className="h-12 w-full rounded-full text-base">
+          {busy ? "Publishing…" : "Publish campaign"}
         </Button>
-        {step < STEPS.length - 1 ? (
-          <Button className="rounded-full" onClick={() => setStep((s) => s + 1)}>
-            Continue
-          </Button>
-        ) : (
-          <Button className="rounded-full bg-signal text-signal-foreground hover:bg-signal/90" onClick={publish}>
-            Publish campaign
-          </Button>
-        )}
-      </div>
+      </form>
     </Container>
   );
 }

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Container } from "@/components/AppShell";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { resolvePostAuthDestination } from "@/lib/home-path";
 import { toUserError } from "@/lib/user-error";
 import { useStore } from "@/lib/store";
 
@@ -67,19 +68,11 @@ function AuthCallbackPage() {
         } catch {
           /* ignore */
         }
-        if (!result.onboarded) {
-          navigate({ to: "/onboarding" });
-          return;
-        }
-        let dest = "/dashboard";
-        try {
-          const intent = localStorage.getItem("nepcollab.auth.intent");
-          const r = result.role;
-          if (r === "brand" || intent === "brand") dest = "/brand";
-          else if (r === "admin") dest = "/admin";
-        } catch {
-          /* ignore */
-        }
+        // Profile role wins over temporary intent so returning users always land in their workspace
+        const dest = resolvePostAuthDestination({
+          role: result.role,
+          onboarded: result.onboarded,
+        });
         navigate({ to: dest as "/" });
       } catch (err) {
         if (cancelled) return;

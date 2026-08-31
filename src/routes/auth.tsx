@@ -7,6 +7,7 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { resolvePostAuthDestination } from "@/lib/home-path";
 import { toUserError } from "@/lib/user-error";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -84,13 +85,9 @@ function AuthPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (signedIn && onboarded) {
-      const dest =
-        safeNext ||
-        (role === "brand" ? "/brand" : role === "admin" ? "/admin" : "/dashboard");
+    if (signedIn) {
+      const dest = resolvePostAuthDestination({ role, onboarded, next: safeNext });
       navigate({ to: dest as "/" });
-    } else if (signedIn && !onboarded) {
-      navigate({ to: "/onboarding" });
     }
   }, [loading, signedIn, onboarded, navigate, safeNext, role]);
 
