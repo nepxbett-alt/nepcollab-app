@@ -92,6 +92,14 @@ interface Store extends State {
     deliverableId: string,
     status: DeliverableStatus,
   ) => Promise<void>;
+  recordVerifiedViews: (input: {
+    collaborationId: string;
+    contentUrl?: string;
+    verifiedViews: number;
+    likes?: number;
+    comments?: number;
+  }) => Promise<{ amount: number; snapshot: Record<string, unknown> }>;
+  approvePayout: (campaignId: string, creatorId: string) => Promise<void>;
   sendMessage: (threadId: string, text: string) => Promise<void>;
   markNotificationsRead: () => Promise<void>;
   uploadFile: (
@@ -1361,7 +1369,46 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           })
           .select("id")
           .single();
-        if (error) throw new Error(error.message);
+        if (error) {
+          // Fallback when performance-payout columns are not migrated yet
+          const msg = error.message || "";
+          if (/payment_model|fixed_amount|rate_per_1000|maximum_payout|milestones|column/i.test(msg)) {
+            const { error: e2 } = await db.from("campaigns").insert({
+              brand_id: uid,
+              title: campaign.title.trim(),
+              description: campaign.description.trim(),
+              category: campaign.category || "General",
+              location: campaign.location || "Remote",
+              remote: Boolean(campaign.remote),
+              perks: campaign.perks ?? [],
+              content_types: campaign.types ?? [],
+              platforms: campaign.platforms ?? [],
+              deliverables: (campaign.deliverables ?? []).map((d: any) => d.title ?? d),
+              requirements:
+                typeof campaign.requirements === "string"
+                  ? campaign.requirements
+                  : JSON.stringify(campaign.requirements ?? {}),
+              min_followers: campaign.requirements?.minFollowers ?? 0,
+              spots,
+              deadline,
+              campaign_start: start,
+              campaign_end: end,
+              status: "active",
+              visibility: "public",
+              campaign_type: campaignType,
+              image_url:
+                campaign.cover &&
+                !String(campaign.cover).startsWith("/") &&
+                !String(campaign.cover).includes("picsum")
+                  ? campaign.cover
+                  : null,
+              brief: campaign.description.trim() || null,
+            });
+            if (e2) throw new Error(e2.message);
+          } else {
+            throw new Error(msg);
+          }
+        }
         await load(uid);
       },
       updateCampaignStatus: async (campaignId, status) => {
@@ -1511,6 +1558,27 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           .eq("id", collaborationId)
           .maybeSingle();
         if (!collab) throw new Error("Collaboration not found");
+        if (!String(submission.link || "").trim()) {
+          throw new Error("Add the public post URL before submitting.");
+        }
+
+        // Optional performance MVP table — ignore if migration not applied
+        try {
+          await db.from("content_submissions").upsert(
+            {
+              campaign_id: collab.campaign_id,
+              creator_id: uid,
+              collaboration_id: collaborationId,
+              platform: "Instagram",
+              content_url: String(submission.link).trim(),
+              caption: submission.note || null,
+              status: "pending",
+            },
+            { onConflict: "campaign_id,creator_id,content_url" },
+          );
+        } catch {
+          /* ignore */
+        }
 
         // Prefer updating the real deliverable row
         const now = new Date().toISOString();
@@ -1784,6 +1852,128 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           const { error } = await db.from("creator_profiles").update(creatorPatch).eq("user_id", uid);
           if (error) throw new Error(error.message);
         }
+        await load(uid);
+      },
+
+      recordVerifiedViews: async ({ collaborationId, contentUrl, verifiedViews, likes, comments }) => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) throw new Error("Not signed in");
+        const views = Math.max(0, Math.floor(Number(verifiedViews) || 0));
+        const { data: collab } = await db
+          .from("collaborations")
+          .select("id, campaign_id, creator_id, brand_id")
+          .eq("id", collaborationId)
+          .maybeSingle();
+        if (!collab) throw new Error("Collaboration not found");
+        if (collab.brand_id !== uid && state.role !== "admin") {
+          throw new Error("Only the brand can verify views.");
+        }
+        const { data: campaign } = await db
+          .from("campaigns")
+          .select("id, payment_model, fixed_amount, rate_per_1000_views, maximum_payout, milestones")
+          .eq("id", collab.campaign_id)
+          .maybeSingle();
+        if (!campaign) throw new Error("Campaign not found");
+
+        // Find or create submission row
+        let submissionId: string | null = null;
+        const { data: existing } = await db
+          .from("content_submissions")
+          .select("id")
+          .eq("campaign_id", collab.campaign_id)
+          .eq("creator_id", collab.creator_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (existing?.id) {
+          submissionId = existing.id;
+          await db
+            .from("content_submissions")
+            .update({ status: "tracking", content_url: contentUrl || undefined })
+            .eq("id", submissionId);
+        } else if (contentUrl) {
+          const { data: created, error } = await db
+            .from("content_submissions")
+            .insert({
+              campaign_id: collab.campaign_id,
+              creator_id: collab.creator_id,
+              collaboration_id: collaborationId,
+              platform: "Instagram",
+              content_url: contentUrl,
+              status: "tracking",
+            })
+            .select("id")
+            .single();
+          if (error) throw new Error(error.message);
+          submissionId = created.id;
+        }
+
+        if (submissionId) {
+          await db.from("content_performance").insert({
+            submission_id: submissionId,
+            verified_views: views,
+            likes: likes ?? null,
+            comments: comments ?? null,
+            performance_source: "manual",
+            verified_by: uid,
+            verified_at: new Date().toISOString(),
+          });
+        }
+
+        const { calculatePayout } = await import("@/lib/payout");
+        const result = calculatePayout(
+          {
+            paymentModel: campaign.payment_model === "performance" ? "performance" : "fixed",
+            fixedAmount: campaign.fixed_amount != null ? Number(campaign.fixed_amount) : null,
+            ratePer1000Views: campaign.rate_per_1000_views != null ? Number(campaign.rate_per_1000_views) : null,
+            maximumPayout: campaign.maximum_payout != null ? Number(campaign.maximum_payout) : null,
+            milestones: Array.isArray(campaign.milestones) ? campaign.milestones : [],
+            useMilestones: Array.isArray(campaign.milestones) && campaign.milestones.length > 0,
+          },
+          views,
+        );
+
+        await db.from("content_payouts").upsert(
+          {
+            campaign_id: collab.campaign_id,
+            creator_id: collab.creator_id,
+            submission_id: submissionId,
+            payment_model: result.model,
+            calculated_amount: result.amount,
+            status: "calculated",
+            calculation_snapshot: result.snapshot,
+          },
+          { onConflict: "campaign_id,creator_id" },
+        );
+
+        await load(uid);
+        return { amount: result.amount, snapshot: result.snapshot };
+      },
+      approvePayout: async (campaignId, creatorId) => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = userId || sessionData.session?.user?.id || "";
+        if (!uid) throw new Error("Not signed in");
+        const { data: camp } = await db.from("campaigns").select("brand_id").eq("id", campaignId).maybeSingle();
+        if (!camp || camp.brand_id !== uid) throw new Error("Only the brand can approve payout.");
+        const { data: row } = await db
+          .from("content_payouts")
+          .select("calculated_amount")
+          .eq("campaign_id", campaignId)
+          .eq("creator_id", creatorId)
+          .maybeSingle();
+        if (!row) throw new Error("No calculated payout yet. Verify views first.");
+        const { error } = await db
+          .from("content_payouts")
+          .update({
+            status: "brand_approved",
+            approved_by: uid,
+            approved_at: new Date().toISOString(),
+            approved_amount: row.calculated_amount ?? 0,
+          })
+          .eq("campaign_id", campaignId)
+          .eq("creator_id", creatorId);
+        if (error) throw new Error(error.message);
         await load(uid);
       },
       uploadFile: async (bucket, path, file) => {

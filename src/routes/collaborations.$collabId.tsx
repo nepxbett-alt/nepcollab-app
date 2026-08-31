@@ -37,9 +37,10 @@ function Workspace() {
     campaigns,
     role,
     submitDeliverable,
-    reviewDeliverable,
-  } = useStore();
+    reviewDeliverable, recordVerifiedViews, approvePayout } = useStore();
   const [open, setOpen] = useState<string | null>(null);
+  const [verifiedViewsInput, setVerifiedViewsInput] = useState("");
+  const [verifyBusy, setVerifyBusy] = useState(false);
   const [note, setNote] = useState("");
   const [link, setLink] = useState("");
   const [voucherBusy, setVoucherBusy] = useState(false);
@@ -431,6 +432,59 @@ function Workspace() {
           </ol>
         </div>
       </aside>
+    
+      {role === "brand" ? (
+        <section className="mt-8 rounded-3xl border border-border bg-card p-4">
+          <h2 className="text-base font-bold">Verify performance</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Enter verified public views from the post. This calculates the payout obligation (not a wallet transfer).
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <Input
+              inputMode="numeric"
+              placeholder="Verified views e.g. 42381"
+              value={verifiedViewsInput}
+              onChange={(e) => setVerifiedViewsInput(e.target.value)}
+              className="h-11"
+            />
+            <Button
+              className="h-11 shrink-0 rounded-full"
+              disabled={verifyBusy}
+              onClick={async () => {
+                setVerifyBusy(true);
+                try {
+                  const res = await recordVerifiedViews({
+                    collaborationId: collab.id,
+                    verifiedViews: Number(verifiedViewsInput),
+                  });
+                  toast.success(`Calculated payout: Rs. ${Math.round(res.amount).toLocaleString("en-NP")}`);
+                } catch (err: any) {
+                  toast.error(err?.message || "Could not verify views");
+                } finally {
+                  setVerifyBusy(false);
+                }
+              }}
+            >
+              {verifyBusy ? "Saving…" : "Save verified views"}
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            className="mt-3 h-10 w-full rounded-full"
+            onClick={async () => {
+              try {
+                await approvePayout(collab.campaignId, collab.creatorId);
+                toast.success("Payout approved — pay creator off-platform");
+              } catch (err: any) {
+                toast.error(err?.message || "Could not approve payout");
+              }
+            }}
+          >
+            Approve payout obligation
+          </Button>
+        </section>
+      ) : null}
+
     </Container>
   );
 }
