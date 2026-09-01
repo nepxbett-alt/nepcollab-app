@@ -949,7 +949,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (role === "admin") return;
         setState((s) => ({ ...s, role }));
       },
-      signInWithGoogle: async () => {
+            signInWithGoogle: async () => {
         const origin =
           typeof window !== "undefined" && window.location?.origin
             ? window.location.origin.replace(/\/$/, "")
@@ -958,6 +958,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
                 "",
               );
         const redirectTo = `${origin}/auth/callback`;
+        let intentRole: "creator" | "brand" | undefined;
+        try {
+          const intent = localStorage.getItem("nepcollab.auth.intent");
+          if (intent === "brand" || intent === "creator") intentRole = intent;
+        } catch {
+          /* ignore */
+        }
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
           options: {
@@ -966,6 +973,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
               access_type: "offline",
               prompt: "select_account",
             },
+            data: intentRole ? { role: intentRole } : undefined,
           },
         });
         if (error) {
@@ -1198,6 +1206,37 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           throw new Error(error.message || "Could not save your profile.");
         }
 
+        // Confirm role stuck (DB trigger may reject); retry once as explicit update
+        const { data: roleCheck } = await db
+          .from("profiles")
+          .select("role, onboarded")
+          .eq("id", uid)
+          .maybeSingle();
+        if (roleCheck?.role !== role) {
+          const { error: roleErr } = await db
+            .from("profiles")
+            .update({ role, onboarded: true })
+            .eq("id", uid);
+          if (roleErr) {
+            throw new Error(
+              roleErr.message ||
+                "Could not set your account type. Try again or contact support.",
+            );
+          }
+          const { data: roleCheck2 } = await db
+            .from("profiles")
+            .select("role")
+            .eq("id", uid)
+            .maybeSingle();
+          if (roleCheck2?.role !== role) {
+            throw new Error(
+              "Your account type could not be set to " +
+                role +
+                ". Please sign out and try again, or ask an admin to set your role.",
+            );
+          }
+        }
+
         if (role === "brand") {
           const brandRow: Record<string, unknown> = {
             user_id: uid,
@@ -1250,7 +1289,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-          localStorage.removeItem("nepcollab.auth.intent");
+          localStorage.setItem("nepcollab.auth.intent", role === "brand" ? "brand" : "creator");
         } catch {
           /* ignore */
         }
@@ -1261,6 +1300,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           signedIn: true,
         }));
         await load(uid);
+        // load() may briefly lag; force role from the choice we just verified in DB
+        setState((s) => ({ ...s, role, onboarded: true, signedIn: true }));
+        try {
+          localStorage.removeItem("nepcollab.auth.intent");
+        } catch {
+          /* ignore */
+        }
       },
       toggleSaved: async (campaignId) => {
         const { data: sessionData } = await supabase.auth.getSession();
