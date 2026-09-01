@@ -1309,13 +1309,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           throw new Error("Application deadline cannot be in the past.");
         }
 
-        // Live schema only allows campaign_type: ugc | barter
+        // V1: non-cash / PR packages are barter; only pure cash-style remains ugc
+        const hasCashPayout =
+          (campaign as any).fixedAmount != null && Number((campaign as any).fixedAmount) > 0;
         const campaignType =
-          Array.isArray(campaign.perks) &&
-          campaign.perks.length > 0 &&
-          !String(campaign.giftValue || "").toLowerCase().includes("cash")
-            ? "barter"
-            : "ugc";
+          hasCashPayout && String(campaign.giftValue || "").toLowerCase().includes("cash")
+            ? "ugc"
+            : "barter";
 
         const { error } = await db
           .from("campaigns")

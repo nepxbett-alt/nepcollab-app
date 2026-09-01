@@ -186,15 +186,16 @@ function CampaignDetail() {
                 )}
               </div>
             ) : (
-              <p className="mt-3 text-sm font-semibold">
-                Fixed payout:{" "}
-                {formatNpr(
-                  campaign.fixedAmount ??
-                    (campaign.giftValue && /\d/.test(campaign.giftValue)
-                      ? Number(String(campaign.giftValue).replace(/[^0-9.]/g, ""))
-                      : null),
-                )}
-              </p>
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-wide text-signal">
+                  Non-cash offer
+                </p>
+                <p className="text-sm font-medium">
+                  {(campaign.perks && campaign.perks[0]) ||
+                    campaign.giftValue ||
+                    "Voucher or PR package — details with the brand"}
+                </p>
+              </div>
             )}
             {campaign.giftValue ? (
               <p className="mt-3 rounded-2xl bg-card p-3 text-sm text-muted-foreground">
@@ -202,8 +203,8 @@ function CampaignDetail() {
               </p>
             ) : null}
             <p className="mt-3 text-xs text-muted-foreground">
-              NepCollab calculates and records the payout obligation. Money is paid by the brand
-              (eSewa, bank, etc.) after verification — not held in a platform wallet.
+              NepCollab is non-cash for V1: brands offer vouchers, product kits, or PR packages.
+              Agree redemption in Messages. No platform wallet or cash escrow.
             </p>
           </section>
 

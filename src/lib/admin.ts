@@ -344,7 +344,42 @@ export async function fetchAdminCollaborations(limit = 200) {
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw new Error(error.message);
-  return data ?? [];
+  const rows = data ?? [];
+  if (!rows.length) return [];
+
+  const brandIds = [...new Set(rows.map((r: any) => r.brand_id).filter(Boolean))];
+  const creatorIds = [...new Set(rows.map((r: any) => r.creator_id).filter(Boolean))];
+  const campaignIds = [...new Set(rows.map((r: any) => r.campaign_id).filter(Boolean))];
+
+  const [brands, creators, camps] = await Promise.all([
+    brandIds.length
+      ? supabase.from("profiles").select("id, full_name, username").in("id", brandIds)
+      : Promise.resolve({ data: [] as any[] }),
+    creatorIds.length
+      ? supabase.from("profiles").select("id, full_name, username").in("id", creatorIds)
+      : Promise.resolve({ data: [] as any[] }),
+    campaignIds.length
+      ? supabase.from("campaigns").select("id, title, status, featured").in("id", campaignIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  const bMap = new Map((brands.data ?? []).map((p: any) => [p.id, p]));
+  const cMap = new Map((creators.data ?? []).map((p: any) => [p.id, p]));
+  const campMap = new Map((camps.data ?? []).map((c: any) => [c.id, c]));
+
+  return rows.map((r: any) => {
+    const b = bMap.get(r.brand_id);
+    const c = cMap.get(r.creator_id);
+    const camp = campMap.get(r.campaign_id);
+    return {
+      ...r,
+      brand_name: b?.full_name || b?.username || String(r.brand_id).slice(0, 8),
+      creator_name: c?.full_name || c?.username || String(r.creator_id).slice(0, 8),
+      campaign_title: camp?.title || String(r.campaign_id).slice(0, 8),
+      campaign_featured: Boolean(camp?.featured),
+      campaign_status: camp?.status || null,
+    };
+  });
 }
 
 export async function setCollabStatus(id: string, status: string) {

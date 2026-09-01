@@ -16,7 +16,10 @@ export const Route = createFileRoute("/brand/campaigns/new")({
   head: () => ({
     meta: [
       { title: "Create campaign — NepCollab" },
-      { name: "description", content: "Publish a campaign in under a minute." },
+      {
+        name: "description",
+        content: "Offer a voucher or PR package. No cash on the platform.",
+      },
     ],
   }),
   component: () => (
@@ -26,7 +29,14 @@ export const Route = createFileRoute("/brand/campaigns/new")({
   ),
 });
 
-function Toggle({
+const OFFER_TYPES = [
+  { id: "voucher", label: "Voucher / store credit", example: "NPR 3,000 store voucher" },
+  { id: "product", label: "Product / PR package", example: "Full product kit + unboxing" },
+  { id: "experience", label: "Experience / stay / meal", example: "Dinner for two" },
+  { id: "other", label: "Other non-cash", example: "Event pass + merch" },
+] as const;
+
+function Chip({
   label,
   active,
   onClick,
@@ -57,10 +67,9 @@ function NewCampaign() {
   const [description, setDescription] = useState("");
   const [platform, setPlatform] = useState<Platform>("Instagram");
   const [contentType, setContentType] = useState("Instagram Reel");
-  const [paymentModel, setPaymentModel] = useState<"fixed" | "performance">("fixed");
-  const [fixedAmount, setFixedAmount] = useState("5000");
-  const [ratePer1000, setRatePer1000] = useState("100");
-  const [maximumPayout, setMaximumPayout] = useState("20000");
+  const [offerType, setOfferType] = useState<(typeof OFFER_TYPES)[number]["id"]>("voucher");
+  const [offerTitle, setOfferTitle] = useState("");
+  const [offerValue, setOfferValue] = useState("");
   const [deadline, setDeadline] = useState("");
   const [location, setLocation] = useState("Kathmandu");
   const [remote, setRemote] = useState(true);
@@ -69,29 +78,21 @@ function NewCampaign() {
     e.preventDefault();
     if (busy) return;
     if (!title.trim()) {
-      toast.error("Add a campaign title.");
+      toast.error("Add a short campaign title.");
       return;
     }
-    if (!description.trim() || description.trim().length < 20) {
-      toast.error("Add a short brief (at least a couple of sentences).");
+    if (!description.trim() || description.trim().length < 16) {
+      toast.error("Add a brief: what should the creator post?");
       return;
     }
-    if (paymentModel === "fixed") {
-      const amt = Number(fixedAmount);
-      if (!Number.isFinite(amt) || amt <= 0) {
-        toast.error("Enter a fixed payout greater than zero.");
-        return;
-      }
-    } else {
-      const rate = Number(ratePer1000);
-      if (!Number.isFinite(rate) || rate <= 0) {
-        toast.error("Enter Rs. per 1,000 views greater than zero.");
-        return;
-      }
+    if (!offerTitle.trim()) {
+      toast.error("Describe the voucher or PR package you are offering.");
+      return;
     }
 
     setBusy(true);
     try {
+      const offerMeta = OFFER_TYPES.find((o) => o.id === offerType);
       const campaign = {
         id: crypto.randomUUID(),
         title: title.trim(),
@@ -100,11 +101,15 @@ function NewCampaign() {
         category: "General",
         types: [contentType],
         platforms: [platform],
-        perks: [],
-        paymentModel,
-        fixedAmount: paymentModel === "fixed" ? Number(fixedAmount) || 0 : null,
-        ratePer1000Views: paymentModel === "performance" ? Number(ratePer1000) || 0 : null,
-        maximumPayout: paymentModel === "performance" ? Number(maximumPayout) || null : null,
+        perks: [offerTitle.trim()],
+        benefit_type: offerType === "voucher" ? "other" : offerType,
+        benefit_title: offerTitle.trim(),
+        benefit_value_display: offerValue.trim() || null,
+        redemption_method: "manual",
+        paymentModel: "fixed" as const,
+        fixedAmount: null,
+        ratePer1000Views: null,
+        maximumPayout: null,
         milestones: [],
         location: location.trim() || "Kathmandu",
         remote,
@@ -127,23 +132,22 @@ function NewCampaign() {
             platform,
             contentType,
             dueDate: deadline || "",
-            instructions: description.trim().slice(0, 200),
+            instructions: description.trim().slice(0, 240),
             status: "PENDING",
           },
         ],
         createdAt: new Date().toISOString(),
         views: 0,
-        giftValue:
-          paymentModel === "fixed"
-            ? `Rs. ${Number(fixedAmount).toLocaleString("en-NP")} fixed`
-            : `Rs. ${Number(ratePer1000).toLocaleString("en-NP")} / 1K views`,
-      } as Campaign;
+        giftValue: offerValue.trim()
+          ? `${offerTitle.trim()} · ${offerValue.trim()}`
+          : offerTitle.trim(),
+      } as Campaign & Record<string, unknown>;
 
-      await addCampaign(campaign);
-      toast.success("Campaign published");
+      await addCampaign(campaign as Campaign);
+      toast.success("Campaign published — creators can apply");
       navigate({ to: "/brand/campaigns" });
     } catch (err: unknown) {
-      toast.error(toUserError(err, "Could not publish campaign."));
+      toast.error(toUserError(err, "Could not publish. Try again."));
     } finally {
       setBusy(false);
     }
@@ -151,7 +155,10 @@ function NewCampaign() {
 
   return (
     <Container className="max-w-lg py-6">
-      <PageHeader title="Create campaign" subtitle="One short form. Publish when ready." />
+      <PageHeader
+        title="Create campaign"
+        subtitle="Voucher or PR package only — NepCollab does not process cash."
+      />
       <form onSubmit={(e) => void publish(e)} className="mt-6 space-y-5">
         <div>
           <Label htmlFor="c-title">Title</Label>
@@ -160,20 +167,20 @@ function NewCampaign() {
             className="mt-1.5 h-11"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Summer reel collab"
-            maxLength={120}
+            placeholder="Monsoon menu reel"
+            maxLength={100}
             required
           />
         </div>
         <div>
-          <Label htmlFor="c-desc">What creators should do</Label>
+          <Label htmlFor="c-desc">What should creators post?</Label>
           <Textarea
             id="c-desc"
-            className="mt-1.5 min-h-[100px]"
+            className="mt-1.5 min-h-[96px]"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Create a short reel showing the product in daily life. Keep it natural — not a hard sell."
-            maxLength={1500}
+            placeholder="One natural Reel tasting our new set menu. Keep it real — not a hard sell."
+            maxLength={1200}
             required
           />
         </div>
@@ -181,12 +188,12 @@ function NewCampaign() {
           <p className="mb-2 text-sm font-medium">Platform</p>
           <div className="flex flex-wrap gap-2">
             {(["Instagram", "TikTok", "YouTube", "Facebook"] as Platform[]).map((p) => (
-              <Toggle key={p} label={p} active={platform === p} onClick={() => setPlatform(p)} />
+              <Chip key={p} label={p} active={platform === p} onClick={() => setPlatform(p)} />
             ))}
           </div>
         </div>
         <div>
-          <Label htmlFor="c-type">Content type</Label>
+          <Label htmlFor="c-type">Content</Label>
           <Input
             id="c-type"
             className="mt-1.5 h-11"
@@ -195,62 +202,51 @@ function NewCampaign() {
             placeholder="Instagram Reel"
           />
         </div>
-        <div>
-          <p className="mb-2 text-sm font-medium">Payout</p>
+
+        <div className="rounded-3xl border border-border bg-card p-4 space-y-3">
+          <p className="text-sm font-semibold">What you offer (non-cash)</p>
+          <p className="text-[12px] text-muted-foreground">
+            No cash payouts on NepCollab. Offer a voucher, product kit, meal, stay, or PR package.
+          </p>
           <div className="flex flex-wrap gap-2">
-            <Toggle
-              label="Fixed amount"
-              active={paymentModel === "fixed"}
-              onClick={() => setPaymentModel("fixed")}
-            />
-            <Toggle
-              label="Per views"
-              active={paymentModel === "performance"}
-              onClick={() => setPaymentModel("performance")}
+            {OFFER_TYPES.map((o) => (
+              <Chip
+                key={o.id}
+                label={o.label}
+                active={offerType === o.id}
+                onClick={() => {
+                  setOfferType(o.id);
+                  if (!offerTitle) setOfferTitle(o.example);
+                }}
+              />
+            ))}
+          </div>
+          <div>
+            <Label htmlFor="c-offer">Offer title</Label>
+            <Input
+              id="c-offer"
+              className="mt-1.5 h-11"
+              value={offerTitle}
+              onChange={(e) => setOfferTitle(e.target.value)}
+              placeholder={OFFER_TYPES.find((o) => o.id === offerType)?.example}
+              required
             />
           </div>
-          {paymentModel === "fixed" ? (
-            <div className="mt-3">
-              <Label htmlFor="c-fixed">Amount (Rs.)</Label>
-              <Input
-                id="c-fixed"
-                className="mt-1.5 h-11"
-                inputMode="numeric"
-                value={fixedAmount}
-                onChange={(e) => setFixedAmount(e.target.value)}
-              />
-            </div>
-          ) : (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="c-rate">Rs. per 1,000 views</Label>
-                <Input
-                  id="c-rate"
-                  className="mt-1.5 h-11"
-                  inputMode="numeric"
-                  value={ratePer1000}
-                  onChange={(e) => setRatePer1000(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="c-max">Max payout (Rs.)</Label>
-                <Input
-                  id="c-max"
-                  className="mt-1.5 h-11"
-                  inputMode="numeric"
-                  value={maximumPayout}
-                  onChange={(e) => setMaximumPayout(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-          <p className="mt-2 text-xs text-muted-foreground">
-            NepCollab records the payout. You pay the creator after verification (eSewa, bank, etc.).
-          </p>
+          <div>
+            <Label htmlFor="c-value">Display value (optional)</Label>
+            <Input
+              id="c-value"
+              className="mt-1.5 h-11"
+              value={offerValue}
+              onChange={(e) => setOfferValue(e.target.value)}
+              placeholder="e.g. Worth NPR 3,000 — not transferable cash"
+            />
+          </div>
         </div>
+
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <Label htmlFor="c-loc">Location</Label>
+            <Label htmlFor="c-loc">City</Label>
             <Input
               id="c-loc"
               className="mt-1.5 h-11"
@@ -271,8 +267,9 @@ function NewCampaign() {
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={remote} onChange={(e) => setRemote(e.target.checked)} />
-          Remote OK
+          Remote creators OK
         </label>
+
         <Button type="submit" disabled={busy} className="h-12 w-full rounded-full text-base">
           {busy ? "Publishing…" : "Publish campaign"}
         </Button>

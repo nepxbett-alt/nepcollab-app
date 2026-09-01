@@ -1,7 +1,6 @@
-import { Check, Copy, Download, Share2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { Download, Share2, Copy, Check } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import type { CollabVoucher } from "@/lib/vouchers";
 import { cn } from "@/lib/utils";
 
@@ -11,21 +10,29 @@ type Props = {
   showActions?: boolean;
 };
 
-const LOGO_SRC = "/icon-512.png";
+const LOGO_SRC = "/app-icon.png";
+
+/** Brand palette from NepCollab mark — navy + signal red */
+const INK = "#0B1F4D";
+const INK_DEEP = "#061433";
+const SIGNAL = "#E31C23";
+const SIGNAL_SOFT = "#FF4D4D";
+const SNOW = "#F7F9FC";
+const GOLD = "#E8C547";
 
 /**
- * Premium NepCollab-branded collaboration voucher — story-ready, logo-themed.
- * Brand colors: deep ink navy + warm signal coral (matches app design system).
+ * Premium NepCollab collaboration voucher — navy/red brand, story-ready, downloadable.
+ * Non-cash reward (voucher / PR package). Not a bank instrument.
  */
 export function NepCollabVoucher({ voucher, className, showActions = true }: Props) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const amountText =
-    voucher.amount_npr != null && voucher.amount_npr > 0
-      ? `NPR ${Number(voucher.amount_npr).toLocaleString("en-NP")}`
-      : voucher.reward_label || "Collaboration reward";
+    voucher.reward_label?.trim() ||
+    (voucher.amount_npr != null && voucher.amount_npr > 0
+      ? `Worth NPR ${Number(voucher.amount_npr).toLocaleString("en-NP")}`
+      : "Collaboration reward");
 
   const statusLabel =
     voucher.status === "issued"
@@ -33,7 +40,7 @@ export function NepCollabVoucher({ voucher, className, showActions = true }: Pro
       : voucher.status === "redeemed"
         ? "Redeemed"
         : voucher.status === "pending_admin"
-          ? "Pending admin release"
+          ? "Pending release"
           : voucher.status === "void"
             ? "Voided"
             : voucher.status;
@@ -63,170 +70,164 @@ export function NepCollabVoucher({ voucher, className, showActions = true }: Pro
     setBusy(true);
     try {
       const scale = 3;
-      const w = 360 * scale;
-      const h = 560 * scale;
+      const w = 380 * scale;
+      const h = 600 * scale;
       const canvas = document.createElement("canvas");
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas unavailable");
 
-      // Background — deep ink with subtle radial glow
+      const cx = w / 2;
+
+      // Deep navy base
       const bg = ctx.createLinearGradient(0, 0, w, h);
-      bg.addColorStop(0, "#1B1640");
-      bg.addColorStop(0.4, "#241E52");
-      bg.addColorStop(0.75, "#2A1F4A");
-      bg.addColorStop(1, "#1A1228");
+      bg.addColorStop(0, INK_DEEP);
+      bg.addColorStop(0.45, INK);
+      bg.addColorStop(1, "#0A1838");
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
 
-      // Soft signal glow top-right
-      const glow = ctx.createRadialGradient(w * 0.85, h * 0.12, 0, w * 0.85, h * 0.12, w * 0.55);
-      glow.addColorStop(0, "rgba(232, 90, 70, 0.28)");
-      glow.addColorStop(1, "rgba(232, 90, 70, 0)");
+      // Signal red glow top-right
+      const glow = ctx.createRadialGradient(w * 0.9, h * 0.08, 0, w * 0.9, h * 0.08, w * 0.55);
+      glow.addColorStop(0, "rgba(227, 28, 35, 0.35)");
+      glow.addColorStop(1, "rgba(227, 28, 35, 0)");
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, w, h);
 
-      // Soft gold/violet glow bottom-left
-      const glow2 = ctx.createRadialGradient(w * 0.1, h * 0.92, 0, w * 0.1, h * 0.92, w * 0.5);
-      glow2.addColorStop(0, "rgba(232, 197, 71, 0.12)");
-      glow2.addColorStop(1, "rgba(232, 197, 71, 0)");
+      // Soft snow glow bottom
+      const glow2 = ctx.createRadialGradient(cx, h * 1.05, 0, cx, h * 1.05, w * 0.7);
+      glow2.addColorStop(0, "rgba(247, 249, 252, 0.08)");
+      glow2.addColorStop(1, "rgba(247, 249, 252, 0)");
       ctx.fillStyle = glow2;
       ctx.fillRect(0, 0, w, h);
 
-      // Outer gold frame
-      const pad = 18 * scale;
-      ctx.strokeStyle = "rgba(232, 197, 71, 0.55)";
-      ctx.lineWidth = 2.5 * scale;
-      roundRectPath(ctx, pad, pad, w - pad * 2, h - pad * 2, 28 * scale);
+      // Outer frame — gold thin + red accent corners
+      const pad = 16 * scale;
+      ctx.strokeStyle = "rgba(232, 197, 71, 0.5)";
+      ctx.lineWidth = 2 * scale;
+      roundRect(ctx, pad, pad, w - pad * 2, h - pad * 2, 28 * scale);
       ctx.stroke();
 
-      // Inner thin frame
-      const pad2 = 28 * scale;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
-      ctx.lineWidth = 1 * scale;
-      roundRectPath(ctx, pad2, pad2, w - pad2 * 2, h - pad2 * 2, 22 * scale);
+      ctx.strokeStyle = "rgba(227, 28, 35, 0.45)";
+      ctx.lineWidth = 1.2 * scale;
+      roundRect(ctx, pad + 8 * scale, pad + 8 * scale, w - pad * 2 - 16 * scale, h - pad * 2 - 16 * scale, 22 * scale);
       ctx.stroke();
 
-      const cx = w / 2;
-      let y = 56 * scale;
+      // Mountain silhouette (brand)
+      ctx.beginPath();
+      const my = h * 0.78;
+      ctx.moveTo(0, h);
+      ctx.lineTo(0, my + 40 * scale);
+      ctx.lineTo(w * 0.18, my - 20 * scale);
+      ctx.lineTo(w * 0.32, my + 18 * scale);
+      ctx.lineTo(w * 0.48, my - 55 * scale);
+      ctx.lineTo(w * 0.62, my + 10 * scale);
+      ctx.lineTo(w * 0.78, my - 30 * scale);
+      ctx.lineTo(w, my + 25 * scale);
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(247, 249, 252, 0.07)";
+      ctx.fill();
+
+      let y = 52 * scale;
 
       // Logo
       const logo = await loadLogo();
-      const logoSize = 56 * scale;
       if (logo) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(cx, y + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        ctx.drawImage(logo, cx - logoSize / 2, y, logoSize, logoSize);
-        ctx.restore();
-        // ring
-        ctx.strokeStyle = "rgba(232, 197, 71, 0.7)";
-        ctx.lineWidth = 2 * scale;
-        ctx.beginPath();
-        ctx.arc(cx, y + logoSize / 2, logoSize / 2 + 2 * scale, 0, Math.PI * 2);
-        ctx.stroke();
+        const ls = 52 * scale;
+        ctx.drawImage(logo, cx - ls / 2, y, ls, ls);
+        y += ls + 18 * scale;
+      } else {
+        ctx.fillStyle = SIGNAL;
+        ctx.font = `700 ${22 * scale}px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText("NepCollab", cx, y + 20 * scale);
+        y += 42 * scale;
       }
-      y += logoSize + 22 * scale;
 
+      ctx.fillStyle = "rgba(247, 249, 252, 0.7)";
+      ctx.font = `600 ${11 * scale}px system-ui, sans-serif`;
       ctx.textAlign = "center";
-      ctx.fillStyle = "#E8C547";
-      ctx.font = `600 ${11 * scale}px system-ui, -apple-system, sans-serif`;
-      ctx.fillText("NEPCOLLAB", cx, y);
+      ctx.letterSpacing = "0.18em";
+      ctx.fillText("COLLABORATION VOUCHER", cx, y);
       y += 28 * scale;
 
-      ctx.fillStyle = "#FFFFFF";
-      ctx.font = `700 ${26 * scale}px system-ui, -apple-system, sans-serif`;
-      ctx.fillText("Collaboration", cx, y);
-      y += 32 * scale;
-      ctx.fillText("Voucher", cx, y);
-      y += 40 * scale;
-
-      // Divider with diamond
-      ctx.strokeStyle = "rgba(232, 197, 71, 0.45)";
-      ctx.lineWidth = 1 * scale;
-      ctx.beginPath();
-      ctx.moveTo(cx - 70 * scale, y);
-      ctx.lineTo(cx - 10 * scale, y);
-      ctx.moveTo(cx + 10 * scale, y);
-      ctx.lineTo(cx + 70 * scale, y);
-      ctx.stroke();
-      ctx.fillStyle = "#E8C547";
-      ctx.beginPath();
-      ctx.moveTo(cx, y - 5 * scale);
-      ctx.lineTo(cx + 5 * scale, y);
-      ctx.lineTo(cx, y + 5 * scale);
-      ctx.lineTo(cx - 5 * scale, y);
-      ctx.closePath();
-      ctx.fill();
-      y += 32 * scale;
-
-      // Brand
-      ctx.fillStyle = "rgba(255,255,255,0.5)";
-      ctx.font = `600 ${10 * scale}px system-ui, sans-serif`;
-      ctx.fillText("BRAND", cx, y);
+      // Reward
+      ctx.fillStyle = SNOW;
+      ctx.font = `700 ${26 * scale}px system-ui, sans-serif`;
+      ctx.fillText(truncate(amountText, 28), cx, y);
       y += 22 * scale;
-      ctx.fillStyle = "#FFFFFF";
-      ctx.font = `700 ${18 * scale}px system-ui, sans-serif`;
-      ctx.fillText(truncate(voucher.brand_name || "Brand", 28), cx, y);
+
+      ctx.fillStyle = "rgba(247, 249, 252, 0.55)";
+      ctx.font = `500 ${12 * scale}px system-ui, sans-serif`;
+      ctx.fillText(statusLabel, cx, y);
       y += 36 * scale;
 
-      // Creator
-      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      // Divider
+      ctx.strokeStyle = "rgba(247, 249, 252, 0.12)";
+      ctx.lineWidth = 1 * scale;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.18, y);
+      ctx.lineTo(w * 0.82, y);
+      ctx.stroke();
+      y += 32 * scale;
+
+      // Brand × Creator
+      ctx.fillStyle = "rgba(247, 249, 252, 0.45)";
+      ctx.font = `600 ${10 * scale}px system-ui, sans-serif`;
+      ctx.fillText("BRAND", cx, y);
+      y += 18 * scale;
+      ctx.fillStyle = SNOW;
+      ctx.font = `700 ${16 * scale}px system-ui, sans-serif`;
+      ctx.fillText(truncate(voucher.brand_name || "Brand", 30), cx, y);
+      y += 28 * scale;
+
+      ctx.fillStyle = SIGNAL;
+      ctx.font = `700 ${14 * scale}px system-ui, sans-serif`;
+      ctx.fillText("×", cx, y);
+      y += 26 * scale;
+
+      ctx.fillStyle = "rgba(247, 249, 252, 0.45)";
       ctx.font = `600 ${10 * scale}px system-ui, sans-serif`;
       ctx.fillText("CREATOR", cx, y);
-      y += 22 * scale;
-      ctx.fillStyle = "#FFFFFF";
-      ctx.font = `700 ${18 * scale}px system-ui, sans-serif`;
-      ctx.fillText(truncate(voucher.creator_name || "Creator", 28), cx, y);
-      y += 34 * scale;
+      y += 18 * scale;
+      ctx.fillStyle = SNOW;
+      ctx.font = `700 ${16 * scale}px system-ui, sans-serif`;
+      ctx.fillText(truncate(voucher.creator_name || "Creator", 30), cx, y);
+      y += 28 * scale;
 
       if (voucher.campaign_title) {
-        ctx.fillStyle = "rgba(255,255,255,0.55)";
-        ctx.font = `400 ${12 * scale}px system-ui, sans-serif`;
+        ctx.fillStyle = "rgba(247, 249, 252, 0.4)";
+        ctx.font = `500 ${11 * scale}px system-ui, sans-serif`;
         ctx.fillText(truncate(voucher.campaign_title, 36), cx, y);
-        y += 30 * scale;
+        y += 26 * scale;
       }
+
+      y += 12 * scale;
 
       // Code pill
       const pillW = 220 * scale;
-      const pillH = 44 * scale;
+      const pillH = 48 * scale;
       const pillX = cx - pillW / 2;
       const pillY = y;
-      ctx.fillStyle = "rgba(232, 90, 70, 0.18)";
-      roundRectPath(ctx, pillX, pillY, pillW, pillH, 14 * scale);
+      ctx.fillStyle = "rgba(247, 249, 252, 0.1)";
+      roundRect(ctx, pillX, pillY, pillW, pillH, 14 * scale);
       ctx.fill();
-      ctx.strokeStyle = "rgba(232, 90, 70, 0.85)";
-      ctx.lineWidth = 2 * scale;
-      roundRectPath(ctx, pillX, pillY, pillW, pillH, 14 * scale);
+      ctx.strokeStyle = "rgba(227, 28, 35, 0.55)";
+      ctx.lineWidth = 1.5 * scale;
+      roundRect(ctx, pillX, pillY, pillW, pillH, 14 * scale);
       ctx.stroke();
-      ctx.fillStyle = "#FF8A75";
-      ctx.font = `700 ${17 * scale}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-      ctx.fillText(voucher.code, cx, pillY + 29 * scale);
-      y += pillH + 28 * scale;
 
-      // Amount
-      ctx.fillStyle = "#E8C547";
-      ctx.font = `700 ${22 * scale}px system-ui, sans-serif`;
-      ctx.fillText(amountText, cx, y);
-      y += 36 * scale;
-
-      // Status chip
-      ctx.fillStyle = "rgba(255,255,255,0.08)";
-      const chipW = 140 * scale;
-      const chipH = 26 * scale;
-      roundRectPath(ctx, cx - chipW / 2, y, chipW, chipH, 13 * scale);
-      ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.font = `600 ${11 * scale}px system-ui, sans-serif`;
-      ctx.fillText(statusLabel, cx, y + 17 * scale);
+      ctx.fillStyle = SNOW;
+      ctx.font = `700 ${18 * scale}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.fillText(voucher.code, cx, pillY + 30 * scale);
 
       // Footer
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.font = `400 ${10 * scale}px system-ui, sans-serif`;
-      ctx.fillText("Made with NepCollab  ·  Nepal creator marketplace", cx, h - 36 * scale);
+      ctx.fillStyle = "rgba(247, 249, 252, 0.35)";
+      ctx.font = `500 ${10 * scale}px system-ui, sans-serif`;
+      ctx.fillText("Nepal · Brand × creator collaborations", cx, h - 36 * scale);
+      ctx.fillText("Non-cash reward · Not legal tender", cx, h - 22 * scale);
 
       const url = canvas.toDataURL("image/png");
       const a = document.createElement("a");
@@ -234,21 +235,27 @@ export function NepCollabVoucher({ voucher, className, showActions = true }: Pro
       a.download = `nepcollab-voucher-${voucher.code}.png`;
       a.click();
       toast.success("Premium voucher downloaded");
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Download failed");
+    } catch {
+      toast.error("Could not download voucher");
     } finally {
       setBusy(false);
     }
   };
 
   const share = async () => {
-    const text = `Completed on NepCollab ✨\n${voucher.brand_name} × ${voucher.creator_name}\n${amountText}\nCode: ${voucher.code}\nhttps://nepcollab.vercel.app`;
+    const text = [
+      "NepCollab Collaboration Voucher",
+      `${voucher.brand_name || "Brand"} × ${voucher.creator_name || "Creator"}`,
+      amountText,
+      `Code: ${voucher.code}`,
+      "nepcollab.vercel.app",
+    ].join("\n");
     try {
       if (navigator.share) {
         await navigator.share({ title: "NepCollab Voucher", text });
       } else {
         await navigator.clipboard.writeText(text);
-        toast.success("Share text copied — paste to your story");
+        toast.success("Share text copied");
       }
     } catch {
       /* cancelled */
@@ -256,114 +263,90 @@ export function NepCollabVoucher({ voucher, className, showActions = true }: Pro
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <div
-        ref={cardRef}
-        className="relative overflow-hidden rounded-[28px] shadow-2xl"
+    <div className={cn("w-full max-w-sm", className)}>
+      <article
+        className="relative overflow-hidden rounded-[1.75rem] border border-white/10 shadow-[0_20px_50px_-20px_rgba(11,31,77,0.65)]"
         style={{
-          aspectRatio: "9 / 14",
-          maxWidth: 360,
-          background:
-            "radial-gradient(ellipse 80% 50% at 90% 8%, rgba(232,90,70,0.28), transparent 55%), radial-gradient(ellipse 70% 45% at 10% 95%, rgba(232,197,71,0.12), transparent 50%), linear-gradient(155deg, #1B1640 0%, #241E52 40%, #2A1F4A 70%, #1A1228 100%)",
+          background: `linear-gradient(165deg, ${INK_DEEP} 0%, ${INK} 45%, #0A1838 100%)`,
         }}
       >
-        {/* Frames */}
-        <div className="pointer-events-none absolute inset-[14px] rounded-[22px] border border-[#E8C547]/50" />
-        <div className="pointer-events-none absolute inset-[22px] rounded-[18px] border border-white/10" />
+        {/* Signal glow */}
+        <div
+          className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full opacity-40 blur-3xl"
+          style={{ background: SIGNAL }}
+        />
+        {/* Mountain hint */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-28 opacity-[0.12]"
+          style={{
+            background:
+              "linear-gradient(to top, rgba(247,249,252,0.25), transparent), polygon(0 100%, 18% 55%, 32% 75%, 48% 30%, 62% 70%, 78% 45%, 100% 80%, 100% 100%)",
+          }}
+        />
 
-        <div className="relative flex h-full flex-col items-center px-6 pb-6 pt-7 text-center text-white">
-          {/* Logo */}
-          <div className="relative">
-            <img
-              src={LOGO_SRC}
-              alt="NepCollab"
-              className="size-14 rounded-full object-cover shadow-lg ring-2 ring-[#E8C547]/70"
-              width={56}
-              height={56}
-            />
-          </div>
-
-          <p className="mt-3 text-[10px] font-semibold tracking-[0.32em] text-[#E8C547]">
-            NEPCOLLAB
+        <div className="relative px-6 pb-6 pt-7 text-center text-white">
+          <img
+            src={LOGO_SRC}
+            alt="NepCollab"
+            className="mx-auto size-12 object-contain drop-shadow-md"
+          />
+          <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60">
+            Collaboration voucher
           </p>
-          <h3 className="mt-1.5 text-[24px] font-bold leading-[1.15] tracking-tight">
-            Collaboration
-            <br />
-            Voucher
-          </h3>
+          <p className="mt-2 text-xl font-bold tracking-tight">{amountText}</p>
+          <p className="mt-1 text-[12px] font-medium text-white/55">{statusLabel}</p>
 
-          {/* Diamond divider */}
-          <div className="mt-5 flex items-center gap-2">
-            <span className="h-px w-14 bg-[#E8C547]/45" />
-            <span className="size-2 rotate-45 bg-[#E8C547]" />
-            <span className="h-px w-14 bg-[#E8C547]/45" />
-          </div>
+          <div className="mx-auto my-5 h-px w-2/3 bg-white/10" />
 
-          <div className="mt-5 w-full space-y-4">
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white/50">
-                Brand
-              </p>
-              <p className="mt-0.5 text-[16px] font-bold leading-snug">
-                {voucher.brand_name || "Brand"}
-              </p>
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white/50">
-                Creator
-              </p>
-              <p className="mt-0.5 text-[16px] font-bold leading-snug">
-                {voucher.creator_name || "Creator"}
-              </p>
-            </div>
-          </div>
-
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">Brand</p>
+          <p className="mt-1 text-[15px] font-bold">{voucher.brand_name || "Brand"}</p>
+          <p className="my-1.5 text-sm font-bold" style={{ color: SIGNAL_SOFT }}>
+            ×
+          </p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">Creator</p>
+          <p className="mt-1 text-[15px] font-bold">{voucher.creator_name || "Creator"}</p>
           {voucher.campaign_title ? (
-            <p className="mt-4 line-clamp-2 px-1 text-[11.5px] leading-snug text-white/55">
-              {voucher.campaign_title}
-            </p>
+            <p className="mt-2 truncate text-[12px] text-white/45">{voucher.campaign_title}</p>
           ) : null}
 
+          <div
+            className="mt-5 inline-flex min-w-[12rem] items-center justify-center rounded-2xl border px-4 py-2.5 font-mono text-[15px] font-bold tracking-wide"
+            style={{ borderColor: "rgba(227,28,35,0.55)", background: "rgba(247,249,252,0.08)" }}
+          >
+            {voucher.code}
+          </div>
+
+          <p className="mt-5 text-[10px] text-white/35">
+            Nepal · Non-cash reward · Not legal tender
+          </p>
+        </div>
+      </article>
+
+      {showActions ? (
+        <div className="mt-3 grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={() => void copyCode()}
-            className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-[#E85A46]/80 bg-[#E85A46]/15 px-4 py-2.5 font-mono text-[14px] font-bold tracking-wider text-[#FF8A75] transition hover:bg-[#E85A46]/25"
+            className="tap flex h-11 items-center justify-center gap-1.5 rounded-full border border-border bg-card text-[12px] font-semibold"
           >
-            {voucher.code}
-            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5 opacity-70" />}
+            {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+            {copied ? "Copied" : "Copy"}
           </button>
-
-          <p className="mt-4 text-[19px] font-bold tracking-tight text-[#E8C547]">{amountText}</p>
-
-          <div className="mt-auto w-full pt-5">
-            <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-[10px] font-semibold tracking-wide text-white/75">
-              {statusLabel}
-            </span>
-            <p className="mt-3 text-[9.5px] tracking-wide text-white/35">
-              Made with NepCollab · Nepal creator marketplace
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {showActions ? (
-        <div className="flex flex-wrap gap-2" style={{ maxWidth: 360 }}>
-          <Button
+          <button
             type="button"
-            className="h-11 flex-1 rounded-full bg-signal text-signal-foreground hover:bg-signal/90"
+            onClick={() => void share()}
+            className="tap flex h-11 items-center justify-center gap-1.5 rounded-full border border-border bg-card text-[12px] font-semibold"
+          >
+            <Share2 className="size-3.5" /> Share
+          </button>
+          <button
+            type="button"
             disabled={busy}
             onClick={() => void downloadPng()}
+            className="tap flex h-11 items-center justify-center gap-1.5 rounded-full bg-ink text-[12px] font-semibold text-ink-foreground"
           >
-            <Download className="size-4" /> {busy ? "Preparing…" : "Download"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 flex-1 rounded-full"
-            onClick={() => void share()}
-          >
-            <Share2 className="size-4" /> Share story
-          </Button>
+            <Download className="size-3.5" /> {busy ? "…" : "PNG"}
+          </button>
         </div>
       ) : null}
     </div>
@@ -371,10 +354,11 @@ export function NepCollabVoucher({ voucher, className, showActions = true }: Pro
 }
 
 function truncate(s: string, n: number) {
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+  const t = String(s || "");
+  return t.length <= n ? t : t.slice(0, n - 1) + "…";
 }
 
-function roundRectPath(
+function roundRect(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -382,11 +366,12 @@ function roundRectPath(
   h: number,
   r: number,
 ) {
+  const radius = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
   ctx.closePath();
 }
