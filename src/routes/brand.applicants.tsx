@@ -13,9 +13,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/brand/applicants")({
   head: () => ({
     meta: [
-      { title: "Applicants — NepCollab" },
+      { title: "Claims — NepCollab" },
       { name: "description", content: "Review creators who applied to your campaigns, shortlist and select them." },
-      { property: "og:title", content: "Applicants — NepCollab" },
+      { property: "og:title", content: "Claims — NepCollab" },
       { property: "og:description", content: "Shortlist, compare and select creators for your campaign." },
     ],
   }),
@@ -33,7 +33,7 @@ function Applicants() {
       <Container>
         <EmptyState
           title="Sign in as a brand"
-          body="Review applicants after you publish a campaign. Anyone can browse open campaigns without an account."
+          body="Review claims after you publish a campaign. Anyone can browse open campaigns without an account."
           actionLabel="Sign in"
           actionTo="/auth"
         />
@@ -47,7 +47,7 @@ function Applicants() {
   if (mine.length === 0) {
     return (
       <Container>
-        <PageHeader title="Applicants" />
+        <PageHeader title="Claims" />
         <EmptyState
           title="No campaigns yet"
           body="Publish a campaign to start receiving applications."
@@ -60,7 +60,7 @@ function Applicants() {
 
   return (
     <Container>
-      <PageHeader title="Applicants" subtitle="Review, shortlist and select creators." />
+      <PageHeader title="Claims" subtitle="One-tap approve or decline." />
 
       <div className="mb-6 flex flex-wrap gap-2">
         {mine.map((c) => (
@@ -260,7 +260,7 @@ function Applicants() {
                           }
                         }}
                       >
-                        Select & start collab
+                        Approve
                       </Button>
                       <Button
                         size="sm"
@@ -280,11 +280,11 @@ function Applicants() {
                   ) : null}
                   {a.status === "SELECTED" ? (
                     <p className="w-full text-[12.5px] font-medium text-success">
-                      Selected — open Collaborations to manage deliverables.
+                      Approved — creator can post content for this deal.
                     </p>
                   ) : null}
                   {a.status === "REJECTED" ? (
-                    <p className="w-full text-[12.5px] text-muted-foreground">Rejected</p>
+                    <p className="w-full text-[12.5px] text-muted-foreground">Declined</p>
                   ) : null}
                   <Button asChild size="sm" variant="ghost">
                     <Link to="/messages">Message</Link>

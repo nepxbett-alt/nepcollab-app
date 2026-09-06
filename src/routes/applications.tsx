@@ -15,16 +15,16 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/applications")({
   head: () => ({
     meta: [
-      { title: "Your applications — NepCollab" },
+      { title: "My Deals — NepCollab" },
       {
         name: "description",
         content:
-          "Track every collaboration you applied to with a clear status timeline, from applied to completed.",
+          "Track deals you claimed — requested, approved, posted, completed.",
       },
-      { property: "og:title", content: "Your applications — NepCollab" },
+      { property: "og:title", content: "My Deals — NepCollab" },
       {
         property: "og:description",
-        content: "Always know where you stand with each brand.",
+        content: "See status on every deal you claimed.",
       },
     ],
   }),
@@ -120,11 +120,11 @@ function Applications() {
 
   return (
     <Container className="pt-4">
-      <h1 className="pb-4 text-[22px] font-bold tracking-tight">Applications</h1>
+      <h1 className="pb-4 text-[22px] font-bold tracking-tight">My Deals</h1>
 
       {mine.length === 0 ? (
         <EmptyState
-          title="No applications yet"
+          title="No deals claimed yet"
           body="Your next collaboration could start here."
           actionLabel="Explore campaigns"
           actionTo="/campaigns"

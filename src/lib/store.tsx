@@ -1491,10 +1491,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const st = String(camp.status || "").toLowerCase().replace(/\s+/g, "_");
         // DB uses active/published; UI maps those to APPLICATIONS_OPEN
         if (!["active", "published", "applications_open", "open"].includes(st)) {
-          throw new Error("This campaign is not accepting applications.");
+          throw new Error("This deal is not accepting claims right now.");
         }
         if (camp.deadline && new Date(camp.deadline) < new Date()) {
-          throw new Error("The application deadline has passed.");
+          throw new Error("This deal has closed.");
         }
         const { error } = await db.from("applications").insert({
           campaign_id: campaignId,
@@ -1508,9 +1508,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (error) {
           const msg = error.message || "";
           if (msg.toLowerCase().includes("duplicate") || error.code === "23505") {
-            throw new Error("You already applied to this campaign.");
+            throw new Error("You already claimed this deal.");
           }
-          throw new Error(msg || "Could not submit application");
+          throw new Error(msg || "Could not claim this deal");
         }
         // Best-effort brand notification (ignore failure — application already saved)
         try {

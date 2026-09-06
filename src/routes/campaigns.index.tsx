@@ -23,16 +23,16 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/campaigns/")({
   head: () => ({
     meta: [
-      { title: "Discover collaborations — NepCollab" },
+      { title: "Deals — NepCollab" },
       {
         name: "description",
         content:
-          "Search open brand campaigns across Nepal. Filter by category, city, platform and reward, then apply in minutes.",
+          "Browse free product deals. Claim in one tap.",
       },
-      { property: "og:title", content: "Discover collaborations — NepCollab" },
+      { property: "og:title", content: "Deals — NepCollab" },
       {
         property: "og:description",
-        content: "Open collaboration opportunities from brands looking for creators.",
+        content: "Free products for simple social content.",
       },
     ],
   }),

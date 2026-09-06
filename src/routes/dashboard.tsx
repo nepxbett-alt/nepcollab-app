@@ -77,6 +77,14 @@ function StatTile({
 }
 
 function Dashboard() {
+  const { role } = useStore();
+  // V1: creator home is Deals
+  if (role === "brand") return <Navigate to="/brand" />;
+  if (role === "admin") return <Navigate to="/admin" />;
+  return <Navigate to="/campaigns" />;
+}
+
+function DashboardLegacyUnused() {
   const {
     role,
     campaigns,

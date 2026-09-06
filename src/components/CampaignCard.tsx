@@ -1,15 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { BadgeCheck, Bookmark, Gift, MapPin } from "lucide-react";
+import { BadgeCheck, Bookmark, Gift, MapPin, Video } from "lucide-react";
 import type { Campaign } from "@/data/types";
-import { daysLeft, displayMatch, getBrand } from "@/lib/lookup";
-import { payoutSummaryLabel } from "@/lib/payout";
+import { daysLeft, getBrand } from "@/lib/lookup";
 import { cn } from "@/lib/utils";
 
+/** Compact deal card — brand, free product, content, claim. */
 export function CampaignCard({
   campaign,
   saved,
   onToggleSave,
-  match,
+  match: _match,
   className,
 }: {
   campaign: Campaign;
@@ -20,34 +20,25 @@ export function CampaignCard({
 }) {
   const brand = getBrand(campaign.brandId);
   const left = daysLeft(campaign.deadline);
-  const shownMatch = displayMatch(match);
-  const payoutLabel =
-    campaign.paymentModel
-      ? payoutSummaryLabel({
-          paymentModel: campaign.paymentModel,
-          fixedAmount: campaign.fixedAmount,
-          ratePer1000Views: campaign.ratePer1000Views,
-          maximumPayout: campaign.maximumPayout,
-          milestones: campaign.milestones,
-          useMilestones: (campaign.milestones || []).length > 0,
-        })
-      : null;
-  const benefitLabel =
-    payoutLabel ||
+  const product =
     (campaign as any).benefit_title ||
     campaign.giftValue?.trim() ||
-    (campaign.perks?.length ? campaign.perks.slice(0, 2).join(" · ") : "Non-cash benefit");
-  const deliverableHint =
+    (campaign.perks?.length ? campaign.perks[0] : null) ||
+    "Free product";
+  const contentHint =
     campaign.deliverables?.length
       ? campaign.deliverables
           .slice(0, 2)
           .map((d: any) => (typeof d === "string" ? d : d.title || d.contentType))
           .filter(Boolean)
           .join(" + ")
-      : null;
-  const reward = deliverableHint
-    ? `${benefitLabel} · You provide: ${deliverableHint}`
-    : benefitLabel;
+      : campaign.types?.slice(0, 2).join(" + ") ||
+        campaign.platforms?.slice(0, 2).join(" · ") ||
+        "Social content";
+
+  const open = left >= 0 && !["closed", "completed", "cancelled", "paused"].includes(
+    String(campaign.status || "").toLowerCase(),
+  );
 
   return (
     <article
@@ -56,99 +47,75 @@ export function CampaignCard({
         className,
       )}
     >
-      <Link
-        to="/campaigns/$campaignId"
-        params={{ campaignId: campaign.id }}
-        className="block"
-      >
+      <Link to="/campaigns/$campaignId" params={{ campaignId: campaign.id }} className="block">
         <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-ink via-[#1a3a7a] to-signal/80">
           {campaign.cover && !String(campaign.cover).includes("app-icon") ? (
-          <img
-            src={campaign.cover}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
-          ) : (
-            <div className="flex size-full items-end p-4">
-              <span className="text-lg font-bold tracking-tight text-white/90 line-clamp-2">
-                {campaign.title}
-              </span>
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/10 to-transparent" />
-
-          <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-            {campaign.featured ? (
-              <span className="rounded-full bg-signal px-2.5 py-1 text-[11px] font-bold text-signal-foreground">
-                Featured
-              </span>
-            ) : null}
-            {shownMatch != null ? (
-              <span className="rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-bold text-foreground backdrop-blur">
-                {shownMatch}% match
-              </span>
-            ) : null}
-          </div>
-
-          <div className="absolute inset-x-3 bottom-3 flex items-center gap-2">
-            <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/20 text-[11px] font-bold text-white">
-              {brand?.logo && !String(brand.logo).includes("app-icon") ? (
-                <img src={brand.logo} alt="" loading="lazy" className="size-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-              ) : (
-                <span>{(brand?.name || "B").slice(0, 1).toUpperCase()}</span>
-              )}
-            </div>
-            <span className="flex min-w-0 items-center gap-1 text-[13px] font-semibold text-ink-foreground">
-              <span className="truncate">{brand?.name}</span>
-              {brand?.verified ? (
-                <BadgeCheck className="size-3.5 shrink-0" aria-label="Verified brand" />
-              ) : null}
+            <img
+              src={campaign.cover}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : null}
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/80 to-transparent p-3 pt-10">
+            <span className="inline-flex items-center gap-1 rounded-full bg-background/95 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-foreground">
+              <Gift className="size-3 text-signal" />
+              Free product
             </span>
           </div>
+          {campaign.featured ? (
+            <span className="absolute left-3 top-3 rounded-full bg-signal px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-signal-foreground">
+              Featured
+            </span>
+          ) : null}
         </div>
 
         <div className="space-y-2.5 p-4">
+          <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+            <span className="truncate font-medium text-foreground">{brand?.name || "Brand"}</span>
+            {brand?.verified ? (
+              <BadgeCheck className="size-3.5 shrink-0 text-signal" aria-label="Verified" />
+            ) : null}
+          </div>
+
           <h3 className="line-clamp-2 font-display text-[15.5px] font-semibold leading-snug tracking-tight">
             {campaign.title}
           </h3>
 
-          <p className="line-clamp-2 text-[12.5px] leading-relaxed text-muted-foreground">
-            {campaign.description}
-          </p>
+          <p className="line-clamp-1 text-[13px] font-semibold text-signal">{product}</p>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Video className="size-3" />
+              <span className="line-clamp-1">{contentHint}</span>
+            </span>
             <span className="inline-flex items-center gap-1">
               <MapPin className="size-3" />
               {campaign.remote ? "Remote OK" : campaign.location || "Nepal"}
             </span>
-            <span className="truncate">{campaign.platforms?.slice(0, 2).join(" · ") || campaign.types.slice(0, 2).join(" · ")}</span>
           </div>
 
-          <div className="flex items-start gap-2 rounded-2xl bg-accent px-3 py-2 text-[12px] text-accent-foreground">
-            <Gift className="mt-px size-3.5 shrink-0" />
-            <span className="line-clamp-2 font-medium">{reward}</span>
-          </div>
-
-          <div className="flex items-center justify-between pt-0.5">
+          <div className="flex items-center justify-between pt-1">
             <span
               className={cn(
                 "text-[12px] font-semibold",
-                left <= 0 ? "text-muted-foreground" : left <= 7 ? "text-signal" : "text-muted-foreground",
+                !open ? "text-muted-foreground" : left <= 7 ? "text-signal" : "text-muted-foreground",
               )}
             >
-              {left > 7
-                ? `${left} days left to apply`
-                : left > 0
-                  ? `Closes in ${left} day${left === 1 ? "" : "s"}`
-                  : "Applications closed"}
+              {!open
+                ? "Closed"
+                : left > 7
+                  ? `${left} days left`
+                  : left > 0
+                    ? `Closes in ${left}d`
+                    : "Closing soon"}
             </span>
-            <span className="text-[12.5px] font-semibold text-foreground group-hover:text-signal">
-              View details
+            <span className="text-[13px] font-bold text-foreground group-hover:text-signal">
+              {open ? "Claim deal →" : "View"}
             </span>
           </div>
         </div>
@@ -157,7 +124,7 @@ export function CampaignCard({
       {onToggleSave ? (
         <button
           type="button"
-          aria-label={saved ? "Remove from saved" : "Save campaign"}
+          aria-label={saved ? "Unsave" : "Save deal"}
           aria-pressed={saved}
           onClick={() => onToggleSave(campaign.id)}
           className="tap absolute right-3 top-3 flex size-9 items-center justify-center rounded-full bg-background/90 text-foreground backdrop-blur hover:bg-background active:scale-90"

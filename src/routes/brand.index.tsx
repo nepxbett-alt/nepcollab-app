@@ -63,7 +63,7 @@ function BrandDashboard() {
     return (
       <Container>
         <EmptyState
-          title="Brand workspace"
+          title="Your deals"
           body="This area is for brand accounts. Switch to a brand profile or open the creator home."
           actionLabel="Go to home"
           actionTo="/dashboard"
@@ -90,13 +90,13 @@ function BrandDashboard() {
   return (
     <Container>
       <div className="mb-5">
-        <p className="type-kicker text-muted-foreground">Brand workspace</p>
+        <p className="type-kicker text-muted-foreground">Your deals</p>
         <h1 className="mt-1.5 font-display text-[1.4rem] font-bold tracking-tight sm:text-[1.55rem]">
           {brand?.name ? brand.name : "Brand home"}
         </h1>
         <div className="valley-ridge mt-3 max-w-[4.5rem]" aria-hidden />
         <p className="mt-1 text-sm text-muted-foreground">
-          Campaigns, applicants, and deliverables in one place.
+          Your deals, claims, and completed content.
         </p>
       </div>
 
@@ -104,7 +104,7 @@ function BrandDashboard() {
         to="/brand/campaigns/new"
         className="tap mb-5 flex h-12 items-center justify-center gap-2 rounded-full bg-signal text-[15px] font-semibold text-signal-foreground hover:bg-signal/90"
       >
-        <Plus className="size-4" /> Create campaign
+        <Plus className="size-4" /> Post a deal
       </Link>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -185,7 +185,7 @@ function BrandDashboard() {
           <EmptyState
             title="Your first collaboration starts here"
             body="Publish a campaign and let creators come to you."
-            actionLabel="Create campaign"
+            actionLabel="Post a deal"
             actionTo="/brand/campaigns/new"
           />
         ) : (

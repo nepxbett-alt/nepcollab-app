@@ -15,7 +15,7 @@ import { toUserError } from "@/lib/user-error";
 export const Route = createFileRoute("/brand/campaigns/new")({
   head: () => ({
     meta: [
-      { title: "Create campaign — NepCollab" },
+      { title: "Post a deal — NepCollab" },
       {
         name: "description",
         content: "Offer a voucher or PR package. No cash on the platform.",
@@ -144,7 +144,7 @@ function NewCampaign() {
       } as Campaign & Record<string, unknown>;
 
       await addCampaign(campaign as Campaign);
-      toast.success("Campaign published — creators can apply");
+      toast.success("Deal posted — creators can apply");
       navigate({ to: "/brand/campaigns" });
     } catch (err: unknown) {
       toast.error(toUserError(err, "Could not publish. Try again."));
@@ -156,7 +156,7 @@ function NewCampaign() {
   return (
     <Container className="max-w-lg py-6">
       <PageHeader
-        title="Create campaign"
+        title="Post a deal"
         subtitle="Voucher or PR package only — NepCollab does not process cash."
       />
       <form onSubmit={(e) => void publish(e)} className="mt-6 space-y-5">
@@ -271,7 +271,7 @@ function NewCampaign() {
         </label>
 
         <Button type="submit" disabled={busy} className="h-12 w-full rounded-full text-base">
-          {busy ? "Publishing…" : "Publish campaign"}
+          {busy ? "Publishing…" : "Post deal"}
         </Button>
       </form>
     </Container>

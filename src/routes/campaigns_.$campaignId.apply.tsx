@@ -1,14 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, BadgeCheck, Lock } from "lucide-react";
+import { ArrowLeft, Gift, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Container } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { formatFollowers, getCreator } from "@/lib/lookup";
+import { getBrand, getCreator } from "@/lib/lookup";
 import { supabase } from "@/integrations/supabase/client";
 import { toUserError } from "@/lib/user-error";
 import { useStore } from "@/lib/store";
@@ -16,34 +13,23 @@ import { useStore } from "@/lib/store";
 export const Route = createFileRoute("/campaigns_/$campaignId/apply")({
   head: () => ({
     meta: [
-      { title: "Apply to campaign — NepCollab" },
-      {
-        name: "description",
-        content:
-          "Send your application to this campaign. Your creator profile is attached automatically.",
-      },
-      { property: "og:title", content: "Apply to campaign — NepCollab" },
-      {
-        property: "og:description",
-        content: "Add your idea and availability — the rest comes from your profile.",
-      },
+      { title: "Claim deal — NepCollab" },
+      { name: "description", content: "Claim this free product deal in one tap." },
     ],
   }),
-  component: ApplyPage,
+  component: ClaimPage,
 });
 
-function ApplyPage() {
+function ClaimPage() {
   const { campaignId } = Route.useParams();
   const navigate = useNavigate();
   const { campaigns, applyToCampaign, currentCreatorId, loading, signedIn, role } = useStore();
   const fromStore = campaigns.find((c) => c.id === campaignId);
-  const [fetched, setFetched] = useState<{ id: string; title: string; status?: string } | null>(null);
+  const [fetched, setFetched] = useState<(typeof campaigns)[number] | null>(null);
   const [fetching, setFetching] = useState(false);
-  const campaign = fromStore ?? (fetched ? ({ id: fetched.id, title: fetched.title, status: fetched.status } as (typeof campaigns)[number]) : undefined);
+  const campaign = fromStore ?? fetched ?? undefined;
   const creator = getCreator(currentCreatorId);
-  const [message, setMessage] = useState("");
-  const [contentIdea, setContentIdea] = useState("");
-  const [availability, setAvailability] = useState("");
+  const brand = campaign ? getBrand(campaign.brandId) : undefined;
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -53,11 +39,25 @@ function ApplyPage() {
     void (async () => {
       const { data } = await (supabase as any)
         .from("campaigns")
-        .select("id, title, status")
+        .select(
+          "id, brand_id, title, description, status, platforms, deliverables, perks, location, remote, creator_reward, gift_value",
+        )
         .eq("id", campaignId)
         .maybeSingle();
       if (!cancelled && data) {
-        setFetched({ id: data.id, title: data.title, status: data.status });
+        setFetched({
+          id: data.id,
+          brandId: data.brand_id,
+          title: data.title,
+          description: data.description || "",
+          status: data.status,
+          platforms: data.platforms || [],
+          deliverables: data.deliverables || [],
+          perks: data.perks || [],
+          location: data.location,
+          remote: data.remote,
+          giftValue: data.creator_reward || data.gift_value,
+        } as any);
       }
       if (!cancelled) setFetching(false);
     })();
@@ -68,9 +68,7 @@ function ApplyPage() {
 
   if ((loading || fetching) && !campaign) {
     return (
-      <Container className="py-16 text-center text-sm text-muted-foreground">
-        Loading…
-      </Container>
+      <Container className="py-16 text-center text-sm text-muted-foreground">Loading…</Container>
     );
   }
 
@@ -78,13 +76,14 @@ function ApplyPage() {
   const isOpen =
     !campaign?.status ||
     ["APPLICATIONS_OPEN", "ACTIVE", "PUBLISHED", "OPEN"].includes(statusKey);
+
   if (campaign && campaign.status && !isOpen) {
     return (
       <Container>
         <EmptyState
-          title="Applications closed"
-          body="This campaign is not accepting applications right now."
-          actionLabel="Browse campaigns"
+          title="Deal closed"
+          body="This deal is not accepting claims right now."
+          actionLabel="Browse deals"
           actionTo="/campaigns"
         />
       </Container>
@@ -95,16 +94,30 @@ function ApplyPage() {
     return (
       <Container>
         <EmptyState
-          title="Campaign not found"
-          body="This opportunity is no longer available."
-          actionLabel="Browse campaigns"
+          title="Deal not found"
+          body="This deal is no longer available."
+          actionLabel="Browse deals"
           actionTo="/campaigns"
         />
       </Container>
     );
   }
 
-  // Guests can browse campaigns freely; applying requires a verified account.
+  const product =
+    (campaign as any).benefit_title ||
+    campaign.giftValue?.trim() ||
+    (campaign.perks?.length ? campaign.perks[0] : null) ||
+    "Free product";
+
+  const contentHint =
+    campaign.deliverables?.length
+      ? campaign.deliverables
+          .slice(0, 3)
+          .map((d: any) => (typeof d === "string" ? d : d.title || d.contentType))
+          .filter(Boolean)
+          .join(" · ")
+      : campaign.types?.join(" · ") || campaign.platforms?.join(" · ") || "Social content";
+
   if (!signedIn) {
     const next = `/campaigns/${campaignId}/apply`;
     return (
@@ -114,40 +127,22 @@ function ApplyPage() {
           onClick={() => navigate({ to: "/campaigns/$campaignId", params: { campaignId } })}
           className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-4" /> Back to campaign
+          <ArrowLeft className="size-4" /> Back
         </button>
         <div className="rounded-3xl border border-border bg-card p-6 text-center">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-signal/12">
             <Lock className="size-5 text-signal" />
           </div>
-          <h1 className="mt-4 text-xl font-bold tracking-tight">Create an account to apply</h1>
+          <h1 className="mt-4 text-xl font-bold tracking-tight">Sign in to claim</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            You can browse every open campaign without signing in. To apply to{" "}
-            <strong className="text-foreground">{campaign.title}</strong>, create a creator account and
-            verify your email.
+            Create a free creator account to claim <strong className="text-foreground">{campaign.title}</strong>.
           </p>
-          <Button asChild size="lg" className="mt-6 h-11 w-full rounded-full">
-            <Link to="/auth" search={{ next } as never}>
-              Sign in / create account
+          <Button asChild size="lg" className="mt-6 h-12 w-full rounded-full">
+            <Link to="/auth" search={{ next, intent: "creator" } as never}>
+              Sign in
             </Link>
           </Button>
-          <Button asChild variant="ghost" className="mt-2 w-full rounded-full">
-            <Link to="/campaigns">Keep browsing campaigns</Link>
-          </Button>
         </div>
-      </Container>
-    );
-  }
-
-  if (!signedIn) {
-    return (
-      <Container>
-        <EmptyState
-          title="Sign in to apply"
-          body="Create a free creator account to apply. Your profile is attached automatically."
-          actionLabel="Sign in as creator"
-          actionTo="/auth"
-        />
       </Container>
     );
   }
@@ -156,9 +151,9 @@ function ApplyPage() {
     return (
       <Container>
         <EmptyState
-          title="Brands can't apply"
-          body="This flow is for creators. Open your brand workspace to review applicants instead."
-          actionLabel="Brand workspace"
+          title="Brands can't claim deals"
+          body="Open your brand workspace to review claims."
+          actionLabel="Brand deals"
           actionTo="/brand"
         />
       </Container>
@@ -168,118 +163,95 @@ function ApplyPage() {
   if (role === "admin") {
     return (
       <Container>
-        <EmptyState
-          title="Admin accounts don't apply"
-          body="Use a creator account to apply to campaigns."
-          actionLabel="Admin home"
-          actionTo="/admin"
-        />
+        <EmptyState title="Use a creator account" body="Admin accounts don't claim deals." actionLabel="Admin" actionTo="/admin" />
       </Container>
     );
   }
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const claim = async () => {
     if (busy) return;
-    if (message.trim().length < 20) {
-      toast.error("Tell the brand a little more — at least 20 characters.");
-      return;
-    }
     setBusy(true);
     try {
-      await applyToCampaign({ campaignId, message, contentIdea, availability });
-      toast.success("Application submitted — track status under Applications");
+      // Minimal message from profile — no pitch form
+      const autoNote = [
+        creator?.name ? `Creator: ${creator.name}` : null,
+        creator?.location ? `Location: ${creator.location}` : null,
+        "Claimed via NepCollab deals.",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      await applyToCampaign({
+        campaignId,
+        message: autoNote || "I'd like to claim this deal.",
+        contentIdea: "",
+        availability: "",
+      });
+      toast.success("Deal claimed — track it under My Deals");
       navigate({ to: "/applications" });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Could not submit application";
-      toast.error(msg);
+      toast.error(toUserError(err, "Could not claim this deal. Try again."));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Container className="max-w-2xl">
+    <Container className="max-w-md py-8">
       <button
         type="button"
         onClick={() => navigate({ to: "/campaigns/$campaignId", params: { campaignId } })}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="mb-5 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-4" /> Back to campaign
+        <ArrowLeft className="size-4" /> Back
       </button>
 
-      <h1 className="text-xl font-bold">Apply to this campaign</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{campaign.title}</p>
+      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-signal/12">
+          <Gift className="size-5 text-signal" />
+        </div>
+        <h1 className="mt-4 text-center font-display text-xl font-bold tracking-tight">
+          Claim this deal?
+        </h1>
+        <p className="mt-1 text-center text-sm text-muted-foreground">{brand?.name || "Brand"}</p>
 
-      <div className="mt-6 flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
-        <img
-          src={creator?.avatar}
-          alt={creator?.name}
-          className="size-12 rounded-full object-cover"
-        />
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 font-semibold">
-            {creator?.name}
-            {creator?.verified ? <BadgeCheck className="size-4 text-signal" /> : null}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">
-            {creator?.location} ·{" "}
-            {creator?.socials
-              .map((s) => `${s.platform} ${formatFollowers(s.followers)}`)
-              .join(" · ")}
-          </p>
-        </div>
-        <span className="ml-auto shrink-0 rounded-full bg-success/15 px-2.5 py-1 text-[11px] font-semibold text-success">
-          Auto-attached
-        </span>
-      </div>
-
-      <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-5">
-        <div>
-          <Label htmlFor="message">Why are you a good fit?</Label>
-          <Textarea
-            id="message"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={5}
-            maxLength={1000}
-            placeholder="I'm a Pokhara-based food creator with an audience interested in local restaurants..."
-            className="mt-2"
-          />
-        </div>
-        <div>
-          <Label htmlFor="idea">Your content idea (optional)</Label>
-          <Textarea
-            id="idea"
-            value={contentIdea}
-            onChange={(e) => setContentIdea(e.target.value)}
-            rows={3}
-            maxLength={600}
-            placeholder="Slow-motion plating cuts intercut with first-bite reactions."
-            className="mt-2"
-          />
-        </div>
-        <div>
-          <Label htmlFor="availability">Availability (optional)</Label>
-          <Input
-            id="availability"
-            value={availability}
-            onChange={(e) => setAvailability(e.target.value)}
-            maxLength={120}
-            placeholder="Any evening after Aug 28"
-            className="mt-2"
-          />
+        <div className="mt-5 space-y-3 rounded-2xl bg-secondary/60 p-4 text-sm">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Product
+            </p>
+            <p className="mt-0.5 font-semibold">{product}</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              You&apos;ll create
+            </p>
+            <p className="mt-0.5 font-medium">{contentHint}</p>
+          </div>
+          {creator?.name ? (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Claiming as
+              </p>
+              <p className="mt-0.5 font-medium">
+                {creator.name}
+                {creator.location ? ` · ${creator.location}` : ""}
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <Button
-          type="submit"
           size="lg"
+          className="mt-6 h-12 w-full rounded-full text-base font-bold"
           disabled={busy}
-          className="w-full rounded-full bg-signal text-signal-foreground hover:bg-signal/90"
+          onClick={() => void claim()}
         >
-          {busy ? "Submitting…" : "Submit application"}
+          {busy ? "Claiming…" : "CLAIM DEAL"}
         </Button>
-      </form>
+        <p className="mt-3 text-center text-[12px] text-muted-foreground">
+          The brand will review and approve. No long application.
+        </p>
+      </div>
     </Container>
   );
 }

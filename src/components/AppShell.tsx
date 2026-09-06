@@ -46,16 +46,9 @@ const creatorSections: NavSection[] = [
   {
     title: "Main",
     items: [
-      { to: "/dashboard", label: "Home", icon: Home },
-      { to: "/campaigns", label: "Discover", icon: Compass },
-      { to: "/applications", label: "Applications", icon: FileText, badgeKey: "applications" },
-    ],
-  },
-  {
-    title: "Work",
-    items: [
-      { to: "/collaborations", label: "Collaborations", icon: Handshake },
-      { to: "/messages", label: "Messages", icon: MessageCircle, badgeKey: "messages" },
+      { to: "/campaigns", label: "Deals", icon: Compass },
+      { to: "/applications", label: "My Deals", icon: FileText, badgeKey: "applications" },
+      { to: "/profile", label: "Profile", icon: User },
     ],
   },
 ];
@@ -64,16 +57,9 @@ const brandSections: NavSection[] = [
   {
     title: "Main",
     items: [
-      { to: "/brand", label: "Home", icon: Home },
-      { to: "/brand/campaigns", label: "Campaigns", icon: LayoutGrid },
-      { to: "/brand/applicants", label: "Applicants", icon: Users, badgeKey: "applications" },
-    ],
-  },
-  {
-    title: "Work",
-    items: [
-      { to: "/collaborations", label: "Collaborations", icon: Handshake },
-      { to: "/messages", label: "Messages", icon: MessageCircle, badgeKey: "messages" },
+      { to: "/brand", label: "Deals", icon: LayoutGrid },
+      { to: "/brand/applicants", label: "Claims", icon: Users, badgeKey: "applications" },
+      { to: "/profile", label: "Profile", icon: User },
     ],
   },
 ];
@@ -117,19 +103,15 @@ const adminSections: NavSection[] = [
 
 /** Mobile bottom tabs — keep to 5 for thumb reach */
 const creatorTabs: NavItem[] = [
-  { to: "/dashboard", label: "Home", icon: Home },
-  { to: "/campaigns", label: "Discover", icon: Compass },
-  { to: "/applications", label: "Apply", icon: FileText, badgeKey: "applications" },
-  { to: "/messages", label: "Chat", icon: MessageCircle, badgeKey: "messages" },
-  { to: "/profile", label: "You", icon: User },
+  { to: "/campaigns", label: "Deals", icon: Compass },
+  { to: "/applications", label: "My Deals", icon: FileText, badgeKey: "applications" },
+  { to: "/profile", label: "Profile", icon: User },
 ];
 
 const brandTabs: NavItem[] = [
-  { to: "/brand", label: "Home", icon: Home },
-  { to: "/brand/campaigns", label: "Campaigns", icon: LayoutGrid },
-  { to: "/brand/applicants", label: "Applicants", icon: Users, badgeKey: "applications" },
-  { to: "/messages", label: "Chat", icon: MessageCircle, badgeKey: "messages" },
-  { to: "/profile", label: "You", icon: User },
+  { to: "/brand", label: "Deals", icon: LayoutGrid },
+  { to: "/brand/applicants", label: "Claims", icon: Users, badgeKey: "applications" },
+  { to: "/profile", label: "Profile", icon: User },
 ];
 
 const adminTabs: NavItem[] = [
@@ -143,7 +125,7 @@ const adminTabs: NavItem[] = [
 /** Guest (signed-out) public exploration */
 const guestTabs: NavItem[] = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/campaigns", label: "Discover", icon: Compass },
+  { to: "/campaigns", label: "Deals", icon: Compass },
   { to: "/auth", label: "Sign in", icon: User },
 ];
 

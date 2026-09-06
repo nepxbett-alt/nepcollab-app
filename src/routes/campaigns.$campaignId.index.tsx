@@ -26,7 +26,7 @@ export const Route = createFileRoute("/campaigns/$campaignId/")({
       {
         name: "description",
         content:
-          "See campaign requirements, deliverables, perks and deadlines, then apply as a creator.",
+          "See the free product and required content, then claim the deal.",
       },
       { property: "og:title", content: "Campaign details — NepCollab" },
       {
@@ -296,7 +296,7 @@ function CampaignDetail() {
             >
               {left > 0
                 ? `Applications close in ${left} days — ${formatDate(campaign.deadline)}`
-                : "Applications closed"}
+                : "Deal closed"}
             </div>
 
             {application ? (
@@ -323,7 +323,7 @@ function CampaignDetail() {
                   to="/campaigns/$campaignId/apply"
                   params={{ campaignId: campaign.id }}
                 >
-                  {signedIn ? "Apply now" : "Apply — create account"}
+                  {signedIn ? "CLAIM DEAL" : "Claim — sign in"}
                 </Link>
               </Button>
             )}
@@ -430,7 +430,7 @@ function CampaignDetail() {
               params={{ campaignId: campaign.id }}
               className="tap flex h-12 flex-1 items-center justify-center rounded-full bg-signal text-[15px] font-semibold text-signal-foreground hover:bg-signal/90"
             >
-              {signedIn ? "Apply now" : "Apply — create account"}
+              {signedIn ? "CLAIM DEAL" : "Claim — sign in"}
             </Link>
           </div>
         </div>
