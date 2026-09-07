@@ -1,9 +1,6 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
+/** Legacy route — redirected for NepCollab V1 */
 export const Route = createFileRoute("/campaigns/$campaignId")({
-  component: CampaignLayout,
+  component: () => <Navigate to="/" />,
 });
-
-function CampaignLayout() {
-  return <Outlet />;
-}

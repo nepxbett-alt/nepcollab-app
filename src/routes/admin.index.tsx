@@ -1,203 +1,131 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { AdminGuard } from "@/components/AdminGuard";
 import { Container } from "@/components/AppShell";
-import { Input } from "@/components/ui/input";
 import {
-  fetchAdminStats,
-  fetchAuditLogs,
-  globalAdminSearch,
-  type AuditLog,
-} from "@/lib/admin";
+  fetchBusinessRequests,
+  STATUS_LABELS,
+  type BusinessRequest,
+  type RequestStatus,
+} from "@/lib/business-requests";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/")({
-  head: () => ({ meta: [{ title: "Admin — NepCollab" }] }),
   component: () => (
     <AdminGuard>
-      <AdminOverview />
+      <AdminHome />
     </AdminGuard>
   ),
 });
 
-function Stat({ label, value, to }: { label: string; value: number | string; to?: string }) {
-  const inner = (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:border-foreground/20">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
-    </div>
-  );
-  return to ? <Link to={to as any}>{inner}</Link> : inner;
-}
+function AdminHome() {
+  const [rows, setRows] = useState<BusinessRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | RequestStatus | "active">("new");
 
-function AdminOverview() {
-  const [stats, setStats] = useState<Awaited<ReturnType<typeof fetchAdminStats>> | null>(null);
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  const [q, setQ] = useState("");
-  const [searchResults, setSearchResults] = useState<{ users: any[]; campaigns: any[] } | null>(null);
+  const reload = async () => {
+    setLoading(true);
+    try {
+      setRows(await fetchBusinessRequests(150));
+    } catch (e: any) {
+      toast.error(e?.message || "Could not load requests");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [s, l] = await Promise.all([fetchAdminStats(), fetchAuditLogs(15)]);
-        setStats(s);
-        setLogs(l);
-      } catch (e: any) {
-        setErr(e?.message || "Failed to load admin stats");
-      }
-    })();
+    void reload();
   }, []);
 
-  useEffect(() => {
-    const t = setTimeout(async () => {
-      if (q.trim().length < 2) {
-        setSearchResults(null);
-        return;
-      }
-      try {
-        setSearchResults(await globalAdminSearch(q));
-      } catch {
-        /* ignore */
-      }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [q]);
+  const counts = useMemo(() => {
+    const c = { new: 0, active: 0, completed: 0, all: rows.length };
+    for (const r of rows) {
+      if (r.status === "new") c.new++;
+      if (["contacted", "in_progress", "matched"].includes(r.status)) c.active++;
+      if (r.status === "completed" || r.status === "closed") c.completed++;
+    }
+    return c;
+  }, [rows]);
+
+  const filtered = rows.filter((r) => {
+    if (filter === "all") return true;
+    if (filter === "active") return ["contacted", "in_progress", "matched"].includes(r.status);
+    return r.status === filter;
+  });
 
   return (
-    <Container className="space-y-8 py-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Admin Control Center</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Real operational control over NepCollab — users, campaigns, moderation, settings.
-          </p>
-        </div>
-        <Input
-          className="max-w-sm"
-          placeholder="Search users, campaigns…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+    <Container className="space-y-5 py-6">
+      <div>
+        <p className="type-kicker text-signal">Admin</p>
+        <h1 className="mt-1 font-display text-2xl font-bold tracking-tight">Requests</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Business briefs submitted from the public site.</p>
       </div>
 
-      {searchResults && (
-        <div className="rounded-2xl border border-border bg-card p-4 text-sm">
-          <p className="font-medium">Search results</p>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            <div>
-              <p className="text-xs text-muted-foreground">Users</p>
-              <ul className="mt-1 space-y-1">
-                {searchResults.users.map((u) => (
-                  <li key={u.id}>
-                    <Link className="text-primary underline" to="/admin/users" search={{ q: u.full_name || "" } as any}>
-                      {u.full_name || u.username || u.id.slice(0, 8)} ({u.role})
-                    </Link>
-                  </li>
-                ))}
-                {searchResults.users.length === 0 && <li className="text-muted-foreground">None</li>}
-              </ul>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Campaigns</p>
-              <ul className="mt-1 space-y-1">
-                {searchResults.campaigns.map((c) => (
-                  <li key={c.id}>
-                    <Link className="text-primary underline" to="/campaigns/$campaignId" params={{ campaignId: c.id }}>
-                      {c.title} ({c.status})
-                    </Link>
-                  </li>
-                ))}
-                {searchResults.campaigns.length === 0 && <li className="text-muted-foreground">None</li>}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {err && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          {err}
-          <p className="mt-1 text-xs opacity-80">
-            Ensure you are signed in as admin and the admin SQL migration has been applied.
-          </p>
-        </div>
-      )}
-
-      {stats && (
-        <>
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Users</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Stat label="Total users" value={stats.users} to="/admin/users" />
-              <Stat label="Creators" value={stats.creators} to="/admin/creators" />
-              <Stat label="Brands" value={stats.brands} to="/admin/brands" />
-              <Stat label="Admins" value={stats.admins} />
-              <Stat label="Verified" value={stats.verified} to="/admin/verification" />
-              <Stat label="Pending verification" value={stats.unverified} to="/admin/verification" />
-              <Stat label="Suspended" value={stats.suspended} to="/admin/users" />
-              <Stat label="New today / week" value={`${stats.newToday} / ${stats.newWeek}`} />
-            </div>
-          </section>
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Platform</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Stat label="Campaigns" value={stats.campaigns} to="/admin/campaigns" />
-              <Stat label="Active" value={stats.activeCampaigns} to="/admin/campaigns" />
-              <Stat label="Draft / completed" value={`${stats.draftCampaigns} / ${stats.completedCampaigns}`} />
-              <Stat label="Featured campaigns" value={stats.featuredCampaigns} to="/admin/content" />
-              <Stat label="Applications" value={stats.applications} to="/admin/applications" />
-              <Stat label="Pending apps" value={stats.pendingApplications} to="/admin/applications" />
-              <Stat label="Accepted apps" value={stats.acceptedApplications} />
-              <Stat label="Collaborations" value={stats.collaborations} to="/admin/collaborations" />
-              <Stat label="Active collabs" value={stats.activeCollabs} to="/admin/collaborations" />
-              <Stat label="Completed collabs" value={stats.completedCollabs} />
-              <Stat label="Open reports" value={stats.openReports} to="/admin/reports" />
-              <Stat label="Open disputes" value={stats.openDisputes} to="/admin/disputes" />
-              <Stat label="Pending verifications" value={stats.pendingVerifications} to="/admin/verification" />
-              <Stat label="New users 7d / 30d" value={`${stats.new7} / ${stats.new30}`} />
-              <Stat label="Campaign budget (NPR)" value={stats.totalBudgetNpr.toLocaleString()} />
-            </div>
-          </section>
-        </>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <section className="rounded-2xl border border-border bg-card p-5">
-          <h2 className="font-semibold">Operations</h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li><Link className="text-primary underline" to="/admin/verification">Verification queue</Link></li>
-            <li><Link className="text-primary underline" to="/admin/reports">Reports & moderation</Link></li>
-            <li><Link className="text-primary underline" to="/admin/disputes">Disputes</Link></li>
-            <li><Link className="text-primary underline" to="/admin/content">Featured content</Link></li>
-            <li><Link className="text-primary underline" to="/admin/settings">Platform settings</Link></li>
-            <li><Link className="text-primary underline" to="/admin/vouchers">Vouchers & gift cards</Link></li>
-            <li><Link className="text-primary underline" to="/admin/audit">Audit log</Link></li>
-          </ul>
-        </section>
-        <section className="rounded-2xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Recent audit activity</h2>
-            <Link to="/admin/audit" className="text-xs text-primary underline">View all</Link>
-          </div>
-          {logs.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">No audit entries yet.</p>
-          ) : (
-            <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto text-sm">
-              {logs.map((l) => (
-                <li key={l.id} className="flex justify-between gap-3 border-b border-border py-2 last:border-0">
-                  <span>
-                    <span className="font-medium">{l.action}</span>
-                    {l.target_type ? <span className="text-muted-foreground"> · {l.target_type}</span> : null}
-                  </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {l.created_at ? new Date(l.created_at).toLocaleString() : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {(
+          [
+            ["new", "New", counts.new],
+            ["active", "Active", counts.active],
+            ["completed", "Done", counts.completed],
+            ["all", "All", counts.all],
+          ] as const
+        ).map(([id, label, n]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setFilter(id)}
+            className={cn(
+              "rounded-2xl border p-3 text-left transition-colors",
+              filter === id ? "border-ink bg-ink text-ink-foreground" : "border-border bg-card",
+            )}
+          >
+            <p className="font-display text-xl font-bold">{n}</p>
+            <p className={cn("text-[11px]", filter === id ? "text-ink-foreground/70" : "text-muted-foreground")}>
+              {label}
+            </p>
+          </button>
+        ))}
       </div>
+
+      {loading ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">Loading requests…</p>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          No requests in this view yet.
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {filtered.map((r) => (
+            <li key={r.id}>
+              <Link
+                to="/admin/requests/$id"
+                params={{ id: r.id }}
+                className="tap block rounded-2xl border border-border bg-card p-4 transition-shadow hover:shadow-md"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{r.business_name}</p>
+                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                      {r.contact_name}
+                      {r.category ? ` · ${r.category}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold">
+                    {STATUS_LABELS[r.status]}
+                  </span>
+                </div>
+                <p className="mt-2 line-clamp-2 text-[13px] text-muted-foreground">{r.request_details}</p>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {new Date(r.created_at).toLocaleString()}
+                  {r.next_action ? ` · Next: ${r.next_action}` : ""}
+                </p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </Container>
   );
 }

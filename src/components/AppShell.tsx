@@ -46,9 +46,9 @@ const creatorSections: NavSection[] = [
   {
     title: "Main",
     items: [
-      { to: "/campaigns", label: "Deals", icon: Compass },
-      { to: "/applications", label: "My Deals", icon: FileText, badgeKey: "applications" },
-      { to: "/profile", label: "Profile", icon: User },
+      { to: "/", label: "Home", icon: Home },
+      { to: "/how-it-works", label: "How it works", icon: Compass },
+      { to: "/request", label: "Get started", icon: FileText },
     ],
   },
 ];
@@ -57,76 +57,45 @@ const brandSections: NavSection[] = [
   {
     title: "Main",
     items: [
-      { to: "/brand", label: "Deals", icon: LayoutGrid },
-      { to: "/brand/applicants", label: "Claims", icon: Users, badgeKey: "applications" },
-      { to: "/profile", label: "Profile", icon: User },
+      { to: "/", label: "Home", icon: Home },
+      { to: "/how-it-works", label: "How it works", icon: Compass },
+      { to: "/request", label: "Get started", icon: FileText },
     ],
   },
 ];
 
 const adminSections: NavSection[] = [
   {
-    title: "Overview",
+    title: "Operations",
     items: [
-      { to: "/admin", label: "Dashboard", icon: Shield },
-      { to: "/admin/users", label: "Users", icon: Users },
-      { to: "/admin/creators", label: "Creators", icon: User },
-      { to: "/admin/brands", label: "Brands", icon: Briefcase },
-    ],
-  },
-  {
-    title: "Marketplace",
-    items: [
-      { to: "/admin/campaigns", label: "Campaigns", icon: Compass },
-      { to: "/admin/applications", label: "Applications", icon: FileText },
-      { to: "/admin/collaborations", label: "Collaborations", icon: Handshake },
-      { to: "/admin/content", label: "Content", icon: LayoutGrid },
-    ],
-  },
-  {
-    title: "Trust & safety",
-    items: [
-      { to: "/admin/reports", label: "Reports", icon: Flag },
-      { to: "/admin/disputes", label: "Disputes", icon: Flag },
-      { to: "/admin/verification", label: "Verification", icon: Bell },
-    ],
-  },
-  {
-    title: "System",
-    items: [
-      { to: "/admin/vouchers", label: "Vouchers", icon: LayoutGrid },
-      { to: "/admin/settings", label: "Settings", icon: Settings },
-      { to: "/admin/audit", label: "Audit log", icon: FileText },
+      { to: "/admin", label: "Requests", icon: FileText },
     ],
   },
 ];
 
 /** Mobile bottom tabs — keep to 5 for thumb reach */
 const creatorTabs: NavItem[] = [
-  { to: "/campaigns", label: "Deals", icon: Compass },
-  { to: "/applications", label: "My Deals", icon: FileText, badgeKey: "applications" },
-  { to: "/profile", label: "Profile", icon: User },
+  { to: "/", label: "Home", icon: Home },
+  { to: "/how-it-works", label: "How", icon: Compass },
+  { to: "/request", label: "Start", icon: FileText },
 ];
 
 const brandTabs: NavItem[] = [
-  { to: "/brand", label: "Deals", icon: LayoutGrid },
-  { to: "/brand/applicants", label: "Claims", icon: Users, badgeKey: "applications" },
-  { to: "/profile", label: "Profile", icon: User },
+  { to: "/", label: "Home", icon: Home },
+  { to: "/how-it-works", label: "How", icon: Compass },
+  { to: "/request", label: "Start", icon: FileText },
 ];
 
 const adminTabs: NavItem[] = [
-  { to: "/admin", label: "Home", icon: Shield },
-  { to: "/admin/users", label: "Users", icon: Users },
-  { to: "/admin/campaigns", label: "Campaigns", icon: Compass },
-  { to: "/admin/reports", label: "Reports", icon: Flag },
-  { to: "/admin/settings", label: "Settings", icon: Settings },
+  { to: "/admin", label: "Requests", icon: FileText },
+  { to: "/auth", label: "Account", icon: User },
 ];
 
 /** Guest (signed-out) public exploration */
 const guestTabs: NavItem[] = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/campaigns", label: "Deals", icon: Compass },
-  { to: "/auth", label: "Sign in", icon: User },
+  { to: "/how-it-works", label: "How", icon: Compass },
+  { to: "/request", label: "Start", icon: FileText },
 ];
 
 
@@ -440,15 +409,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const badges = useNavBadges();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const sections =
-    role === "admin" ? adminSections : role === "brand" ? brandSections : creatorSections;
-  const tabs = !signedIn
-    ? guestTabs
-    : role === "admin"
-      ? adminTabs
-      : role === "brand"
-        ? brandTabs
-        : creatorTabs;
+  // V1: public product for everyone except admin ops
+  const sections = role === "admin" && signedIn ? adminSections : creatorSections;
+  const tabs =
+    role === "admin" && signedIn ? adminTabs : guestTabs;
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -469,7 +433,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         >
           <Link
-            to={signedIn ? (role === "admin" ? "/admin" : role === "brand" ? "/brand" : "/dashboard") : "/"}
+            to={signedIn && role === "admin" ? "/admin" : "/"}
             className={cn(
               "flex min-w-0 items-center",
               signedIn && "lg:pointer-events-none lg:opacity-0",
@@ -538,7 +502,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <div className="flex items-center px-5 pb-2 pt-5">
             <Link
-              to={role === "admin" ? "/admin" : role === "brand" ? "/brand" : "/dashboard"}
+              to={role === "admin" ? "/admin" : "/"}
               className="flex items-center"
               aria-label="NepCollab home"
             >

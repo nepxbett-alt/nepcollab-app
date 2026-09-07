@@ -351,11 +351,11 @@ function AuthPage() {
       <p className="relative z-0 mt-8 border-t border-border pt-4 text-center text-[12px] text-muted-foreground">
         Prefer a direct link?{" "}
         <a href="/auth?as=brand" className="font-medium text-signal underline-offset-2 hover:underline">
-          Sign in as brand
+          Sign in
         </a>
         {" · "}
         <a href="/auth?as=creator" className="font-medium text-signal underline-offset-2 hover:underline">
-          Sign in as creator
+          Sign in
         </a>
       </p>
     </Container>

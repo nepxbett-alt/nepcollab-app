@@ -53,15 +53,7 @@ export function AdminGuard({ children }: { children: ReactNode }) {
           title="Admin access required"
           body="Only authorized platform administrators can open this area."
           actionLabel={signedIn ? "Back to home" : "Sign in"}
-          actionTo={
-            !signedIn
-              ? "/auth"
-              : role === "brand"
-                ? "/brand"
-                : role === "admin"
-                  ? "/admin"
-                  : "/dashboard"
-          }
+          actionTo={!signedIn ? "/auth" : "/"}
         />
         <div className="mt-4 text-center">
           <Link to="/" className="text-sm text-primary underline">
