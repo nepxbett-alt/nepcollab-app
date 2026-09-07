@@ -30,5 +30,7 @@
         }
       ]
     }
-  ]
+  ],
+  "ignoreCommand": "exit 0",
+  "installCommand": "npm ci --no-audit --no-fund --prefer-offline"
 }
