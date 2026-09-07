@@ -55,11 +55,11 @@ const creatorSections: NavSection[] = [
 
 const brandSections: NavSection[] = [
   {
-    title: "Main",
+    title: "Business",
     items: [
-      { to: "/", label: "Home", icon: Home },
-      { to: "/how-it-works", label: "How it works", icon: Compass },
-      { to: "/request", label: "Get started", icon: FileText },
+      { to: "/brand", label: "Workspace", icon: Home },
+      { to: "/list-business", label: "List business", icon: FileText },
+      { to: "/", label: "Homepage", icon: Compass },
     ],
   },
 ];
@@ -68,7 +68,8 @@ const adminSections: NavSection[] = [
   {
     title: "Operations",
     items: [
-      { to: "/admin", label: "Requests", icon: FileText },
+      { to: "/admin", label: "Control center", icon: FileText },
+      { to: "/", label: "Public site", icon: Home },
     ],
   },
 ];
@@ -76,26 +77,26 @@ const adminSections: NavSection[] = [
 /** Mobile bottom tabs — keep to 5 for thumb reach */
 const creatorTabs: NavItem[] = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/how-it-works", label: "How", icon: Compass },
-  { to: "/request", label: "Start", icon: FileText },
+  { to: "/for-brands", label: "For business", icon: Building2 },
+  { to: "/list-business", label: "List", icon: FileText },
 ];
 
 const brandTabs: NavItem[] = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/how-it-works", label: "How", icon: Compass },
-  { to: "/request", label: "Start", icon: FileText },
+  { to: "/brand", label: "Workspace", icon: Home },
+  { to: "/list-business", label: "List", icon: FileText },
+  { to: "/", label: "Home", icon: Compass },
 ];
 
 const adminTabs: NavItem[] = [
-  { to: "/admin", label: "Requests", icon: FileText },
-  { to: "/auth", label: "Account", icon: User },
+  { to: "/admin", label: "Control", icon: FileText },
+  { to: "/", label: "Site", icon: Home },
 ];
 
 /** Guest (signed-out) public exploration */
 const guestTabs: NavItem[] = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/how-it-works", label: "How", icon: Compass },
-  { to: "/request", label: "Start", icon: FileText },
+  { to: "/for-brands", label: "For business", icon: Building2 },
+  { to: "/list-business", label: "List", icon: FileText },
 ];
 
 
@@ -410,9 +411,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   // V1: public product for everyone except admin ops
-  const sections = role === "admin" && signedIn ? adminSections : creatorSections;
+  const sections =
+    role === "admin" && signedIn
+      ? adminSections
+      : role === "brand" && signedIn
+        ? brandSections
+        : creatorSections;
   const tabs =
-    role === "admin" && signedIn ? adminTabs : guestTabs;
+    role === "admin" && signedIn
+      ? adminTabs
+      : role === "brand" && signedIn
+        ? brandTabs
+        : guestTabs;
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -433,7 +443,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         >
           <Link
-            to={signedIn && role === "admin" ? "/admin" : "/"}
+            to={signedIn && role === "admin" ? "/admin" : signedIn && role === "brand" ? "/brand" : "/"}
             className={cn(
               "flex min-w-0 items-center",
               signedIn && "lg:pointer-events-none lg:opacity-0",
@@ -502,7 +512,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <div className="flex items-center px-5 pb-2 pt-5">
             <Link
-              to={role === "admin" ? "/admin" : "/"}
+              to={role === "admin" ? "/admin" : role === "brand" ? "/brand" : "/"}
               className="flex items-center"
               aria-label="NepCollab home"
             >
