@@ -7,7 +7,7 @@ export const Route = createFileRoute("/how-it-works")({
       { title: "How it works — NepCollab" },
       {
         name: "description",
-        content: "How NepCollab helps businesses work with creators for campaigns and content.",
+        content: "How businesses and creators work with NepCollab.",
       },
     ],
   }),
@@ -17,23 +17,23 @@ export const Route = createFileRoute("/how-it-works")({
 function HowItWorks() {
   return (
     <Container className="max-w-lg py-8">
-      <PageHeader title="How it works" subtitle="Simple process. Real support." />
+      <PageHeader title="How it works" subtitle="Businesses list. Creators register. Admin matches." />
       <div className="mt-6 space-y-4">
         {[
           {
             n: "1",
-            t: "Tell us what you need",
-            b: "Submit your business request: what you are promoting, the content you want, and your timeline.",
+            t: "Business lists",
+            b: "Submit a short profile. After admin approval, the business appears on the homepage.",
           },
           {
             n: "2",
-            t: "NepCollab finds the right fit",
-            b: "Our team reviews your brief and identifies creators who match your category, audience and style.",
+            t: "Creators get notified",
+            b: "Active creators see an alert in their space when a new business is published.",
           },
           {
             n: "3",
-            t: "Launch your campaign",
-            b: "We help coordinate next steps so your collaboration moves from brief to published content.",
+            t: "Admin matches & closes",
+            b: "Admin proposes creators. Brand selects. Admin notifies the creator and the deal moves forward.",
           },
         ].map((s) => (
           <div key={s.n} className="rounded-3xl border border-border bg-card p-5">
@@ -43,12 +43,20 @@ function HowItWorks() {
           </div>
         ))}
       </div>
-      <Link
-        to="/request"
-        className="tap mt-8 flex h-12 items-center justify-center rounded-full bg-ink text-[15px] font-bold text-ink-foreground"
-      >
-        Get started
-      </Link>
+      <div className="mt-8 grid gap-2 sm:grid-cols-2">
+        <Link
+          to="/list-business"
+          className="tap flex h-12 items-center justify-center rounded-full bg-ink text-sm font-bold text-ink-foreground"
+        >
+          List business
+        </Link>
+        <Link
+          to="/join-creator"
+          className="tap flex h-12 items-center justify-center rounded-full border border-border text-sm font-bold"
+        >
+          Join as creator
+        </Link>
+      </div>
     </Container>
   );
 }

@@ -22,6 +22,7 @@ import {
   type BusinessListing,
   type DealAssignment,
 } from "@/lib/listings";
+import { adminNotifyCreatorsAboutListing } from "@/lib/creators-registry";
 
 export const Route = createFileRoute("/admin/listings/$id")({
   component: () => (
@@ -222,6 +223,33 @@ function ListingAdmin() {
           </Button>
           <Button disabled={busy} variant="outline" className="rounded-full" onClick={() => void pause()}>
             Remove from homepage
+          </Button>
+          <Button
+            disabled={busy}
+            variant="outline"
+            className="rounded-full"
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                try {
+                  await adminUpdateListing(id, { status: "listed", show_on_homepage: true });
+                  await adminNotifyCreatorsAboutListing({
+                    listing_id: id,
+                    business_name: row.business_name,
+                    category: row.category,
+                    location: row.location,
+                  });
+                  toast.success("On homepage + creators notified");
+                  await reload();
+                } catch (e: any) {
+                  toast.error(e?.message || "Failed");
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            Publish & notify creators
           </Button>
         </div>
       </section>

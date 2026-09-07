@@ -45,11 +45,11 @@ type NavSection = {
 
 const creatorSections: NavSection[] = [
   {
-    title: "Main",
+    title: "Creator",
     items: [
-      { to: "/", label: "Home", icon: Home },
-      { to: "/how-it-works", label: "How it works", icon: Compass },
-      { to: "/request", label: "Get started", icon: FileText },
+      { to: "/creator", label: "Creator space", icon: Home },
+      { to: "/", label: "Homepage", icon: Compass },
+      { to: "/join-creator", label: "Register", icon: Users },
     ],
   },
 ];
@@ -77,27 +77,27 @@ const adminSections: NavSection[] = [
 
 /** Mobile bottom tabs — keep to 5 for thumb reach */
 const creatorTabs: NavItem[] = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/for-brands", label: "For business", icon: Building2 },
-  { to: "/list-business", label: "List", icon: FileText },
+  { to: "/creator", label: "Space", icon: Home },
+  { to: "/", label: "Home", icon: Compass },
+  { to: "/join-creator", label: "Register", icon: Users },
 ];
 
 const brandTabs: NavItem[] = [
   { to: "/brand", label: "Workspace", icon: Home },
-  { to: "/list-business", label: "List", icon: FileText },
   { to: "/", label: "Home", icon: Compass },
+  { to: "/list-business", label: "List", icon: Building2 },
 ];
 
 const adminTabs: NavItem[] = [
-  { to: "/admin", label: "Control", icon: FileText },
+  { to: "/admin", label: "Control", icon: Shield },
   { to: "/", label: "Site", icon: Home },
 ];
 
 /** Guest (signed-out) public exploration */
 const guestTabs: NavItem[] = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/for-brands", label: "For business", icon: Building2 },
-  { to: "/list-business", label: "List", icon: FileText },
+  { to: "/list-business", label: "Business", icon: Building2 },
+  { to: "/join-creator", label: "Creator", icon: Users },
 ];
 
 
@@ -417,13 +417,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       ? adminSections
       : role === "brand" && signedIn
         ? brandSections
-        : creatorSections;
+        : role === "creator" && signedIn
+          ? creatorSections
+          : creatorSections;
   const tabs =
     role === "admin" && signedIn
       ? adminTabs
       : role === "brand" && signedIn
         ? brandTabs
-        : guestTabs;
+        : role === "creator" && signedIn
+          ? creatorTabs
+          : guestTabs;
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -444,7 +448,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         >
           <Link
-            to={signedIn && role === "admin" ? "/admin" : signedIn && role === "brand" ? "/brand" : "/"}
+            to={signedIn && role === "admin" ? "/admin" : signedIn && role === "brand" ? "/brand" : signedIn && role === "creator" ? "/creator" : "/"}
             className={cn(
               "flex min-w-0 items-center",
               signedIn && "lg:pointer-events-none lg:opacity-0",
@@ -513,7 +517,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <div className="flex items-center px-5 pb-2 pt-5">
             <Link
-              to={role === "admin" ? "/admin" : role === "brand" ? "/brand" : "/"}
+              to={role === "admin" ? "/admin" : role === "brand" ? "/brand" : role === "creator" ? "/creator" : "/"}
               className="flex items-center"
               aria-label="NepCollab home"
             >
