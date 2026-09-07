@@ -16,15 +16,28 @@ var __exportAll = (all, no_symbols) => {
 };
 `;
 
+let fixed = 0;
 for (const file of readdirSync(dir)) {
-  if (!file.startsWith("server-") || !file.endsWith(".mjs")) continue;
+  if (!file.endsWith(".mjs")) continue;
   const path = join(dir, file);
   let text = readFileSync(path, "utf8");
-  const re = /import \{ n as __exportAll \} from "\.\/server-[^"]+\.mjs";/;
-  if (!re.test(text)) continue;
-  text = text.replace(re, helper);
-  writeFileSync(path, text);
-  console.log("[patch-ssr-exportall] fixed", file);
+  // Circular: router (and others) import __exportAll from server-*.mjs
+  const reImport = /import \{\s*\w+\s+as\s+__exportAll\s*\}\s+from\s+"\.\/server-[^"]+\.mjs";\s*/;
+  if (reImport.test(text)) {
+    text = text.replace(reImport, helper);
+    writeFileSync(path, text);
+    console.log("[patch-ssr-exportall] inlined import in", file);
+    fixed++;
+    continue;
+  }
+  // Older pattern
+  const reOld = /import \{ n as __exportAll \} from "\.\/server-[^"]+\.mjs";/;
+  if (reOld.test(text)) {
+    text = text.replace(reOld, helper);
+    writeFileSync(path, text);
+    console.log("[patch-ssr-exportall] fixed", file);
+    fixed++;
+  }
 }
 
 const cfg = ".vercel/output/functions/__server.func/.vc-config.json";
@@ -33,3 +46,5 @@ if (existsSync(cfg)) {
   j.runtime = "nodejs22.x";
   writeFileSync(cfg, JSON.stringify(j) + "\n");
 }
+
+console.log("[patch-ssr-exportall] done, fixed=", fixed);
