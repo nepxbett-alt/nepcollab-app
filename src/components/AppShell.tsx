@@ -2,6 +2,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   Bell,
   Briefcase,
+  Building2,
   ChevronDown,
   Compass,
   FileText,
